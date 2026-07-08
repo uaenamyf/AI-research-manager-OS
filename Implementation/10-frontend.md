@@ -1,5 +1,7 @@
 # 10 - 前端实现（Next.js）
 
+> **实现状态**：API 客户端层、类型定义、布局/业务组件、7 Feature 页面骨架均已生成。工程配置文件（package.json/tailwind.config/next.config 等）待用脚手架初始化。
+
 ## 目录结构
 
 ```
@@ -61,3 +63,66 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return res.json();
 }
 ```
+
+## 已实现文件清单
+
+### 类型层 `src/types/`
+- `index.ts` - 全部 API 契约类型（User/Project/Paper/Chat/Review/ApiResponse/Page）
+
+### API 客户端层 `src/lib/api/`
+- `client.ts` - 统一 apiFetch 封装（cookie + 统一响应解析 + ApiError）
+- `auth.ts` - F1 认证（register/login/logout/getCurrentUser/Google OAuth URL）
+- `projects.ts` - F2 Project CRUD
+- `papers.ts` - F3/F4 论文上传（presigned POST 三步）/详情/列表/状态轮询/删除
+- `chat.ts` - F5 Paper Chat（SSE 流式 + 非流式 + 历史）
+- `knowledge.ts` - F6 Knowledge Base（标签/搜索）
+- `reviews.ts` - F7 Review 生成（异步 + 轮询）
+- `index.ts` - 统一导出
+
+### Hooks `src/lib/hooks/`
+- `usePaperStatus.ts` - 论文分析状态轮询
+- `useChatStream.ts` - 流式聊天状态管理 + 取消
+
+### 状态管理 `src/stores/`
+- `ui.ts` - 侧边栏开合、当前项目
+- `auth.ts` - 当前登录用户
+
+### 布局组件 `src/components/layout/`
+- `AppShell.tsx` - 侧边栏 + 主内容区外壳
+- `Sidebar.tsx` - 侧边导航
+- `Header.tsx` - 顶栏（侧边栏开关 + 用户信息）
+
+### 业务组件 `src/components/paper/`
+- `PaperCard.tsx` - Paper Intelligence Card 展示
+- `CardField.tsx` - Card 字段
+- `PaperStatusBadge.tsx` - 论文状态徽章
+- `PaperUploader.tsx` - PDF 上传（presigned POST 三步）
+- `PdfViewer.tsx` - PDF 阅读器（react-pdf 占位）
+- `ChatPanel.tsx` - 流式问答面板
+
+### 基础 UI `src/components/ui/`
+- `index.tsx` - Button/Input/Textarea/Card/Spinner/Badge（shadcn 风格轻量实现）
+
+### 页面 `src/app/`
+- `layout.tsx` + `globals.css` - 根布局
+- `page.tsx` - 根页面重定向到 dashboard
+- `(auth)/login/page.tsx` - F1 登录
+- `(auth)/register/page.tsx` - F1 注册
+- `dashboard/page.tsx` - 仪表盘（项目/论文/统计）
+- `projects/page.tsx` - F2 项目列表 + 创建
+- `projects/[id]/page.tsx` - F2/F3 项目详情 + 论文列表 + 上传
+- `papers/[id]/page.tsx` - F4 Paper Workspace（PDF + Card 双栏）
+- `papers/[id]/chat/page.tsx` - F5 Paper Chat
+- `knowledge/page.tsx` - F6 知识库（标签 + 搜索）
+- `writing/page.tsx` - F7 Review Generator（选论文 + 生成）
+- `settings/page.tsx` - 账户 + 订阅档位
+
+## 待办（工程配置）
+
+以下文件需用 `create-next-app` 或手动初始化后补全：
+- `package.json`（依赖：next/react/zustand/@tanstack/react-query/react-pdf）
+- `tsconfig.json`（配置 `@/*` 路径别名）
+- `tailwind.config.ts` + `postcss.config.js`
+- `next.config.ts`
+- `.eslintrc.json` + `.gitignore`
+- `components.json`（shadcn/ui 配置，可选）

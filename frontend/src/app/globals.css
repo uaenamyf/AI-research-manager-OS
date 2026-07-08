@@ -1,0 +1,7 @@
+/**
+ * 全局样式（Tailwind 指令 + shadcn 变量占位）。
+ * 工程配置文件（tailwind.config / postcss.config）后续由脚手架生成时补全。
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
