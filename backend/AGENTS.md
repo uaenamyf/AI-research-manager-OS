@@ -17,30 +17,22 @@
 
 ## 目录职责
 
+采用**扁平包结构**（按角色而非业务域组织），所有 controller/service/mapper/entity/dto 各放一个包：
+
 ```
 src/main/java/com/researchos/
-├── config/          # SecurityConfig、RedisConfig、RabbitConfig、CorsConfig
-├── common/          # 统一响应 ApiResponse、全局异常、分页
-├── user/            # 用户 CRUD（controller/service/mapper/entity/dto）
-├── auth/            # JWT、OAuth、登录注册
-├── project/         # Research Project CRUD
-├── paper/           # 论文 CRUD + 状态管理
-├── file/            # S3 上传、signed URL 签发
-├── aitask/          # AI 任务下发到 MQ + 接收 ai-service 回调
-├── chat/            # Paper Chat，转发 ai-service SSE 流
-└── subscription/    # Stripe 订阅、额度校验
+├── controller/    # 所有 REST 端点（8个 Controller）
+├── service/       # 所有业务逻辑（9个 Service）
+├── mapper/        # 所有 MyBatis-Plus 数据访问（5个 Mapper）
+├── entity/        # 所有数据库实体（5个 Entity）
+├── dto/           # 所有请求/响应 DTO（14个 DTO）
+├── security/      # JWT、UserPrincipal、CurrentUserResolver
+├── config/        # SecurityConfig、RabbitConfig、MybatisPlusConfig、AppProperties、WebConfig
+├── common/        # 统一响应 ApiResponse、全局异常、分页（common.response / common.exception）
+└── ResearchOsApplication.java
 ```
 
-## 模块分层约定（每个业务模块统一）
-
-```
-xxx/
-├── controller/   # REST 端点，只做参数校验与调度，不含业务逻辑
-├── service/       # 业务逻辑，所有查询带 userId
-├── mapper/        # MyBatis-Plus 数据访问
-├── entity/        # 数据库实体
-└── dto/           # 请求/响应 DTO
-```
+> 扁平结构的好处：目录少、找文件快，适合单人开发。业务域通过类名前缀区分（如 `PaperService`/`ProjectService`）。
 
 ## 关键约定
 

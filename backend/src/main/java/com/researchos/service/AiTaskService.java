@@ -1,0 +1,98 @@
+package com.researchos.service;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.researchos.dto.AiTaskMessage;
+import com.researchos.dto.ReviewGenerateRequest;
+import com.researchos.entity.AiTask;
+import com.researchos.mapper.AiTaskMapper;
+import com.researchos.common.exception.BusinessException;
+import com.researchos.common.exception.ErrorCode;
+import com.researchos.config.RabbitConfig;
+import com.researchos.service.PaperService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * AI 任务服务：创建任务、发 MQ、回调更新。
+ *
+ * @author myf
+ * @since 2026-07-08
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AiTaskService extends ServiceImpl<AiTaskMapper, AiTask> {
+
+    private final RabbitTemplate rabbitTemplate;
+    private final PaperService paperService;
+
+    /**
+     * 创建综述任务 + 发 MQ。
+     */
+    @Transactional
+    public Long createReviewTask(Long userId, ReviewGenerateRequest req) {
+        // 校验论文归属
+        for (Long paperId : req.getPaperIds()) {
+            paperService.requirePaperOwnedBy(paperId, userId);
+        }
+
+        AiTask task = new AiTask();
+        task.setUserId(userId);
+        task.setType("REVIEW_GENERATION");
+        task.setStatus("PENDING");
+        task.setCreatedTime(LocalDateTime.now());
+        save(task);
+
+        rabbitTemplate.convertAndSend(
+                RabbitConfig.EXCHANGE_AI_TASK,
+                RabbitConfig.ROUTING_REVIEW_GENERATE,
+                new AiTaskMessage(task.getTaskId(), "REVIEW_GENERATION",
+                        Map.of("paperIds", req.getPaperIds(), "topic", req.getTopic())));
+
+        return task.getTaskId();
+    }
+
+    /**
+     * 获取任务（校验归属）。
+     */
+    public AiTask requireTaskOwnedBy(Long taskId, Long userId) {
+        AiTask task = getById(taskId);
+        if (task == null || !task.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        return task;
+    }
+
+    /**
+     * 回调：更新任务结果。
+     */
+    @Transactional
+    public void updateTaskResult(Long taskId, Map<String, Object> result,
+                                 String status, String error) {
+        AiTask task = getById(taskId);
+        if (task == null) {
+            log.warn("回调任务不存在: {}", taskId);
+            return;
+        }
+        task.setResult(result);
+        task.setStatus(status);
+        task.setError(error);
+        updateById(task);
+    }
+
+    /**
+     * 监听 DLQ：任务失败。
+     */
+    @org.springframework.amqp.rabbit.annotation.RabbitListener(queues = RabbitConfig.QUEUE_DLQ)
+    public void handleDlq(AiTaskMessage msg) {
+        log.error("任务进入 DLQ: {}", msg);
+        updateTaskResult(msg.getTaskId(), null, "FAILED", "消费失败超过重试次数");
+    }
+}

@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: researchos-backend
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:researchos}
+    username: ${DB_USER:researchos}
+    password: ${DB_PASS:researchos}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:guest}
+    password: ${RABBIT_PASS:guest}
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
+    access-ttl: 30m
+    refresh-ttl: 7d
+  storage:
+    type: ${STORAGE_TYPE:s3}
+    bucket: ${STORAGE_BUCKET:researchos-pdfs}
+    region: ${STORAGE_REGION:us-east-1}
+    access-key: ${STORAGE_KEY:}
+    secret-key: ${STORAGE_SECRET:}
+    endpoint: ${STORAGE_ENDPOINT:}
+  ai-service:
+    base-url: ${AI_SERVICE_URL:http://localhost:8000}
+    internal-token: ${INTERNAL_TOKEN:dev-internal-token}
+  oauth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+
+server:
+  port: 8080

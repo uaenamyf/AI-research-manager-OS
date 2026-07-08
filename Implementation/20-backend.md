@@ -2,37 +2,27 @@
 
 ## 目录结构
 
+采用**扁平包结构**（按角色而非业务域组织）：
+
 ```
 backend/
 ├── src/main/java/com/researchos/
-│   ├── ResearchOsApplication.java
-│   ├── config/              # SecurityConfig、RedisConfig、RabbitConfig、CorsConfig
-│   ├── common/              # 统一响应、异常处理、分页
-│   ├── user/                # entity / mapper / service / controller
-│   ├── auth/                # JWT、OAuth、登录注册
-│   ├── project/
-│   ├── paper/               # paper CRUD
-│   ├── file/                # S3 上传、signed URL
-│   ├── aitask/              # AI 任务下发与回调
-│   ├── chat/                # Paper Chat（转发 ai-service，SSE）
-│   └── subscription/        # Stripe、额度校验
+│   ├── ResearchOsApplication.java   # 应用入口（@MapperScan("com.researchos.mapper")）
+│   ├── controller/     # 所有 REST 端点（8个）
+│   ├── service/        # 所有业务逻辑（9个）
+│   ├── mapper/         # 所有 MyBatis-Plus 数据访问（5个）
+│   ├── entity/         # 所有数据库实体（5个）
+│   ├── dto/            # 所有请求/响应 DTO（14个）
+│   ├── security/       # JWT、UserPrincipal、CurrentUserResolver
+│   ├── config/         # SecurityConfig、RabbitConfig、MybatisPlusConfig、AppProperties、WebConfig
+│   └── common/         # 统一响应（common.response）/ 异常（common.exception）
 ├── src/main/resources/
 │   ├── application.yml
-│   ├── mapper/              # MyBatis XML
-│   └── db/migration/        # Flyway 迁移脚本 V1__init.sql
+│   └── db/migration/   # Flyway 迁移脚本 V1__init.sql
 └── pom.xml
 ```
 
-## 模块分层约定（每个业务模块统一）
-
-```
-xxx/
-├── controller/   # REST 端点，只做参数校验与调度
-├── service/       # 业务逻辑
-├── mapper/        # MyBatis-Plus 数据访问
-├── entity/        # 数据库实体
-└── dto/           # 请求/响应 DTO
-```
+> 扁平结构的好处：目录少、找文件快，适合单人开发。业务域通过类名前缀区分。
 
 ## 关键组件
 
