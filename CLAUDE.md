@@ -2,7 +2,9 @@
 
 > 本文件是 Claude Code 在本仓库工作时的**强制规范**。所有代码生成、重构、提交必须遵守。
 >
-> 项目详见 `plan.md`（产品规划）与 `IMPLEMENTATION.md`（实现方案）。本文件只规定**怎么做**，不规定做什么。
+> 项目详见 `plan.md`（产品规划）与 `Implementation/` 文件夹（实现方案，按服务拆分，入口见 `Implementation/README.md`）。本文件只规定**怎么做**，不规定做什么。
+>
+> 各服务目录下有专属 `AGENTS.md`（`frontend/AGENTS.md`、`backend/AGENTS.md`、`ai-service/AGENTS.md`），规定该服务的模块约束，开发对应服务前必读。
 
 ---
 
@@ -22,16 +24,18 @@
 
 ```
 ai-research-os/
-├── frontend/      # Next.js 15 + TS
-├── backend/       # Spring Boot 3 + Java 21
-├── ai-service/    # FastAPI + Python 3.12
-├── infra/         # docker-compose、部署脚本
-├── docs/
-├── plan.md
-├── IMPLEMENTATION.md
-├── CLAUDE.md      # 本文件（规范）
-└── AGENTS.md      # 多 agent 协作规范
+├── frontend/          # Next.js 15 + TS（见 frontend/AGENTS.md）
+├── backend/           # Spring Boot 3 + Java 21（见 backend/AGENTS.md）
+├── ai-service/        # FastAPI + Python 3.12（见 ai-service/AGENTS.md）
+├── infra/             # docker-compose、部署脚本
+├── docs/              # 架构文档、API 文档
+├── Implementation/    # 实现方案文件夹（README.md 为索引，按服务拆分子文档）
+├── plan.md            # 产品规划
+├── CLAUDE.md          # 本文件（全局编码规范）
+└── AGENTS.md          # 多 agent 协作规范
 ```
+
+> 每个服务目录下的 `AGENTS.md` 是该服务的模块级约束，与本文件配合使用：本文件管全局，模块 AGENTS.md 管服务内细节。
 
 ---
 
@@ -179,7 +183,7 @@ Java：
 - 不留 TODO 不跟踪；所有 TODO 必须附 issue 号或日期。
 - 禁止提交 `console.log` / `print` 调试语句到主分支。
 - 函数单职责，超过 80 行考虑拆分。
-- 新增依赖必须在 `IMPLEMENTATION.md` 技术栈表更新并说明原因。
+- 新增依赖必须在 `Implementation/00-overview.md` 技术栈表更新并说明原因。
 
 ---
 
@@ -231,7 +235,7 @@ docs: 更新 IMPLEMENTATION Sprint 2 任务
 - [ ] service 查询是否都带了 `user_id` 过滤？
 - [ ] frontend 是否绕过 backend 直连了 ai-service 或数据库？
 - [ ] ai-service 是否直接写了业务表（paper/user/task）？
-- [ ] 新增依赖是否更新了 `IMPLEMENTATION.md` 技术栈表？
+- [ ] 新增依赖是否更新了 `Implementation/00-overview.md` 技术栈表？
 - [ ] 敏感信息是否硬编码？
 - [ ] changelog 是否写在了文件头而不是改动处上方？
 

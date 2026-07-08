@@ -4,7 +4,9 @@
 >
 > 适用于：开发者、AI 编程助手（Claude Code 等）、子 agent 派发。
 >
-> 配套 `CLAUDE.md`（编码规范）与 `IMPLEMENTATION.md`（实现方案）使用。
+> 配套 `CLAUDE.md`（编码规范）与 `Implementation/` 文件夹（实现方案，入口见 `Implementation/README.md`）使用。
+>
+> 各服务目录下的 `AGENTS.md`（`frontend/AGENTS.md`、`backend/AGENTS.md`、`ai-service/AGENTS.md`）是该服务的模块级约束，开发对应服务前必读。
 
 ---
 
@@ -165,7 +167,7 @@
 修改影响契约时，必须按顺序进行，**不可单边修改**：
 
 1. **提案**：在 `docs/` 或 PR 描述中说明契约变更（新增字段/改路由/改消息格式）。
-2. **先改契约文档**：更新 `IMPLEMENTATION.md` 对应章节。
+2. **先改契约文档**：更新 `Implementation/` 下对应子文档（契约争议见 `50-api-contracts.md` / `70-async-mq.md` / `80-security.md`）。
 3. **同步改双方代码**：backend 与 ai-service（或 frontend 与 backend）同步修改。
 4. **补测试**：契约双方都要有对应测试（backend 测调用、ai-service 测接收）。
 5. **联调验证**：docker-compose 起全栈，跑通端到端流程。
@@ -266,7 +268,7 @@ PENDING -> PROCESSING -> SUCCESS
 - `main` 保护，只通过 PR 合入。
 - 分支命名：`feat/<scope>-<desc>`、`fix/<scope>-<desc>`。
 - 一个 PR 尽量只改一个服务；跨服务改动拆多个 PR 但同批合。
-- PR 描述必须包含：改了什么契约、是否更新 `IMPLEMENTATION.md`、测试情况。
+- PR 描述必须包含：改了什么契约、是否更新 `Implementation/` 对应文档、测试情况。
 
 ## 9.2 代码审查 checklist
 
@@ -279,7 +281,7 @@ PENDING -> PROCESSING -> SUCCESS
 
 ## 9.3 沟通
 
-- 契约争议以 `IMPLEMENTATION.md` 为准；如需变更，先改文档再改代码。
+- 契约争议以 `Implementation/` 文件夹为准；如需变更，先改文档再改代码。
 - 不确定归属时，按「数据归属方决定」原则：业务数据归 backend，AI 数据归 ai-service。
 
 ---
