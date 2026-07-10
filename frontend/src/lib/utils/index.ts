@@ -1,5 +1,12 @@
 ﻿/** 前端通用工具函数。 */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { PaperStatus } from "@/types";
+
+/** classnames 合并，处理 Tailwind className 冲突 */
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
+}
 
 /** 格式化日期 */
 export function formatDate(iso: string | undefined): string {
@@ -34,13 +41,6 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** classnames 简易实现 */
-export function cn(
-  ...args: (string | undefined | null | false)[]
-): string {
-  return args.filter(Boolean).join(" ");
 }
 
 /** 延时 */

@@ -1,0 +1,59 @@
+# date: 2026-07-10
+# dev: myf
+"""FastAPI 应用入口：路由注册、生命周期、健康检查。"""
+
+from contextlib import asynccontextmanager
+
+import asyncpg
+from fastapi import FastAPI
+from loguru import logger
+
+from app.api.routes import chat, paper, review
+from app.core.config import settings
+from app.models import HealthResponse
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期：启动时初始化资源，关闭时释放。"""
+    # ── 启动 ──
+    logger.info("启动 ai-service...")
+    logger.info(f"DATABASE_URL={settings.DATABASE_URL.split('@')[-1]}")
+    logger.info(f"LLM_PROVIDER={settings.LLM_PROVIDER}")
+
+    # 数据库连接池
+    app.state.db_pool = await asyncpg.create_pool(
+        dsn=settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://"),
+        min_size=2,
+        max_size=10,
+    )
+    logger.info("数据库连接池已初始化")
+
+    yield
+
+    # ── 关闭 ──
+    if hasattr(app.state, "db_pool") and app.state.db_pool:
+        await app.state.db_pool.close()
+        logger.info("数据库连接池已关闭")
+
+    logger.info("ai-service 已停止")
+
+
+app = FastAPI(
+    title="ResearchOS AI Service",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health():
+    """健康检查端点（无需鉴权，供 K8s/Docker 探活）。"""
+    return HealthResponse(status="ok", version="0.1.0")
+
+
+# ── 路由注册 ──
+# 所有业务路由都挂内部鉴权依赖（在路由模块内声明）
+app.include_router(paper.router, prefix="/paper", tags=["paper"])
+app.include_router(chat.router, prefix="/rag", tags=["rag"])
+app.include_router(review.router, prefix="/review", tags=["review"])

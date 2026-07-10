@@ -1,0 +1,168 @@
+# ResearchOS AI - 本地开发基础设施
+#
+# 对应 Implementation/90-config-deploy.md。
+#
+# 设计原则：
+# - 基础设施（postgres/redis/rabbitmq）默认启动，应用服务（backend/ai-service/frontend）
+#   通过 profile=app 按需启用，避免各服务 Dockerfile 尚未就绪时 `docker compose up` 失败。
+# - 数据持久化通过 named volume，删容器不丢数据。
+# - 健康检查配置在基础设施层，应用服务 depends_on 用 service_healthy 等待就绪。
+#
+# 启动顺序：
+#   docker compose up -d                                # 只起基础设施
+#   docker compose --profile app up -d                  # 起基础设施 + 应用
+#   docker compose --profile app up -d backend          # 只起 backend（含依赖）
+#
+# 配套 .env 文件（复制 .env.example -> .env 后修改）。
+
+services:
+  # ────────────────────────────────────────────────────────────
+  # 基础设施层（默认启动）
+  # ────────────────────────────────────────────────────────────
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: researchos-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-researchos}
+      POSTGRES_USER: ${POSTGRES_USER:-researchos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-researchos}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-researchos} -d ${POSTGRES_DB:-researchos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: researchos-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: researchos-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS:-guest}
+    ports:
+      - "${RABBIT_PORT:-5672}:5672"      # AMQP
+      - "${RABBIT_MGMT_PORT:-15672}:15672"  # 管理界面
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────
+  # 应用层（profile=app，按需启用）
+  # 各服务 Dockerfile 就绪后执行：
+  #   docker compose --profile app up -d
+  # ────────────────────────────────────────────────────────────
+
+  backend:
+    profiles: ["app"]
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: researchos-backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-researchos}
+      DB_USER: ${POSTGRES_USER:-researchos}
+      DB_PASS: ${POSTGRES_PASSWORD:-researchos}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: 5672
+      RABBIT_USER: ${RABBIT_USER:-guest}
+      RABBIT_PASS: ${RABBIT_PASS:-guest}
+      JWT_SECRET: ${JWT_SECRET:-dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
+      AI_SERVICE_URL: http://ai-service:8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      STORAGE_TYPE: ${STORAGE_TYPE:-s3}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-researchos-pdfs}
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_KEY: ${STORAGE_KEY:-}
+      STORAGE_SECRET: ${STORAGE_SECRET:-}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ai-service:
+    profiles: ["app"]
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: researchos-ai-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-researchos}:${POSTGRES_PASSWORD:-researchos}@postgres:5432/${POSTGRES_DB:-researchos}
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
+      BACKEND_URL: http://backend:8080
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1536}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: researchos-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitdata:
