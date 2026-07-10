@@ -28,7 +28,7 @@ public class CurrentUserResolver {
         var auth = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()
-                || !(auth.getPrincipal() instanceof com.researchos.auth.security.UserPrincipal principal)) {
+                || !(auth.getPrincipal() instanceof UserPrincipal principal)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         return principal.getId();

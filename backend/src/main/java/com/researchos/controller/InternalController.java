@@ -47,11 +47,18 @@ public class InternalController {
             @RequestHeader("X-Internal-Token") String token,
             @RequestBody Map<String, Object> body) {
         verifyToken(token);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> summary = (Map<String, Object>) body.get("summary");
-        String status = (String) body.getOrDefault("status", "READY");
-        paperService.updateAnalysisResult(id, summary, status);
-        return ApiResponse.ok();
+        log.info("收到论文分析回调：paperId={}, body keys={}", id, body.keySet());
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> summary = (Map<String, Object>) body.get("summary");
+            String status = (String) body.getOrDefault("status", "READY");
+            paperService.updateAnalysisResult(id, summary, status);
+            log.info("论文分析回调成功：paperId={}, status={}", id, status);
+            return ApiResponse.ok();
+        } catch (Exception e) {
+            log.error("论文分析回调失败：paperId={}", id, e);
+            throw e;
+        }
     }
 
     /**

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 用户实体。
@@ -24,5 +24,5 @@ public class User {
     private String oauthProvider;
     private String oauthId;
     private String plan;
-    private LocalDateTime createdTime;
+    private OffsetDateTime createdTime;
 }

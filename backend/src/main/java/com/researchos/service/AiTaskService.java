@@ -15,7 +15,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -47,7 +47,7 @@ public class AiTaskService extends ServiceImpl<AiTaskMapper, AiTask> {
         task.setUserId(userId);
         task.setType("REVIEW_GENERATION");
         task.setStatus("PENDING");
-        task.setCreatedTime(LocalDateTime.now());
+        task.setCreatedTime(OffsetDateTime.now());
         save(task);
 
         rabbitTemplate.convertAndSend(

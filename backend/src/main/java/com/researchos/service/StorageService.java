@@ -1,5 +1,7 @@
 package com.researchos.service;
 
+import com.researchos.common.exception.BusinessException;
+import com.researchos.common.exception.ErrorCode;
 import com.researchos.config.AppProperties;
 import com.researchos.dto.PresignedPostResponse;
 import jakarta.annotation.PostConstruct;
@@ -38,6 +40,14 @@ public class StorageService {
     @PostConstruct
     public void init() {
         AppProperties.Storage s = props.getStorage();
+
+        // 本地开发未配 S3 凭据时跳过初始化，上传功能不可用但不阻塞启动
+        if (s.getAccessKey() == null || s.getAccessKey().isBlank()
+                || s.getSecretKey() == null || s.getSecretKey().isBlank()) {
+            log.warn("S3 凭据未配置（STORAGE_KEY/STORAGE_SECRET），StorageService 跳过初始化，上传功能不可用");
+            return;
+        }
+
         var creds = AwsBasicCredentials.create(s.getAccessKey(), s.getSecretKey());
         S3Client client = S3Client.builder()
                 .region(Region.of(s.getRegion()))
@@ -57,6 +67,9 @@ public class StorageService {
      * 签发 presigned PUT URL（前端直传）。
      */
     public PresignedPostResponse presignUpload(String fileName, String contentType) {
+        if (presigner == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
         String key = "papers/" + UUID.randomUUID() + "/" + fileName;
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(props.getStorage().getBucket())

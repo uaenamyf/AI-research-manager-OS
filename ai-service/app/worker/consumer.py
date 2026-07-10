@@ -35,20 +35,27 @@ class TaskConsumer:
         # 设置 prefetch，避免一次拉太多
         await self._channel.set_qos(prefetch_count=1)
 
-        # 声明队列（与 backend RabbitConfig 一致）
-        paper_queue = await self._channel.declare_queue(
-            "q.paper.analyze", durable=True
-        )
-        review_queue = await self._channel.declare_queue(
-            "q.review.generate", durable=True
-        )
+        # 声明队列（与 backend RabbitConfig 参数一致，含 DLQ 配置）
+        # passive=True 表示只检查队列是否存在，不创建（由 backend 负责创建）
+        # 如果 backend 还没启动，队列不存在时消费会失败但不影响 ai-service 启动
+        try:
+            paper_queue = await self._channel.declare_queue(
+                "q.paper.analyze", durable=True, passive=True
+            )
+            review_queue = await self._channel.declare_queue(
+                "q.review.generate", durable=True, passive=True
+            )
 
-        # 开始消费
-        await paper_queue.consume(self._on_paper_message)
-        await review_queue.consume(self._on_review_message)
+            # 开始消费
+            await paper_queue.consume(self._on_paper_message)
+            await review_queue.consume(self._on_review_message)
+            logger.info("MQ 消费者已启动：监听 q.paper.analyze, q.review.generate")
+        except Exception as e:
+            logger.warning(
+                f"队列未就绪（backend 可能未启动），消费暂缓：{e}"
+            )
 
         self._consuming = True
-        logger.info("MQ 消费者已启动：监听 q.paper.analyze, q.review.generate")
 
     async def disconnect(self):
         """关闭连接。"""

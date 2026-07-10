@@ -8,7 +8,8 @@ import com.researchos.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 
 /**
@@ -38,8 +39,8 @@ public class SubscriptionService {
         if (limit == Integer.MAX_VALUE) return;
 
         // 本月上传数
-        LocalDateTime monthStart = LocalDateTime.now()
-                .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        OffsetDateTime monthStart = OffsetDateTime.now()
+                .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         Long count = paperMapper.selectCount(
                 new LambdaQueryWrapper<Paper>()
                         .eq(Paper::getUserId, userId)
