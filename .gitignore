@@ -1,3 +1,37 @@
+# ── 通用规则 ──
+# 环境变量（含密钥，禁止入库）
+.env
+.env.local
+.env.*.local
+**/.env
+!**/.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+.eslintcache
+
+# 临时编译文件
+pgvector-build/
+*.zip
+
+# Claude skills（具体文件列表见下方）
 .claude/skills/README.md
 .claude/skills/codex-plugin-cc-main/.gitignore
 .claude/skills/codex-plugin-cc-main/LICENSE
@@ -274,3 +308,6 @@
 .claude/skills/webapp-testing/examples/element_discovery.py
 .claude/skills/webapp-testing/examples/static_html_automation.py
 .claude/skills/webapp-testing/scripts/with_server.py
+b a c k e n d / t a r g e t /  
+ _ _ p y c a c h e _ _ /  
+ 

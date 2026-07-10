@@ -48,12 +48,13 @@ CREATE TABLE paper_chunk (
     paper_id  BIGINT NOT NULL REFERENCES paper(id) ON DELETE CASCADE,
     section   VARCHAR(64),
     content   TEXT,
-    embedding vector(1536)
+    embedding vector(2048)
 );
 CREATE INDEX idx_chunk_paper   ON paper_chunk(paper_id);
 CREATE INDEX idx_chunk_section ON paper_chunk(section);
-CREATE INDEX idx_chunk_embedding ON paper_chunk
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- 注：vector(2048) 超过 ivfflat/hnsw 索引的 2000 维限制，
+-- MVP 阶段用 paper_id 过滤 + ORDER BY 全表扫描，数据量小时性能可接受。
+-- 如需向量索引，可换用 1536 维 embedding 模型（如 text-embedding-3-small）。
 
 -- 聊天历史
 CREATE TABLE conversation (

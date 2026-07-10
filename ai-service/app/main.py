@@ -9,8 +9,11 @@ from fastapi import FastAPI
 from loguru import logger
 
 from app.api.routes import chat, paper, review
+from app.core.backend_client import backend_client
 from app.core.config import settings
+from app.core.db import set_db_pool
 from app.models import HealthResponse
+from app.worker.consumer import task_consumer
 
 
 @asynccontextmanager
@@ -27,11 +30,17 @@ async def lifespan(app: FastAPI):
         min_size=2,
         max_size=10,
     )
+    set_db_pool(app.state.db_pool)
     logger.info("数据库连接池已初始化")
+
+    # MQ 消费者
+    await task_consumer.connect()
 
     yield
 
     # ── 关闭 ──
+    await task_consumer.disconnect()
+    await backend_client.close()
     if hasattr(app.state, "db_pool") and app.state.db_pool:
         await app.state.db_pool.close()
         logger.info("数据库连接池已关闭")

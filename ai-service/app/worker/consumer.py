@@ -1,0 +1,203 @@
+# date: 2026-07-10
+# dev: myf
+"""RabbitMQ 消费者：消费 paper.analyze / review.generate 队列，处理异步任务。"""
+
+import json
+import traceback
+
+import aio_pika
+from loguru import logger
+
+from app.core.backend_client import backend_client
+from app.core.config import settings
+
+
+class TaskConsumer:
+    """RabbitMQ 消费者：消费 AI 任务消息，编排处理流程。
+
+    消费队列：
+    - q.paper.analyze   -> PDF 解析 + embedding + paper_agent
+    - q.review.generate -> review_agent（Sprint 3.1 实现）
+    """
+
+    def __init__(self):
+        self._connection: aio_pika.RobustConnection | None = None
+        self._channel: aio_pika.RobustChannel | None = None
+        self._consuming = False
+
+    async def connect(self):
+        """建立 RabbitMQ 连接并开始消费。"""
+        logger.info("连接 RabbitMQ...")
+
+        self._connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+        self._channel = await self._connection.channel()
+
+        # 设置 prefetch，避免一次拉太多
+        await self._channel.set_qos(prefetch_count=1)
+
+        # 声明队列（与 backend RabbitConfig 一致）
+        paper_queue = await self._channel.declare_queue(
+            "q.paper.analyze", durable=True
+        )
+        review_queue = await self._channel.declare_queue(
+            "q.review.generate", durable=True
+        )
+
+        # 开始消费
+        await paper_queue.consume(self._on_paper_message)
+        await review_queue.consume(self._on_review_message)
+
+        self._consuming = True
+        logger.info("MQ 消费者已启动：监听 q.paper.analyze, q.review.generate")
+
+    async def disconnect(self):
+        """关闭连接。"""
+        self._consuming = False
+        if self._connection:
+            await self._connection.close()
+            self._connection = None
+            logger.info("MQ 连接已关闭")
+
+    async def _on_paper_message(self, message: aio_pika.abc.AbstractIncomingMessage):
+        """处理 paper.analyze 消息。
+
+        消息体格式（与 backend AiTaskMessage 对齐）：
+        { "taskId": 123, "type": "PAPER_ANALYSIS", "payload": { "paperId": 1024, "pdfUrl": "papers/xxx" } }
+        """
+        async with message.process(requeue=False):
+            try:
+                msg = json.loads(message.body.decode())
+                paper_id = msg["payload"]["paperId"]
+                pdf_url = msg["payload"]["pdfUrl"]
+
+                logger.info(
+                    f"收到论文分析任务：paperId={paper_id}, pdfUrl={pdf_url}"
+                )
+
+                await self._process_paper(paper_id, pdf_url)
+
+            except Exception as e:
+                logger.error(f"处理论文消息失败：{e}\n{traceback.format_exc()}")
+                # 回调 backend 标记失败
+                try:
+                    paper_id = msg.get("payload", {}).get("paperId", 0)
+                    if paper_id:
+                        await backend_client.callback_paper_result(
+                            paper_id, status="FAILED"
+                        )
+                except Exception:
+                    pass
+                # 不 requeue，避免无限重试（DLQ 由 RabbitMQ 配置处理）
+
+    async def _on_review_message(self, message: aio_pika.abc.AbstractIncomingMessage):
+        """处理 review.generate 消息（Sprint 3.1 实现）。"""
+        async with message.process(requeue=False):
+            msg = json.loads(message.body.decode())
+            task_id = msg.get("taskId")
+            logger.info(f"收到综述生成任务：taskId={task_id}（Sprint 3.1 待实现）")
+            # TODO Sprint 3.1: 调用 review_agent
+
+    async def _process_paper(self, paper_id: int, pdf_url: str):
+        """论文分析全流程编排。
+
+        步骤：
+        1. 下载 PDF（目前 pdf_url 是 S3 key，需用 httpx 下载）
+        2. PDF 解析 + section 切分
+        3. embedding + 写入 paper_chunk
+        4. paper_agent 生成 Paper Card
+        5. 回调 backend
+        """
+        # 延迟导入，避免循环依赖
+        from app.parser.pdf_parser import parse_and_chunk
+        from app.rag.embedding import embedding_service
+        from app.rag.vector_store import VectorStore
+        from app.agents.paper_agent import generate_paper_card
+        from app.core.db import get_db_pool
+
+        pool = await get_db_pool()
+
+        # 1. 下载 PDF
+        pdf_bytes = await self._download_pdf(pdf_url)
+        if not pdf_bytes:
+            await backend_client.callback_paper_result(
+                paper_id, status="FAILED"
+            )
+            return
+
+        # 2. PDF 解析 + section 切分
+        chunks = parse_and_chunk(pdf_bytes)
+        if not chunks:
+            logger.warning(f"PDF 解析无内容：paper_id={paper_id}")
+            await backend_client.callback_paper_result(
+                paper_id, status="FAILED"
+            )
+            return
+
+        # 3. embedding + 写入 paper_chunk
+        texts = [c.content for c in chunks]
+        embeddings = await embedding_service.embed_batch(texts)
+
+        store = VectorStore(pool)
+        chunk_data = [
+            (c.section, c.content, emb)
+            for c, emb in zip(chunks, embeddings, strict=True)
+        ]
+        await store.insert_chunks(paper_id, chunk_data)
+
+        # 4. paper_agent 生成 Paper Card（用全文，不只用 chunk）
+        from app.parser.pdf_parser import extract_text
+
+        full_text = extract_text(pdf_bytes)
+        card = await generate_paper_card(full_text)
+
+        # 5. 回调 backend（失败不影响已完成的处理，只记日志）
+        summary = card.model_dump()
+        try:
+            await backend_client.callback_paper_result(
+                paper_id, summary=summary, status="READY"
+            )
+        except Exception as cb_err:
+            logger.warning(
+                f"回调 backend 失败（paper_id={paper_id}），"
+                f"分析已完成但结果未回传：{cb_err}"
+            )
+
+        logger.info(f"论文分析完成：paper_id={paper_id}")
+
+    async def _download_pdf(self, pdf_url: str) -> bytes | None:
+        """下载 PDF 文件。
+
+        目前 pdf_url 是 S3 key（如 "papers/uuid/filename.pdf"）。
+        开发阶段：支持本地文件路径直接读取。
+        生产环境：应通过 S3 presigned URL 下载。
+        """
+        # 开发阶段：支持本地文件路径
+        import os
+
+        # 尝试作为本地路径读取（开发期测试用）
+        if os.path.exists(pdf_url):
+            with open(pdf_url, "rb") as f:
+                return f.read()
+
+        # 尝试作为 URL 下载
+        if pdf_url.startswith("http"):
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(pdf_url, timeout=60.0)
+                if resp.status_code == 200:
+                    return resp.content
+                logger.error(f"下载 PDF 失败：{pdf_url}, status={resp.status_code}")
+                return None
+
+        # S3 key 格式：生产环境需通过 StorageService 获取 presigned URL
+        # TODO: 对接 S3/R2 下载（当前开发阶段用本地文件测试）
+        logger.warning(
+            f"pdf_url={pdf_url} 非 HTTP URL 且非本地路径，"
+            "生产环境需对接 S3 presigned URL 下载"
+        )
+        return None
+
+
+# 全局单例
+task_consumer = TaskConsumer()

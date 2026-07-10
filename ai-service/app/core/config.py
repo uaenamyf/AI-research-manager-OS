@@ -2,7 +2,12 @@
 # dev: myf
 """应用配置：通过环境变量加载，pydantic-settings 管理与校验。"""
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# ai-service 根目录（app/core/config.py 的上两级）
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -12,7 +17,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_BASE_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -33,11 +38,15 @@ class Settings(BaseSettings):
     # ── LLM 配置 ──
     LLM_PROVIDER: str = "openai"  # openai | anthropic
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = ""  # 火山引擎等兼容端点，空则用 OpenAI 默认
+    OPENAI_DEFAULT_MODEL: str = "gpt-4o"  # 默认模型（火山引擎填接入点 ID）
     ANTHROPIC_API_KEY: str = ""
 
-    # ── Embedding 配置 ──
+    # ── Embedding 配置（可与 LLM 使用不同 provider/key）──
     EMBEDDING_MODEL: str = "text-embedding-3-small"
-    EMBEDDING_DIM: int = 1536
+    EMBEDDING_API_KEY: str = ""  # 独立 embedding key，空则回退到 OPENAI_API_KEY
+    EMBEDDING_BASE_URL: str = ""  # 独立 embedding base_url，空则回退到 OPENAI_BASE_URL
+    EMBEDDING_DIM: int = 2048
 
     # ── RAG 参数 ──
     CHUNK_SIZE: int = 512
