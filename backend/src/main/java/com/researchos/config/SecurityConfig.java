@@ -33,6 +33,15 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(request -> {
+                var config = new org.springframework.web.cors.CorsConfiguration();
+                config.setAllowedOrigins(appProperties.getCors().getAllowedOrigins());
+                config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(java.util.List.of("*"));
+                config.setAllowCredentials(true);
+                config.setMaxAge(3600L);
+                return config;
+            }))
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -45,6 +54,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**", "/health").permitAll()
                 // OPTIONS 预检放行
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // SSE 异步 dispatch 放行（SseEmitter 触发的 ASYNC 请求）
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

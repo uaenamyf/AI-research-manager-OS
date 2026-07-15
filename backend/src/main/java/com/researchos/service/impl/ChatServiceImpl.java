@@ -19,6 +19,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 
@@ -37,6 +40,7 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
     private final AppProperties appProperties;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
@@ -66,19 +70,22 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
 
-            httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+            httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
                     .thenAccept(response -> {
-                        response.body().forEach(line -> {
-                            try {
+                        try (BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
                                 if (line.startsWith("data:")) {
                                     String data = line.substring(5).trim();
                                     emitter.send(SseEmitter.event().data(data));
                                 }
-                            } catch (Exception e) {
-                                log.error("SSE 转发失败", e);
                             }
-                        });
-                        emitter.complete();
+                            emitter.complete();
+                        } catch (Exception e) {
+                            log.error("SSE 转发失败", e);
+                            emitter.completeWithError(e);
+                        }
                     })
                     .exceptionally(e -> {
                         log.error("调用 ai-service 失败", e);

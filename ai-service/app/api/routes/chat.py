@@ -1,12 +1,18 @@
-# date: 2026-07-10
+# date: 2026-07-15
 # dev: myf
 """Chat 路由：Paper Chat SSE 流式问答。"""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import json
+
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from loguru import logger
 
 from app.core.security import verify_internal_token
 from app.models import ChatStreamRequest
+from app.rag.retriever import Retriever
+from app.rag.vector_store import VectorStore
+from app.core.db import get_db_pool
 
 router = APIRouter()
 
@@ -20,10 +26,66 @@ async def chat_stream(req: ChatStreamRequest):
     """流式问答（SSE）。
 
     backend ChatService.forwardStream 调用此端点，转发 token 到前端。
-    Sprint 2.8/2.9 实现：RAG 检索 + chat_agent + SSE 流。
+
+    SSE 事件格式：
+    - data: {"type":"citations","ids":[1,2,3]}  # 引用 chunk_id
+    - data: {"type":"token","content":"hello"}  # 逐 token 回答
+    - data: {"type":"done"}                      # 流结束
     """
-    # TODO Sprint 2.8: 调用 chat_agent 流式生成
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="chat stream not implemented yet (Sprint 2.8-2.9)",
+    from app.agents.chat_agent import chat_stream as agent_stream
+
+    async def event_generator():
+        """生成 SSE 事件流。"""
+        try:
+            # 获取数据库连接池，创建检索器
+            pool = await get_db_pool()
+            vector_store = VectorStore(pool)
+            retriever = Retriever(vector_store)
+
+            # 1. 先检索（为了拿到 citations）
+            chunks = await retriever.retrieve(req.paper_id, req.question)
+            citation_ids = [c.id for c in chunks]
+
+            # 发送 citation 事件
+            citation_event = json.dumps(
+                {"type": "citation", "citations": citation_ids}
+            )
+            yield f"data: {citation_event}\n\n"
+
+            # 2. 构造 context + LLM 流式生成
+            from app.agents.chat_agent import build_context
+            from app.agents.prompts.chat import CHAT_SYSTEM, CHAT_USER
+            from app.llm.client import llm_client
+
+            context = build_context(chunks)
+            user_prompt = CHAT_USER.format(context=context, question=req.question)
+
+            logger.info(
+                f"Chat 生成：paper_id={req.paper_id}, "
+                f"citations={citation_ids}"
+            )
+
+            async for token in llm_client.stream(
+                system=CHAT_SYSTEM,
+                user=user_prompt,
+            ):
+                token_event = json.dumps({"type": "token", "content": token})
+                yield f"data: {token_event}\n\n"
+
+            # 发送结束事件
+            yield f'data: {json.dumps({"type": "done"})}\n\n'
+
+        except Exception as e:
+            logger.error(f"Chat 流生成失败：{e}")
+            error_event = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {error_event}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )

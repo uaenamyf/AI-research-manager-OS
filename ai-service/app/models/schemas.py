@@ -2,11 +2,13 @@
 # dev: myf
 """Pydantic schema：请求/响应模型，与 backend DTO 对齐。"""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PaperAnalyzeRequest(BaseModel):
     """POST /paper/analyze 请求体。"""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     paper_id: int = Field(..., alias="paperId")
     pdf_url: str = Field(..., alias="pdfUrl")
@@ -28,12 +30,16 @@ class PaperAnalyzeResult(BaseModel):
 class ChatStreamRequest(BaseModel):
     """POST /rag/chat/stream 请求体。"""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     paper_id: int = Field(..., alias="paperId")
     question: str
 
 
 class ReviewGenerateRequest(BaseModel):
     """POST /review/generate 请求体。"""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     paper_ids: list[int] = Field(..., alias="paperIds")
     topic: str = ""
