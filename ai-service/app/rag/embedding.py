@@ -37,13 +37,13 @@ class EmbeddingService:
         return resp.data[0].embedding
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """批量 embedding（OpenAI 单次最多 2048 条）。"""
+        """批量 embedding（火山引擎限制每批最多 10 条）。"""
         if not texts:
             return []
 
         client = self._get_client()
         results: list[list[float]] = []
-        batch_size = 100  # 保守值，避免超限
+        batch_size = 10  # 火山引擎 embedding API 限制：每批最多 10 条
 
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]

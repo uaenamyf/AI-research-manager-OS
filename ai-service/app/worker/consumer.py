@@ -97,12 +97,68 @@ class TaskConsumer:
                 # 不 requeue，避免无限重试（DLQ 由 RabbitMQ 配置处理）
 
     async def _on_review_message(self, message: aio_pika.abc.AbstractIncomingMessage):
-        """处理 review.generate 消息（Sprint 3.1 实现）。"""
+        """处理 review.generate 消息。
+
+        消息体格式（与 backend AiTaskMessage 对齐）：
+        { "taskId": 123, "type": "REVIEW_GENERATION", "payload": { "paperIds": [1,2], "topic": "..." } }
+        """
         async with message.process(requeue=False):
-            msg = json.loads(message.body.decode())
-            task_id = msg.get("taskId")
-            logger.info(f"收到综述生成任务：taskId={task_id}（Sprint 3.1 待实现）")
-            # TODO Sprint 3.1: 调用 review_agent
+            msg = None
+            try:
+                msg = json.loads(message.body.decode())
+                task_id = msg["taskId"]
+                paper_ids = msg["payload"]["paperIds"]
+                topic = msg["payload"].get("topic", "")
+
+                logger.info(
+                    f"收到综述生成任务：taskId={task_id}, "
+                    f"paperIds={paper_ids}, topic='{topic[:50]}'"
+                )
+
+                await self._process_review(task_id, paper_ids, topic)
+
+            except Exception as e:
+                logger.error(f"处理综述消息失败：{e}\n{traceback.format_exc()}")
+                # 回调 backend 标记失败
+                try:
+                    if msg:
+                        task_id = msg.get("taskId", 0)
+                        if task_id:
+                            await backend_client.callback_task_result(
+                                task_id, status="FAILED", error=str(e)
+                            )
+                except Exception:
+                    pass
+
+    async def _process_review(self, task_id: int, paper_ids: list[int], topic: str):
+        """综述生成全流程编排。
+
+        步骤：
+        1. 查询论文 Paper Card + 跨论文 RAG 检索
+        2. LLM 生成 Markdown 综述
+        3. 回调 backend
+        """
+        from app.agents.review_agent import generate_review
+        from app.core.db import get_db_pool
+
+        pool = await get_db_pool()
+
+        # 1-2. 生成综述
+        markdown = await generate_review(pool, paper_ids, topic)
+
+        # 3. 回调 backend
+        result = {"markdown": markdown}
+        try:
+            await backend_client.callback_task_result(
+                task_id, result=result, status="SUCCESS"
+            )
+        except Exception as cb_err:
+            logger.warning(
+                f"回调 backend 失败（task_id={task_id}），"
+                f"综述已生成但结果未回传：{cb_err}"
+            )
+
+        logger.info(f"综述生成完成：task_id={task_id}")
 
     async def _process_paper(self, paper_id: int, pdf_url: str):
         """论文分析全流程编排。
