@@ -38,4 +38,4 @@
 | 3.4 | Stripe 订阅 + 额度拦截 | backend |
 | 3.5 | 免费档位限制（10 papers/month） | backend |
 | 3.6 | Dashboard 优化（统计卡片） | frontend |
-| 3.7 | E2E 测试 + 部署脚本 | 全栈 |
+| 3.7 | E2E 测试 + 部署脚本 | 全栈 | ✅ |

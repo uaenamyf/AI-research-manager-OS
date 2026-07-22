@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest"
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "vitest --run && eslint . && tsc --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
@@ -21,6 +25,8 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",

@@ -1,0 +1,41 @@
+# Test 环境配置
+# 使用 H2 内存数据库，避免依赖外部服务
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: true
+  flyway:
+    enabled: false  # 测试环境禁用 Flyway，使用 schema.sql 建表
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false  # 测试环境禁用 RabbitMQ 监听器
+
+# MyBatis Plus 配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# JWT 测试密钥
+jwt:
+  secret: test-secret-key-for-jwt-signing-do-not-use-in-production
+  expiration: 86400000
+
+# 日志级别
+logging:
+  level:
+    root: WARN
+    com.researchos: DEBUG
