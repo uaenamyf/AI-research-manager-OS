@@ -5,4 +5,6 @@ export * as paperApi from "./papers";
 export * as chatApi from "./chat";
 export * as knowledgeApi from "./knowledge";
 export * as reviewApi from "./reviews";
-export { apiFetch, apiFetchRaw, ApiError } from "./client";
+export * as writingApi from "./writing";
+export { apiFetch, apiFetchRaw } from "./client";
+export { ApiError } from "@/types";

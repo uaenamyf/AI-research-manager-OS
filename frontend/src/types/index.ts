@@ -179,6 +179,26 @@ export interface ReviewResult {
   paperIds: ID[];
 }
 
+// ===== Writing Assistant (Agent 4) =====
+export type WritingAction =
+  | "polish"
+  | "expand"
+  | "shorten"
+  | "translate"
+  | "rebuttal"
+  | "cover_letter";
+
+export interface WritingRewriteRequest {
+  text: string;
+  action: WritingAction;
+  instruction?: string;
+}
+
+export interface WritingRewriteResult {
+  action: string;
+  text: string;
+}
+
 // ===== 错误 =====
 export class ApiError extends Error {
   constructor(

@@ -9,7 +9,8 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "▦" },
   { href: "/projects", label: "Projects", icon: "📁" },
   { href: "/knowledge", label: "Knowledge", icon: "🧠" },
-  { href: "/writing", label: "Writing", icon: "✍️" },
+  { href: "/writing", label: "Review", icon: "📝" },
+  { href: "/assistant", label: "Writing", icon: "✍️" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
