@@ -52,3 +52,22 @@ def test_review_generate_requires_token(client):
         json={"paperIds": [1], "topic": "test"},
     )
     assert resp.status_code == 422
+
+
+def test_writing_rewrite_requires_token(client):
+    """Writing 端点未带 token 应 422。"""
+    resp = client.post(
+        "/writing/rewrite",
+        json={"text": "hello", "action": "polish"},
+    )
+    assert resp.status_code == 422
+
+
+def test_writing_rewrite_wrong_token(client):
+    """错误的 X-Internal-Token 应返回 401。"""
+    resp = client.post(
+        "/writing/rewrite",
+        json={"text": "hello", "action": "polish"},
+        headers={"X-Internal-Token": "wrong"},
+    )
+    assert resp.status_code == 401

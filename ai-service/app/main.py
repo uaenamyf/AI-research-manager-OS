@@ -8,7 +8,7 @@ import asyncpg
 from fastapi import FastAPI
 from loguru import logger
 
-from app.api.routes import chat, paper, review
+from app.api.routes import chat, paper, review, writing
 from app.core.backend_client import backend_client
 from app.core.config import settings
 from app.core.db import set_db_pool
@@ -66,3 +66,4 @@ async def health():
 app.include_router(paper.router, prefix="/paper", tags=["paper"])
 app.include_router(chat.router, prefix="/rag", tags=["rag"])
 app.include_router(review.router, prefix="/review", tags=["review"])
+app.include_router(writing.router, prefix="/writing", tags=["writing"])

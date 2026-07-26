@@ -8,6 +8,8 @@ from app.models.schemas import (
     PaperAnalyzeRequest,
     PaperAnalyzeResult,
     ReviewGenerateRequest,
+    WritingRewriteRequest,
+    WritingRewriteResult,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "PaperAnalyzeRequest",
     "PaperAnalyzeResult",
     "ReviewGenerateRequest",
+    "WritingRewriteRequest",
+    "WritingRewriteResult",
 ]
