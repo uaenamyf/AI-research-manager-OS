@@ -41,6 +41,14 @@
 | POST | `/api/review/generate` | body: `{paperIds:[], topic:""}`，返回 taskId |
 | GET | `/api/review/{taskId}` | 轮询结果（返回 Markdown） |
 
+### Writing（Agent 4：改写 / 润色）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/writing/rewrite` | body: `{text, action, instruction?}`，同步返回 `{action, text}` |
+
+> `action` 取值：`polish` / `expand` / `shorten` / `translate` / `rebuttal` / `cover_letter`。
+
 ### Paper 上传响应示例
 
 ```json
@@ -61,6 +69,7 @@
 | POST | `/paper/analyze` | PDF 分析（少用，主要调试） | 同步 |
 | POST | `/rag/chat/stream` | RAG 问答流式 | SSE |
 | POST | `/review/generate` | 综述生成 | 同步 |
+| POST | `/writing/rewrite` | 文本改写 / 润色（Agent 4） | 同步 |
 
 > 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）与调试。
 
