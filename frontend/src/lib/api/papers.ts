@@ -67,6 +67,7 @@ export function createPaper(
     fileName: string;
     s3Key: string;
     contentType: string;
+    folderId?: ID | null;
   },
 ): Promise<PaperUploadResponse> {
   return apiFetch<PaperUploadResponse>(
