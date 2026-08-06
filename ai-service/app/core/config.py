@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_API_KEY: str = ""  # 独立 embedding key，空则回退到 OPENAI_API_KEY
     EMBEDDING_BASE_URL: str = ""  # 独立 embedding base_url，空则回退到 OPENAI_BASE_URL
-    EMBEDDING_DIM: int = 2048
+    EMBEDDING_DIM: int = 1536  # text-embedding-3-small 实际输出 1536 维（与 DB vector(1536) 对齐）
 
     # ── RAG 参数 ──
     CHUNK_SIZE: int = 512

@@ -8,15 +8,28 @@ from app.rag.vector_store import VectorStore
 from app.rag.retriever import Retriever, RetrievedChunk
 
 
+class FakeAsyncContextManager:
+    """模拟 asyncpg pool.acquire() 的异步上下文管理器（Python 3.14 mock 兼容）。"""
+
+    def __init__(self, conn):
+        self.conn = conn
+
+    async def __aenter__(self):
+        return self.conn
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
 class TestVectorStore:
     """VectorStore 向量存储测试."""
 
     @pytest.fixture
     def mock_pool(self):
         """Mock asyncpg 连接池."""
-        pool = AsyncMock()
+        pool = MagicMock()
         conn = AsyncMock()
-        pool.acquire.return_value.__aenter__.return_value = conn
+        pool.acquire.return_value = FakeAsyncContextManager(conn)
         return pool
 
     @pytest.fixture
@@ -34,7 +47,7 @@ class TestVectorStore:
         count = await vector_store.insert_chunks(paper_id=1, chunks=chunks)
 
         assert count == 2
-        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn = mock_pool.acquire.return_value.conn
         assert conn.executemany.call_count == 1
 
     async def test_insert_empty_chunks(self, vector_store):
@@ -46,7 +59,7 @@ class TestVectorStore:
 
     async def test_search_returns_results(self, vector_store, mock_pool):
         """测试向量检索返回结果."""
-        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn = mock_pool.acquire.return_value.conn
         conn.fetch.return_value = [
             {"id": 1, "section": "Introduction", "content": "Text 1", "score": 0.95},
             {"id": 2, "section": "Methods", "content": "Text 2", "score": 0.82},
@@ -64,7 +77,7 @@ class TestVectorStore:
 
     async def test_search_no_results(self, vector_store, mock_pool):
         """测试无检索结果."""
-        conn = mock_pool.acquire.return_value.__aenter__.return_value
+        conn = mock_pool.acquire.return_value.conn
         conn.fetch.return_value = []
 
         results = await vector_store.search(

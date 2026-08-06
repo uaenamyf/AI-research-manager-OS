@@ -51,8 +51,11 @@ class EmbeddingService:
                 model=self.model,
                 input=batch,
             )
-            # 按 index 排序确保顺序
-            sorted_data = sorted(resp.data, key=lambda x: x.index)
+            # 按 index 排序确保顺序（无 index 字段时保持原序）
+            if resp.data and hasattr(resp.data[0], "index"):
+                sorted_data = sorted(resp.data, key=lambda x: x.index)
+            else:
+                sorted_data = resp.data
             results.extend([d.embedding for d in sorted_data])
 
         logger.debug(f"批量 embedding 完成：{len(texts)} 条 -> {len(results)} 向量")

@@ -19,6 +19,7 @@ class RetrievedChunk:
     section: str
     content: str
     score: float
+    paper_id: int = 0  # 跨论文检索时标识来源论文（单论文检索默认 0）
 
 
 class Retriever:
@@ -70,10 +71,10 @@ class Retriever:
             logger.warning(f"检索无结果：paper_id={paper_id}")
             return []
 
-        # 3. section 加权
+        # 3. section 加权（section 名统一小写后查权重表）
         weighted: list[RetrievedChunk] = []
         for r in raw_results:
-            weight = self.SECTION_WEIGHTS.get(r["section"], 1.0)
+            weight = self.SECTION_WEIGHTS.get(r["section"].lower(), 1.0)
             adjusted_score = r["score"] * weight
             weighted.append(
                 RetrievedChunk(
@@ -122,7 +123,7 @@ class Retriever:
 
         weighted: list[RetrievedChunk] = []
         for r in raw_results:
-            weight = self.SECTION_WEIGHTS.get(r["section"], 1.0)
+            weight = self.SECTION_WEIGHTS.get(r["section"].lower(), 1.0)
             adjusted_score = r["score"] * weight
             weighted.append(
                 RetrievedChunk(
@@ -130,6 +131,7 @@ class Retriever:
                     section=r["section"],
                     content=r["content"],
                     score=adjusted_score,
+                    paper_id=r["paper_id"],
                 )
             )
 

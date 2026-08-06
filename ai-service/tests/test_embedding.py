@@ -35,7 +35,7 @@ class TestEmbeddingService:
         mock_response.data = [MagicMock(embedding=[0.1] * 1536)]
         mock_openai_client.embeddings.create = AsyncMock(return_value=mock_response)
 
-        result = await embedding_service.embed("Hello, world!")
+        result = await embedding_service.embed_one("Hello, world!")
 
         assert len(result) == 1536
         mock_openai_client.embeddings.create.assert_called_once()
@@ -49,7 +49,9 @@ class TestEmbeddingService:
         """测试批量在限制范围内。"""
         # batch_size=10，测试 5 个文本
         mock_response = MagicMock()
-        mock_response.data = [MagicMock(embedding=[0.1] * 1536) for _ in range(5)]
+        mock_response.data = [
+            MagicMock(index=i, embedding=[0.1] * 1536) for i in range(5)
+        ]
         mock_openai_client.embeddings.create = AsyncMock(return_value=mock_response)
 
         texts = [f"Text {i}" for i in range(5)]
@@ -67,7 +69,10 @@ class TestEmbeddingService:
         def create_response(*args, **kwargs):
             input_list = kwargs.get("input", [])
             mock_resp = MagicMock()
-            mock_resp.data = [MagicMock(embedding=[0.1] * 1536) for _ in range(len(input_list))]
+            mock_resp.data = [
+                MagicMock(index=i, embedding=[0.1] * 1536)
+                for i in range(len(input_list))
+            ]
             return mock_resp
 
         mock_openai_client.embeddings.create = AsyncMock(side_effect=create_response)

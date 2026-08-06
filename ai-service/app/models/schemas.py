@@ -45,6 +45,37 @@ class ReviewGenerateRequest(BaseModel):
     topic: str = ""
 
 
+class KnowledgeSearchRequest(BaseModel):
+    """POST /search 请求体（Knowledge 语义搜索）。
+
+    搜索范围（paperIds）由 backend 按 user_id 过滤后传入，
+    ai-service 不查业务表，只做 embedding + 向量检索。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    paper_ids: list[int] = Field(..., alias="paperIds")
+    query: str
+    top_k: int = Field(20, alias="topK")
+
+
+class KnowledgeSearchHit(BaseModel):
+    """语义搜索结果项。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    paper_id: int = Field(..., alias="paperId")
+    section: str = ""
+    content: str = ""
+    score: float = 0.0
+
+
+class KnowledgeSearchResponse(BaseModel):
+    """语义搜索结果。"""
+
+    results: list[KnowledgeSearchHit] = []
+
+
 class HealthResponse(BaseModel):
     """健康检查响应。"""
 

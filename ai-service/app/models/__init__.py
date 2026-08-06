@@ -5,6 +5,9 @@
 from app.models.schemas import (
     ChatStreamRequest,
     HealthResponse,
+    KnowledgeSearchHit,
+    KnowledgeSearchRequest,
+    KnowledgeSearchResponse,
     PaperAnalyzeRequest,
     PaperAnalyzeResult,
     ReviewGenerateRequest,
@@ -13,6 +16,9 @@ from app.models.schemas import (
 __all__ = [
     "ChatStreamRequest",
     "HealthResponse",
+    "KnowledgeSearchHit",
+    "KnowledgeSearchRequest",
+    "KnowledgeSearchResponse",
     "PaperAnalyzeRequest",
     "PaperAnalyzeResult",
     "ReviewGenerateRequest",
