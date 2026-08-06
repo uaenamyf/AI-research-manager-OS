@@ -15,7 +15,7 @@ import java.util.Map;
 @RestController
 public class HealthController {
 
-    @GetMapping("/health")
+    @GetMapping("/api/health")
     public ApiResponse<Map<String, String>> health() {
         return ApiResponse.ok(Map.of("status", "ok"));
     }

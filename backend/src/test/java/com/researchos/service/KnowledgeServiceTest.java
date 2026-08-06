@@ -89,18 +89,22 @@ class KnowledgeServiceTest {
 
     @Test
     void testSearch_LimitApplied() {
-        // 模拟返回 10 篇论文
+        // 模拟返回 10 篇论文（mock 不执行 SQL，LIMIT 截断发生在数据库层）
         var papers = new java.util.ArrayList<com.researchos.entity.Paper>();
         for (int i = 0; i < 10; i++) {
             papers.add(createPaperWithTags("Paper " + i, "Tag" + i));
         }
         when(paperMapper.selectList(any())).thenReturn(papers);
 
-        // 限制只返回 5 条
+        // 验证传入的 wrapper 携带 LIMIT 5（SQL 层截断）
         List<KnowledgeSearchResult> results = knowledgeService.search(TEST_USER_ID, "paper", 5);
 
         assertNotNull(results);
-        assertEquals(5, results.size());
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<com.researchos.entity.Paper>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.Wrapper.class);
+        verify(paperMapper).selectList(captor.capture());
+        assertTrue(captor.getValue().getCustomSqlSegment().contains("LIMIT 5"));
     }
 
     private com.researchos.entity.Paper createPaperWithTags(String title, String... tags) {

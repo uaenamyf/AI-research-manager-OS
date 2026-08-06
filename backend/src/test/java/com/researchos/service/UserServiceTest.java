@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 
@@ -37,6 +38,9 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 手动注入 baseMapper（MyBatis Plus ServiceImpl 持有，@InjectMocks 按类型注入有歧义）
+        ReflectionTestUtils.setField(userService, "baseMapper", userMapper);
+
         testUser = new User();
         testUser.setId(1L);
         testUser.setEmail("test@example.com");
@@ -47,7 +51,8 @@ class UserServiceTest {
 
     @Test
     void testFindByEmail_Found() {
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testUser);
+        when(userMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(testUser);
 
         User result = userService.findByEmail("test@example.com");
 
@@ -57,7 +62,8 @@ class UserServiceTest {
 
     @Test
     void testFindByEmail_NotFound() {
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(userMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(null);
 
         User result = userService.findByEmail("notfound@example.com");
 
@@ -68,7 +74,8 @@ class UserServiceTest {
     void testFindByOauth_Found() {
         testUser.setOauthProvider("google");
         testUser.setOauthId("google-123");
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testUser);
+        when(userMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(testUser);
 
         User result = userService.findByOauth("google", "google-123");
 
@@ -79,7 +86,8 @@ class UserServiceTest {
 
     @Test
     void testFindByOauth_NotFound() {
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(userMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(null);
 
         User result = userService.findByOauth("google", "notfound");
 

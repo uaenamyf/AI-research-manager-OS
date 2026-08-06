@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.Arrays;
@@ -44,6 +45,9 @@ class ProjectServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 手动注入 baseMapper（MyBatis Plus ServiceImpl 持有，@InjectMocks 按类型注入有歧义）
+        ReflectionTestUtils.setField(projectService, "baseMapper", projectMapper);
+
         testProject1 = new ResearchProject();
         testProject1.setId(1L);
         testProject1.setUserId(TEST_USER_ID);
@@ -117,7 +121,8 @@ class ProjectServiceTest {
 
     @Test
     void testRequireProjectOwnedBy_Success() {
-        when(projectMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testProject1);
+        when(projectMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(testProject1);
 
         ResearchProject result = projectService.requireProjectOwnedBy(1L, TEST_USER_ID);
 
@@ -128,7 +133,8 @@ class ProjectServiceTest {
 
     @Test
     void testRequireProjectOwnedBy_NotFound_ShouldThrow() {
-        when(projectMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(projectMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(null);
 
         assertThrows(BusinessException.class, () ->
                 projectService.requireProjectOwnedBy(999L, TEST_USER_ID)

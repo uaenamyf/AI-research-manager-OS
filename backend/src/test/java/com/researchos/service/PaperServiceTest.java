@@ -5,6 +5,7 @@ import com.researchos.dto.PaperCreateRequest;
 import com.researchos.dto.PaperUploadResponse;
 import com.researchos.entity.Paper;
 import com.researchos.entity.ResearchProject;
+import com.researchos.entity.User;
 import com.researchos.mapper.PaperMapper;
 import com.researchos.service.impl.PaperServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 
@@ -54,9 +56,18 @@ class PaperServiceTest {
 
     private ResearchProject testProject;
     private Paper testPaper;
+    private User testUser;
 
     @BeforeEach
     void setUp() {
+        // 手动注入 baseMapper（MyBatis Plus ServiceImpl 持有，@InjectMocks 按类型注入有歧义）
+        ReflectionTestUtils.setField(paperService, "baseMapper", paperMapper);
+
+        testUser = new User();
+        testUser.setId(TEST_USER_ID);
+        testUser.setEmail("test@example.com");
+        testUser.setPlan("FREE");
+
         testProject = new ResearchProject();
         testProject.setId(TEST_PROJECT_ID);
         testProject.setUserId(TEST_USER_ID);
@@ -76,6 +87,9 @@ class PaperServiceTest {
         // 模拟：项目存在且归属正确
         when(projectService.requireProjectOwnedBy(TEST_PROJECT_ID, TEST_USER_ID))
                 .thenReturn(testProject);
+
+        // 模拟：用户存在（createPaper 先 requireUser 取 plan 再 checkQuota）
+        when(userService.requireUser(TEST_USER_ID)).thenReturn(testUser);
 
         // 模拟：额度检查通过
         doNothing().when(subscriptionService).checkQuota(TEST_USER_ID, "FREE");
@@ -97,15 +111,19 @@ class PaperServiceTest {
         assertEquals(100L, response.getPaperId());
         assertEquals("PROCESSING", response.getStatus());
 
-        // 验证 MQ 消息发送
+        // 验证 MQ 消息发送（3 参：exchange, routingKey, message）
         verify(rabbitTemplate, times(1)).convertAndSend(
-                anyString(),
+                eq(com.researchos.config.RabbitConfig.EXCHANGE_AI_TASK),
+                eq(com.researchos.config.RabbitConfig.ROUTING_PAPER_ANALYZE),
                 any(Object.class)
         );
     }
 
     @Test
     void testCreatePaper_QuotaExceeded_ShouldThrow() {
+        // 模拟：用户存在（否则 requireUser 返回 null 先于 checkQuota 抛 NPE）
+        when(userService.requireUser(TEST_USER_ID)).thenReturn(testUser);
+
         // 模拟：额度检查失败
         doThrow(new RuntimeException("Quota exceeded"))
                 .when(subscriptionService).checkQuota(TEST_USER_ID, "FREE");
@@ -119,7 +137,7 @@ class PaperServiceTest {
         );
 
         // 验证：额度超限后不应发送 MQ 消息
-        verify(rabbitTemplate, never()).convertAndSend(anyString(), any(Object.class));
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     @Test
@@ -139,7 +157,8 @@ class PaperServiceTest {
 
     @Test
     void testRequirePaperOwnedBy_Success() {
-        when(paperMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testPaper);
+        when(paperMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(testPaper);
 
         Paper result = paperService.requirePaperOwnedBy(100L, TEST_USER_ID);
 
@@ -150,7 +169,8 @@ class PaperServiceTest {
 
     @Test
     void testRequirePaperOwnedBy_NotFound_ShouldThrow() {
-        when(paperMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(paperMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(null);
 
         assertThrows(RuntimeException.class, () ->
                 paperService.requirePaperOwnedBy(999L, TEST_USER_ID)
@@ -159,14 +179,9 @@ class PaperServiceTest {
 
     @Test
     void testRequirePaperOwnedBy_WrongUser_ShouldThrow() {
-        // 论文属于另一个用户
-        testPaper.setUserId(999L);
-        when(paperMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testPaper);
-
-        // 查询条件是 TEST_USER_ID，所以应该返回 null
-        // 实际上 requirePaperOwnedBy 会在查询条件中包含 userId
-        // 所以我们需要模拟查询返回 null
-        when(paperMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        // requirePaperOwnedBy 的查询条件含 userId，其他用户的论文查不到
+        when(paperMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(null);
 
         assertThrows(RuntimeException.class, () ->
                 paperService.requirePaperOwnedBy(100L, TEST_USER_ID)

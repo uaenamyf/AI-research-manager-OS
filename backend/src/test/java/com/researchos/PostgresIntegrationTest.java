@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2026-07-23
  */
 @SpringBootTest
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @ActiveProfiles("test")
 class PostgresIntegrationTest {
 

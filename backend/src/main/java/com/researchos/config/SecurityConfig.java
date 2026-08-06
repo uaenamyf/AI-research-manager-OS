@@ -51,7 +51,7 @@ public class SecurityConfig {
                 // 内部回调端点（用 X-Internal-Token 校验，不走 JWT）
                 .requestMatchers("/internal/**").permitAll()
                 // 健康检查
-                .requestMatchers("/actuator/**", "/health").permitAll()
+                .requestMatchers("/actuator/**", "/api/health").permitAll()
                 // OPTIONS 预检放行
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // SSE 异步 dispatch 放行（SseEmitter 触发的 ASYNC 请求）

@@ -82,9 +82,7 @@ class SubscriptionServiceTest {
 
     @Test
     void testCheckQuota_ResearcherPlan_NoLimit() {
-        // RESEARCHER 计划无限制
-        when(paperMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(9999L);
-
+        // RESEARCHER 计划无限制，checkQuota 直接返回不查库
         assertDoesNotThrow(() ->
                 subscriptionService.checkQuota(TEST_USER_ID, "RESEARCHER")
         );

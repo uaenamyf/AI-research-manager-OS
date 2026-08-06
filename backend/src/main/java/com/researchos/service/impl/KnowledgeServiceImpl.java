@@ -10,7 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 知识库服务实现：标签查询、关联搜索。
@@ -26,17 +29,31 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final PaperMapper paperMapper;
 
     /**
-     * 获取标签（MVP 暂用 domain 字段聚合）。
+     * 获取标签（MVP 暂用 title 关键词占位聚合）。
      */
     @Override
     public List<KnowledgeTagDto> listTags(Long userId) {
-        // 简化：按 domain 分组计数
         List<Paper> papers = paperMapper.selectList(
                 new LambdaQueryWrapper<Paper>()
                         .eq(Paper::getUserId, userId)
                         .isNotNull(Paper::getTitle));
-        // 实际应查标签表，MVP 用 title 关键词占位
-        return Collections.emptyList();
+        // MVP：以 title 关键词占位聚合；P1 接入真实标签表后替换
+        Map<String, Long> counts = new HashMap<>();
+        for (Paper p : papers) {
+            if (p.getTitle() == null) {
+                continue;
+            }
+            for (String kw : p.getTitle().toLowerCase().split("[^a-z0-9]+")) {
+                if (kw.isEmpty()) {
+                    continue;
+                }
+                counts.merge(kw, 1L, Long::sum);
+            }
+        }
+        return counts.entrySet().stream()
+                .map(e -> new KnowledgeTagDto(null, e.getKey(), e.getValue().intValue()))
+                .sorted(Comparator.comparingInt(KnowledgeTagDto::getCount).reversed())
+                .toList();
     }
 
     /**
