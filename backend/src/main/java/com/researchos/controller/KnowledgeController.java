@@ -2,6 +2,7 @@ package com.researchos.controller;
 
 import com.researchos.common.response.ApiResponse;
 import com.researchos.security.CurrentUserResolver;
+import com.researchos.dto.KnowledgeGraphResult;
 import com.researchos.dto.KnowledgeSearchResult;
 import com.researchos.dto.KnowledgeTagDto;
 import com.researchos.service.KnowledgeService;
@@ -36,5 +37,11 @@ public class KnowledgeController {
             @RequestParam(defaultValue = "20") int limit) {
         Long userId = currentUserResolver.requireUserId();
         return ApiResponse.ok(knowledgeService.search(userId, q, limit));
+    }
+
+    @GetMapping("/graph")
+    public ApiResponse<KnowledgeGraphResult> graph() {
+        Long userId = currentUserResolver.requireUserId();
+        return ApiResponse.ok(knowledgeService.graph(userId));
     }
 }
