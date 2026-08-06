@@ -62,8 +62,33 @@
 | POST | `/rag/chat/stream` | RAG 问答流式 | SSE |
 | POST | `/review/generate` | 综述生成 | 同步 |
 | POST | `/search` | Knowledge 跨论文语义搜索 | 同步 |
+| POST | `/writing/transform` | Writing Agent 文本变换 | 同步 |
 
 > 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）、语义搜索与调试。
+
+### POST /writing/transform（Writing Agent）
+
+请求：
+
+```json
+{
+  "text": "This paper proposes ...",
+  "action": "polish"
+}
+```
+
+- `action` 枚举：`rewrite`（改写）/ `polish`（润色）/ `review_response`（回复审稿人）/ `cover_letter`（Cover letter），未知 action 兜底为 IMPROVE。
+
+响应（200）：
+
+```json
+{
+  "result": "This manuscript proposes ..."
+}
+```
+
+- 鉴权：`X-Internal-Token`，与 `/rag/chat/stream` 一致。
+- backend 调用失败（非 200 / 网络异常）时返回 `AI_SERVICE_ERROR`（4001），前端提示「AI 暂时不可用，请重试」。
 
 ### POST /search（Knowledge 语义搜索）
 
