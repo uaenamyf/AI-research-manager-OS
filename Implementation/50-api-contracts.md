@@ -62,6 +62,7 @@
 | POST | `/rag/chat/stream` | RAG 问答流式 | SSE |
 | POST | `/review/generate` | 综述生成 | 同步 |
 | POST | `/search` | Knowledge 跨论文语义搜索 | 同步 |
+| POST | `/graph/similarities` | Knowledge 图谱论文两两相似度 | 同步 |
 | POST | `/writing/transform` | Writing Agent 文本变换 | 同步 |
 
 > 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）、语义搜索与调试。
@@ -122,6 +123,35 @@
 - `content` 为命中的 chunk 原文（backend 截断为 snippet 展示）。
 - 鉴权：`X-Internal-Token`，与 `/rag/chat/stream` 一致。
 - backend 调用失败（非 200 / 网络异常）时降级为 title/authors LIKE 模糊搜索，不向用户透传错误。
+
+### POST /graph/similarities（Knowledge 图谱相似度）
+
+请求：
+
+```json
+{
+  "paperIds": [10, 11, 12]
+}
+```
+
+- `paperIds`：backend 按 user_id 过滤后的论文 id 列表（多租户边界在 backend）。
+- 少于 2 篇返回空 `similarities`。
+
+响应（200）：
+
+```json
+{
+  "similarities": [
+    {"source": 10, "target": 11, "score": 0.83},
+    {"source": 10, "target": 12, "score": 0.41}
+  ]
+}
+```
+
+- 计算方式：`paper_chunk` 按 paper_id 聚合平均向量（`AVG(embedding)`），两两算余弦相似度（`1 - (vec <=> vec)`），按 `score DESC` 排序。
+- `score` ∈ [-1, 1]，越大越相似。
+- 鉴权：`X-Internal-Token`，与 `/rag/chat/stream` 一致。
+- backend 处理：过滤 `score >= 0.55` 的边，每篇最多 6 条边、总边数上限 60；ai-service 不可达时降级为标题共享关键词建边（`reason=tag`），不向用户透传错误。
 
 ## ai-service -> backend（回调，带 `X-Internal-Token`）
 
