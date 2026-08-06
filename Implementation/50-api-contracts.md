@@ -61,8 +61,42 @@
 | POST | `/paper/analyze` | PDF 分析（少用，主要调试） | 同步 |
 | POST | `/rag/chat/stream` | RAG 问答流式 | SSE |
 | POST | `/review/generate` | 综述生成 | 同步 |
+| POST | `/search` | Knowledge 跨论文语义搜索 | 同步 |
 
-> 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）与调试。
+> 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）、语义搜索与调试。
+
+### POST /search（Knowledge 语义搜索）
+
+请求：
+
+```json
+{
+  "paperIds": [10, 11],
+  "query": "transformer attention",
+  "topK": 20
+}
+```
+
+- `topK` 缺省 20，最多返回条数（backend 传入用户请求的 `limit`）。
+
+响应（200）：
+
+```json
+{
+  "results": [
+    {
+      "paperId": 10,
+      "section": "methods",
+      "content": "We propose the Transformer architecture...",
+      "score": 0.87
+    }
+  ]
+}
+```
+
+- `content` 为命中的 chunk 原文（backend 截断为 snippet 展示）。
+- 鉴权：`X-Internal-Token`，与 `/rag/chat/stream` 一致。
+- backend 调用失败（非 200 / 网络异常）时降级为 title/authors LIKE 模糊搜索，不向用户透传错误。
 
 ## ai-service -> backend（回调，带 `X-Internal-Token`）
 
