@@ -1,6 +1,11 @@
 ﻿/** Knowledge Base 相关 API（F6）。 */
 import { apiFetch } from "./client";
-import type { ID, KnowledgeSearchResult, KnowledgeTag } from "@/types";
+import type {
+  ID,
+  KnowledgeGraph,
+  KnowledgeSearchResult,
+  KnowledgeTag,
+} from "@/types";
 
 /** 获取所有标签（按使用次数降序） */
 export function listTags(): Promise<KnowledgeTag[]> {
@@ -26,4 +31,9 @@ export function getPapersByTag(
   return apiFetch<ID[]>(
     `/api/knowledge/tags/${encodeURIComponent(tag)}/papers?page=${page}&size=${size}`,
   );
+}
+
+/** 获取知识图谱（论文关联网络） */
+export function getKnowledgeGraph(): Promise<KnowledgeGraph> {
+  return apiFetch<KnowledgeGraph>("/api/knowledge/graph");
 }

@@ -1,21 +1,47 @@
-/** Knowledge Base：标签 + 关联搜索（F6）。 */
+/** Knowledge Base：标签 + 关联搜索 + 知识图谱（F6）。 */
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { listTags, searchKnowledge } from "@/lib/api/knowledge";
+import { listTags, searchKnowledge, getKnowledgeGraph } from "@/lib/api/knowledge";
 import { Card, Input, Badge } from "@/components/ui";
-import type { KnowledgeSearchResult, KnowledgeTag } from "@/types";
+import KnowledgeGraph from "@/components/knowledge/KnowledgeGraph";
+import type {
+  KnowledgeGraph as KnowledgeGraphType,
+  KnowledgeSearchResult,
+  KnowledgeTag,
+} from "@/types";
+
+type KnowledgeTab = "tags" | "search" | "graph";
+
+const TABS: { value: KnowledgeTab; label: string }[] = [
+  { value: "tags", label: "Tags" },
+  { value: "search", label: "Search" },
+  { value: "graph", label: "Graph" },
+];
 
 export default function KnowledgePage() {
+  const [tab, setTab] = useState<KnowledgeTab>("tags");
   const [tags, setTags] = useState<KnowledgeTag[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [graph, setGraph] = useState<KnowledgeGraphType>({ nodes: [], links: [] });
+  const [graphLoading, setGraphLoading] = useState(false);
 
   useEffect(() => {
     listTags().then(setTags).catch(() => {});
   }, []);
+
+  // 进入 Graph Tab 时加载一次图谱
+  useEffect(() => {
+    if (tab !== "graph" || graph.nodes.length > 0) return;
+    setGraphLoading(true);
+    getKnowledgeGraph()
+      .then(setGraph)
+      .catch(() => {})
+      .finally(() => setGraphLoading(false));
+  }, [tab, graph.nodes.length]);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -34,8 +60,25 @@ export default function KnowledgePage() {
         Research Knowledge Base
       </h1>
 
-      <Card className="p-4">
-        <h2 className="mb-3 font-semibold text-gray-900">Tags</h2>
+      <div className="flex gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={
+              tab === t.value
+                ? "rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                : "rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "tags" && (
+        <Card className="p-4">
+          <h2 className="mb-3 font-semibold text-gray-900">Tags</h2>
         <div className="flex flex-wrap gap-2">
           {tags.length === 0 ? (
             <p className="text-sm text-gray-500">
@@ -53,9 +96,11 @@ export default function KnowledgePage() {
           )}
         </div>
       </Card>
+      )}
 
-      <Card className="p-4">
-        <h2 className="mb-3 font-semibold text-gray-900">Search</h2>
+      {tab === "search" && (
+        <Card className="p-4">
+          <h2 className="mb-3 font-semibold text-gray-900">Search</h2>
         <div className="flex gap-2">
           <Input
             value={query}
@@ -100,6 +145,25 @@ export default function KnowledgePage() {
           </div>
         )}
       </Card>
+      )}
+
+      {tab === "graph" && (
+        <Card className="p-4">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-semibold text-gray-900">Paper Graph</h2>
+            <span className="text-xs text-gray-400">
+              Auto-linked by embedding similarity
+            </span>
+          </div>
+          {graphLoading ? (
+            <div className="flex h-64 items-center justify-center">
+              <p className="text-sm text-gray-500">Building graph…</p>
+            </div>
+          ) : (
+            <KnowledgeGraph graph={graph} />
+          )}
+        </Card>
+      )}
     </div>
   );
 }

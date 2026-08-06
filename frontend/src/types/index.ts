@@ -170,6 +170,29 @@ export interface KnowledgeSearchResult {
   score: number;
 }
 
+/** 知识图谱节点（与 backend KnowledgeGraphNode 对齐） */
+export interface GraphNode {
+  id: ID;
+  title: string;
+  authors: string;
+  tags: string[];
+}
+
+/** 知识图谱边（与 backend KnowledgeGraphLink 对齐） */
+export interface GraphLink {
+  source: ID;
+  target: ID;
+  weight: number;
+  /** 关联来源：semantic（向量相似度）/ tag（共享关键词降级） */
+  reason: "semantic" | "tag";
+}
+
+/** 知识图谱（节点 + 边），供力导向图渲染 */
+export interface KnowledgeGraph {
+  nodes: GraphNode[];
+  links: GraphLink[];
+}
+
 // ===== F7 Review Assistant =====
 export type AiTaskType = "PAPER_ANALYSIS" | "REVIEW_GENERATION";
 export type AiTaskStatus = "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED";
