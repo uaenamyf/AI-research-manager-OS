@@ -8,10 +8,15 @@ import type { ID } from "@/types";
 interface UseChatStreamOptions {
   paperId: ID;
   onCitations?: (citations: ID[]) => void;
+  onDone?: () => void;
 }
 
 /** 管理流式聊天的状态与取消 */
-export function useChatStream({ paperId, onCitations }: UseChatStreamOptions) {
+export function useChatStream({
+  paperId,
+  onCitations,
+  onDone,
+}: UseChatStreamOptions) {
   const [answer, setAnswer] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -32,9 +37,10 @@ export function useChatStream({ paperId, onCitations }: UseChatStreamOptions) {
           setError(err);
           setStreaming(false);
         },
+        onDone,
       );
     },
-    [paperId, onCitations],
+    [paperId, onCitations, onDone],
   );
 
   const stop = useCallback(() => {

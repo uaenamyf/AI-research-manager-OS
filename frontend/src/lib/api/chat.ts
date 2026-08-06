@@ -26,6 +26,7 @@ export function askPaper(data: ChatRequest): Promise<ChatMessage> {
  * @param onToken 每个 token 的回调
  * @param onCitations 引用 chunk_id 回调
  * @param onError 错误回调
+ * @param onDone 流结束回调
  * @returns AbortController（用于取消）
  */
 export function streamPaperChat(
@@ -34,6 +35,7 @@ export function streamPaperChat(
   onToken: (token: string) => void,
   onCitations?: (citations: ID[]) => void,
   onError?: (err: Error) => void,
+  onDone?: () => void,
 ): AbortController {
   const controller = new AbortController();
   const url = `${BASE_URL}/api/papers/${paperId}/chat/stream?q=${encodeURIComponent(question)}`;
@@ -83,6 +85,7 @@ export function streamPaperChat(
                 onError?.(new Error(event.content));
                 break;
               case "done":
+                onDone?.();
                 return;
             }
           } catch {
