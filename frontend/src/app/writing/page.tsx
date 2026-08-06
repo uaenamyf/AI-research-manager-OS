@@ -1,14 +1,60 @@
-/** Review Generator：选论文 + 生成 Literature Review（F7）。 */
+/**
+ * Writing 页面：Literature Review Assistant（F7）+ Writing Assistant（Agent 4）。
+ *
+ * - Tab 1: Review Generator——选论文 + Topic 生成综述（异步任务）
+ * - Tab 2: Writing Assistant——改写/润色/回复审稿人/Cover letter（同步）
+ */
 "use client";
 
 import { useEffect, useState } from "react";
 import { listProjects } from "@/lib/api/projects";
 import { listPapers } from "@/lib/api/papers";
 import { generateReview, pollReviewTask } from "@/lib/api/reviews";
-import { Card, Button, Input, Spinner } from "@/components/ui";
-import type { ID, PaperListItem, ResearchProject } from "@/types";
+import { transformText } from "@/lib/api/writing";
+import { Card, Button, Input, Textarea, Spinner } from "@/components/ui";
+import type {
+  ID,
+  PaperListItem,
+  ResearchProject,
+  WritingAction,
+} from "@/types";
+
+const WRITING_ACTIONS: { value: WritingAction; label: string }[] = [
+  { value: "rewrite", label: "Rewrite（改写）" },
+  { value: "polish", label: "Polish（润色）" },
+  { value: "review_response", label: "Reply to Reviewers（回复审稿人）" },
+  { value: "cover_letter", label: "Cover Letter" },
+];
 
 export default function WritingPage() {
+  const [tab, setTab] = useState<"review" | "assistant">("review");
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Writing Studio</h1>
+
+      <div className="flex gap-2">
+        <Button
+          variant={tab === "review" ? "default" : "outline"}
+          onClick={() => setTab("review")}
+        >
+          Literature Review
+        </Button>
+        <Button
+          variant={tab === "assistant" ? "default" : "outline"}
+          onClick={() => setTab("assistant")}
+        >
+          Writing Assistant
+        </Button>
+      </div>
+
+      {tab === "review" ? <ReviewGenerator /> : <WritingAssistant />}
+    </div>
+  );
+}
+
+// ===== Tab 1: Literature Review Generator（F7） =====
+function ReviewGenerator() {
   const [projects, setProjects] = useState<ResearchProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<ID | null>(null);
   const [papers, setPapers] = useState<PaperListItem[]>([]);
@@ -138,6 +184,87 @@ export default function WritingPage() {
           <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-800">
             {review}
           </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ===== Tab 2: Writing Assistant（Agent 4） =====
+function WritingAssistant() {
+  const [action, setAction] = useState<WritingAction>("polish");
+  const [text, setText] = useState("");
+  const [result, setResult] = useState("");
+  const [transforming, setTransforming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleTransform = async () => {
+    if (!text.trim()) return;
+    setTransforming(true);
+    setError(null);
+    setResult("");
+    try {
+      const { result: out } = await transformText({ text, action });
+      setResult(out);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setTransforming(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-4">
+        <h2 className="mb-3 font-semibold text-gray-900">1. Choose Action</h2>
+        <div className="flex flex-wrap gap-2">
+          {WRITING_ACTIONS.map((a) => (
+            <Button
+              key={a.value}
+              variant={action === a.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setAction(a.value)}
+            >
+              {a.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h2 className="mb-3 font-semibold text-gray-900">2. Paste Your Text</h2>
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={12}
+          placeholder="Paste the manuscript paragraph, reviewer comment, or draft text here..."
+          className="w-full rounded-md border border-gray-300 p-3 text-sm"
+        />
+        <Button
+          onClick={handleTransform}
+          disabled={transforming || !text.trim()}
+          className="mt-3"
+        >
+          {transforming ? "Transforming..." : "Transform"}
+        </Button>
+      </Card>
+
+      {error && (
+        <Card className="p-4 text-sm text-red-600">{error}</Card>
+      )}
+
+      {result && (
+        <Card className="p-6">
+          <h2 className="mb-3 font-semibold text-gray-900">Result</h2>
+          <div className="whitespace-pre-wrap text-gray-800">{result}</div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => navigator.clipboard.writeText(result)}
+          >
+            Copy
+          </Button>
         </Card>
       )}
     </div>

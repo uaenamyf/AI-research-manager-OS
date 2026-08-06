@@ -6,4 +6,5 @@ export * as folderApi from "./folders";
 export * as chatApi from "./chat";
 export * as knowledgeApi from "./knowledge";
 export * as reviewApi from "./reviews";
+export * as writingApi from "./writing";
 export { apiFetch, apiFetchRaw, ApiError } from "./client";
