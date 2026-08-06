@@ -87,7 +87,7 @@ export default function KnowledgePage() {
           ) : (
             tags.map((tag) => (
               <Badge
-                key={tag.id}
+                key={tag.name}
                 className="bg-gray-100 text-gray-700"
               >
                 {tag.name} ({tag.count})
@@ -119,9 +119,9 @@ export default function KnowledgePage() {
 
         {results.length > 0 && (
           <div className="mt-4 space-y-2">
-            {results.map((r) => (
+            {results.map((r, i) => (
               <Link
-                key={r.paperId}
+                key={`${r.paperId}-${i}`}
                 href={`/papers/${r.paperId}`}
                 className="block rounded-md border border-gray-100 p-3 hover:bg-gray-50"
               >
