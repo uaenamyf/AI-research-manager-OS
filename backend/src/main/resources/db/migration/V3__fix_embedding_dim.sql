@@ -1,12 +1,15 @@
--- V3: embedding 维度 2048 -> 1536（对齐 text-embedding-3-small 实际输出）
+-- V3: embedding 维度对齐 doubao-embedding-vision（火山引擎，2048 维）
 -- date: 2026-08-06
 -- dev: myf
+--
+-- 背景：.env 中 EMBEDDING_MODEL=doubao-embedding-vision（输出 2048 维），
+-- 与 V1 表定义 vector(2048) 一致。本迁移重建 embedding 列确保维度一致。
+--
+-- 注意：
+-- 1. drop + add 会清空已有向量数据（content/section 保留），
+--    由 ai-service 重新生成 embedding 后回填。
+-- 2. 不建 ivfflat/hnsw 向量索引：pgvector 索引限 2000 维，2048 维超限。
+--    小数据集下全表扫描即可；未来若换 1536 维模型可补建。
 
--- 1. 变更向量列维度。pgvector 支持 vector(n) -> vector(m) cast，
---    1536 < 2048 只缩不减，用 USING 显式截断（安全降维）。
-ALTER TABLE paper_chunk ALTER COLUMN embedding TYPE vector(1536)
-    USING embedding::vector(1536);
-
--- 2. 1536 < 2000，现在可以建 ivfflat 向量索引（小数据集 lists=100）。
-CREATE INDEX idx_chunk_embedding ON paper_chunk
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+ALTER TABLE paper_chunk DROP COLUMN IF EXISTS embedding;
+ALTER TABLE paper_chunk ADD COLUMN embedding vector(2048);
