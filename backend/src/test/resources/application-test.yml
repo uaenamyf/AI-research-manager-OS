@@ -21,6 +21,13 @@ spring:
       simple:
         auto-startup: false  # 测试环境禁用 RabbitMQ 监听器
 
+# 测试用 Google OAuth 假凭据（避免 OAuth2ClientProperties strict 校验报错）
+app:
+  oauth:
+    google:
+      client-id: test-client-id
+      client-secret: test-client-secret
+
 # MyBatis Plus 配置
 mybatis-plus:
   configuration:

@@ -71,7 +71,8 @@ public class AuthServiceImpl implements AuthService {
         response.addCookie(cookie);
     }
 
-    private void setTokenCookie(HttpServletResponse response, User user) {
+    @Override
+    public void setTokenCookie(HttpServletResponse response, User user) {
         String token = tokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getPlan());
         Cookie cookie = new Cookie("access_token", token);
         cookie.setHttpOnly(true);

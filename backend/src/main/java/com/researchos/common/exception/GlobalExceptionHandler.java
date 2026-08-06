@@ -24,7 +24,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e) {
         log.warn("业务异常: code={}, msg={}", e.getCode(), e.getMessage());
-        HttpStatus status = e.getCode() == ErrorCode.UNAUTHORIZED.getCode()
+        boolean unauthorized = e.getCode() == ErrorCode.UNAUTHORIZED.getCode()
+                || e.getCode() == ErrorCode.INVALID_CREDENTIALS.getCode();
+        HttpStatus status = unauthorized
                 ? HttpStatus.UNAUTHORIZED
                 : HttpStatus.BAD_REQUEST;
         return ResponseEntity.status(status).body(ApiResponse.fail(e.getCode(), e.getMessage()));

@@ -31,6 +31,11 @@ public interface AuthService {
     void logout(HttpServletResponse response);
 
     /**
+     * 签发 JWT 并写入 httpOnly cookie（注册/登录/OAuth 回调共用）。
+     */
+    void setTokenCookie(HttpServletResponse response, User user);
+
+    /**
      * 转 DTO。
      */
     UserDto toDto(User user);

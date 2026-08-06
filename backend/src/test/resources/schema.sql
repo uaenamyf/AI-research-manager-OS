@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS paper (
     user_id BIGINT NOT NULL,
     title VARCHAR(500),
     authors TEXT,
-    year INT,
+    "year" INT,
     doi VARCHAR(255),
     pdf_url VARCHAR(1000),
     status VARCHAR(50) DEFAULT 'UPLOADED',
