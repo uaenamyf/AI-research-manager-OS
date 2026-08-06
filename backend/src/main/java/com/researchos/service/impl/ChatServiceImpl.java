@@ -10,6 +10,8 @@ import com.researchos.entity.Paper;
 import com.researchos.mapper.ConversationMapper;
 import com.researchos.service.ChatService;
 import com.researchos.service.PaperService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,10 +25,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Paper Chat 服务实现：转发 ai-service 的 SSE 流。
+ * Paper Chat 服务实现：转发 ai-service 的 SSE 流并落库历史。
  *
  * @author myf
  * @since 2026-07-08
@@ -38,6 +42,7 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
 
     private final PaperService paperService;
     private final AppProperties appProperties;
+    private final ObjectMapper objectMapper;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
@@ -45,7 +50,9 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
             .build();
 
     /**
-     * 流式问答：转发 ai-service 的 SSE 流到前端。
+     * 流式问答：转发 ai-service 的 SSE 流到前端，流结束后保存聊天历史。
+     *
+     * <p>ai-service SSE 事件：citation（引用）/ token（逐字回答）/ done（结束）/ error。</p>
      */
     @Override
     public void forwardStream(Long paperId, Long userId, String question,
@@ -59,8 +66,11 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
         try {
             String aiUrl = appProperties.getAiService().getBaseUrl()
                     + "/rag/chat/stream";
-            String body = "{\"paperId\":" + paperId + ",\"question\":\"" +
-                    question.replace("\"", "\\\"") + "\"}";
+            // 用 Jackson 序列化 body，避免手拼 JSON 的转义问题
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("paperId", paperId);
+            payload.put("question", question);
+            String body = objectMapper.writeValueAsString(payload);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(aiUrl))
@@ -72,13 +82,26 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
 
             httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
                     .thenAccept(response -> {
+                        // 累积回答文本，done 事件后落库
+                        StringBuilder answerBuilder = new StringBuilder();
                         try (BufferedReader reader = new BufferedReader(
                                 new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
                             String line;
                             while ((line = reader.readLine()) != null) {
-                                if (line.startsWith("data:")) {
-                                    String data = line.substring(5).trim();
-                                    emitter.send(SseEmitter.event().data(data));
+                                if (!line.startsWith("data:")) {
+                                    continue;
+                                }
+                                String data = line.substring(5).trim();
+                                emitter.send(SseEmitter.event().data(data));
+                                JsonNode node = objectMapper.readTree(data);
+                                String type = node.path("type").asText("");
+                                if ("token".equals(type)) {
+                                    answerBuilder.append(node.path("content").asText(""));
+                                } else if ("done".equals(type)) {
+                                    if (!answerBuilder.isEmpty()) {
+                                        saveHistory(userId, paperId, question,
+                                                answerBuilder.toString());
+                                    }
                                 }
                             }
                             emitter.complete();
