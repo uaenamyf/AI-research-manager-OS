@@ -17,5 +17,6 @@ public class PaperListItem {
     private String authors;
     private Integer year;
     private String status;
+    private Long folderId;
     private OffsetDateTime createdTime;
 }

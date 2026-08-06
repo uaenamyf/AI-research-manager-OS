@@ -60,6 +60,7 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
         Paper paper = new Paper();
         paper.setProjectId(projectId);
         paper.setUserId(userId);
+        paper.setFolderId(req.getFolderId());
         paper.setTitle(req.getFileName()); // 初始用文件名，AI 分析后更新
         paper.setPdfUrl(req.getS3Key());
         paper.setStatus("PROCESSING");
@@ -91,20 +92,39 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     }
 
     /**
-     * 项目下论文列表。
+     * 项目下论文列表，支持按文件夹筛选。
      */
     @Override
-    public PageResponse<PaperListItem> listByProject(Long projectId, Long userId,
+    public PageResponse<PaperListItem> listByProject(Long projectId, Long userId, Long folderId,
                                                        int page, int size) {
         projectService.requireProjectOwnedBy(projectId, userId);
-        Page<Paper> p = page(
-                new Page<>(page, size),
-                new LambdaQueryWrapper<Paper>()
-                        .eq(Paper::getProjectId, projectId)
-                        .eq(Paper::getUserId, userId)
-                        .orderByDesc(Paper::getCreatedTime));
+
+        LambdaQueryWrapper<Paper> wrapper = new LambdaQueryWrapper<Paper>()
+                .eq(Paper::getProjectId, projectId)
+                .eq(Paper::getUserId, userId)
+                .orderByDesc(Paper::getCreatedTime);
+
+        // folderId = null 表示根目录（未归档的论文）
+        if (folderId == null) {
+            wrapper.isNull(Paper::getFolderId);
+        } else {
+            wrapper.eq(Paper::getFolderId, folderId);
+        }
+
+        Page<Paper> p = page(new Page<>(page, size), wrapper);
         var items = p.getRecords().stream().map(this::toListItem).toList();
         return PageResponse.of(items, p.getTotal(), page, size);
+    }
+
+    /**
+     * 移动论文到文件夹。
+     */
+    @Override
+    @Transactional
+    public void movePaper(Long userId, Long paperId, Long folderId) {
+        Paper paper = requirePaperOwnedBy(paperId, userId);
+        paper.setFolderId(folderId);
+        updateById(paper);
     }
 
     /**
@@ -130,6 +150,7 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
         dto.setAuthors(paper.getAuthors());
         dto.setYear(paper.getYear());
         dto.setStatus(paper.getStatus());
+        dto.setFolderId(paper.getFolderId());
         dto.setCreatedTime(paper.getCreatedTime());
         return dto;
     }

@@ -70,14 +70,26 @@ public class PaperController {
         return ApiResponse.ok(paper.getSummary());
     }
 
-    /** 项目下论文列表 */
+    /** 项目下论文列表，支持按文件夹筛选 */
     @GetMapping("/api/projects/{projectId}/papers")
     public ApiResponse<PageResponse<PaperListItem>> listPapers(
             @PathVariable Long projectId,
+            @RequestParam(required = false) Long folderId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = currentUserResolver.requireUserId();
-        return ApiResponse.ok(paperService.listByProject(projectId, userId, page, size));
+        return ApiResponse.ok(paperService.listByProject(projectId, userId, folderId, page, size));
+    }
+
+    /** 移动论文到文件夹 */
+    @PutMapping("/api/papers/{paperId}/move")
+    public ApiResponse<Void> movePaper(
+            @PathVariable Long paperId,
+            @RequestBody Map<String, Long> body) {
+        Long userId = currentUserResolver.requireUserId();
+        Long folderId = body.get("folderId");
+        paperService.movePaper(userId, paperId, folderId);
+        return ApiResponse.ok();
     }
 
     /** 删除论文 */

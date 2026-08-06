@@ -29,9 +29,14 @@ public interface PaperService extends IService<Paper> {
     Paper requirePaperOwnedBy(Long paperId, Long userId);
 
     /**
-     * 项目下论文列表。
+     * 项目下论文列表，支持按文件夹筛选。
      */
-    PageResponse<PaperListItem> listByProject(Long projectId, Long userId, int page, int size);
+    PageResponse<PaperListItem> listByProject(Long projectId, Long userId, Long folderId, int page, int size);
+
+    /**
+     * 移动论文到文件夹。
+     */
+    void movePaper(Long userId, Long paperId, Long folderId);
 
     /**
      * 更新分析结果（ai-service 回调调用）。

@@ -24,6 +24,7 @@ public class Paper {
     private Long id;
     private Long projectId;
     private Long userId;
+    private Long folderId;
     private String title;
     private String authors;
     private Integer year;

@@ -39,6 +39,7 @@ public class AppProperties {
         private String accessKey;
         private String secretKey;
         private String endpoint;
+        private String localDir = "./uploads";
     }
 
     @Data

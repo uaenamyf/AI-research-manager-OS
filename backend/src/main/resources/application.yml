@@ -38,12 +38,13 @@ app:
     access-ttl: 30m
     refresh-ttl: 7d
   storage:
-    type: ${STORAGE_TYPE:s3}
+    type: ${STORAGE_TYPE:local}
     bucket: ${STORAGE_BUCKET:researchos-pdfs}
     region: ${STORAGE_REGION:us-east-1}
     access-key: ${STORAGE_KEY:}
     secret-key: ${STORAGE_SECRET:}
     endpoint: ${STORAGE_ENDPOINT:}
+    local-dir: ${STORAGE_LOCAL_DIR:./uploads}
   ai-service:
     base-url: ${AI_SERVICE_URL:http://localhost:8000}
     internal-token: ${INTERNAL_TOKEN:dev-internal-token}
