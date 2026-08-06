@@ -11,6 +11,8 @@ from app.models.schemas import (
     PaperAnalyzeRequest,
     PaperAnalyzeResult,
     ReviewGenerateRequest,
+    WritingTransformRequest,
+    WritingTransformResponse,
 )
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "PaperAnalyzeRequest",
     "PaperAnalyzeResult",
     "ReviewGenerateRequest",
+    "WritingTransformRequest",
+    "WritingTransformResponse",
 ]
