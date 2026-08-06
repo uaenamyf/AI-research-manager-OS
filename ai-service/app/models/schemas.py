@@ -91,6 +91,30 @@ class WritingTransformResponse(BaseModel):
     result: str = ""
 
 
+class PaperSimilarityRequest(BaseModel):
+    """POST /graph/similarities 请求体（论文相似度）。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    paper_ids: list[int] = Field(..., alias="paperIds")
+
+
+class PaperSimilarityHit(BaseModel):
+    """论文相似度对（图谱边）。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    source: int
+    target: int
+    score: float = 0.0
+
+
+class PaperSimilarityResponse(BaseModel):
+    """论文相似度结果。"""
+
+    similarities: list[PaperSimilarityHit] = []
+
+
 class HealthResponse(BaseModel):
     """健康检查响应。"""
 
