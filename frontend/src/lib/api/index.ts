@@ -2,6 +2,7 @@
 export * as authApi from "./auth";
 export * as projectApi from "./projects";
 export * as paperApi from "./papers";
+export * as folderApi from "./folders";
 export * as chatApi from "./chat";
 export * as knowledgeApi from "./knowledge";
 export * as reviewApi from "./reviews";

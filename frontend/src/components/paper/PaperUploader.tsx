@@ -2,15 +2,17 @@
 "use client";
 
 import { useState } from "react";
-import { getUploadUrl, uploadToS3, createPaper } from "@/lib/api/papers";
+import { getUploadUrl, uploadToStorage, createPaper } from "@/lib/api/papers";
 import type { ID, PaperUploadResponse } from "@/types";
 import { formatBytes } from "@/lib/utils";
 
 export function PaperUploader({
   projectId,
+  folderId,
   onUploaded,
 }: {
   projectId: ID;
+  folderId?: ID | null;
   onUploaded?: (res: PaperUploadResponse) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -28,13 +30,14 @@ export function PaperUploader({
         file.name,
         file.type,
       );
-      // 2. 直传 S3
-      await uploadToS3(presigned, file);
+      // 2. 直传存储
+      await uploadToStorage(presigned, file);
       // 3. 通知 backend 创建 paper 记录 + 触发分析
       const res = await createPaper(projectId, {
         fileName: file.name,
         s3Key: presigned.fields.key ?? file.name,
         contentType: file.type,
+        folderId: folderId ?? null,
       });
       onUploaded?.(res);
       setFile(null);
@@ -46,7 +49,7 @@ export function PaperUploader({
   };
 
   return (
-    <div className="rounded-lg border border-dashed border-gray-300 p-6">
+    <div className="rounded-lg border border-dashed border-gray-300 p-4">
       <input
         type="file"
         accept="application/pdf"

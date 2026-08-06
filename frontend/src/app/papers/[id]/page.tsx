@@ -44,6 +44,14 @@ export default function PaperWorkspacePage() {
 
   const currentStatus = status ?? paper.status;
 
+  // PDF 代理 URL（本地存储或 S3 代理）
+  const getPdfProxyUrl = () => {
+    if (!paper.pdfUrl) return "";
+    // pdfUrl 存储的是 key，通过代理端点访问。
+    // 用 encodeURI 而非 encodeURIComponent：保留斜杠（%2F 会被 Tomcat 拒绝）
+    return `/api/files/${encodeURI(paper.pdfUrl)}`;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -62,7 +70,7 @@ export default function PaperWorkspacePage() {
         {/* 左：PDF 阅读器 */}
         <Card className="h-[70vh] overflow-hidden">
           {paper.pdfUrl ? (
-            <PdfViewer pdfUrl={paper.pdfUrl} />
+            <PdfViewer pdfUrl={getPdfProxyUrl()} />
           ) : (
             <div className="flex h-full items-center justify-center text-gray-400">
               No PDF available

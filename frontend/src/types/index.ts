@@ -58,6 +58,19 @@ export interface ProjectCreateRequest {
   domain: string;
 }
 
+// ===== Folder 文件夹 =====
+export interface Folder {
+  id: ID;
+  userId: ID;
+  projectId: ID;
+  parentId: ID | null;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  children?: Folder[]; // 前端用于构建树
+}
+
 // ===== F3 论文 =====
 export type PaperStatus =
   | "UPLOADED"
@@ -70,6 +83,7 @@ export interface Paper {
   id: ID;
   projectId: ID;
   userId: ID;
+  folderId: ID | null;
   title: string;
   authors: string;
   year: number;
@@ -86,6 +100,7 @@ export interface PaperListItem {
   authors: string;
   year: number;
   status: PaperStatus;
+  folderId: ID | null;
   createdTime: string;
 }
 

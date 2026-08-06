@@ -30,10 +30,10 @@ export function getUploadUrl(
 }
 
 /**
- * 步骤 2：前端直传文件到 S3（不经过 backend）。
+ * 步骤 2：前端直传文件到存储（S3 或本地）。
  * 用 FormData 携带 presigned POST 的 fields + file。
  */
-export async function uploadToS3(
+export async function uploadToStorage(
   presigned: PresignedPost,
   file: File,
 ): Promise<void> {
@@ -43,11 +43,19 @@ export async function uploadToS3(
   }
   form.append("file", file);
 
-  const res = await fetch(presigned.url, { method: "POST", body: form });
+  const res = await fetch(presigned.url, {
+    method: "POST",
+    body: form,
+    // 本地存储模式：presigned.url 指向后端 /api/local-upload/{token}，跨域直传需带 cookie
+    credentials: "include",
+  });
   if (!res.ok) {
-    throw new Error(`S3 upload failed: ${res.status}`);
+    throw new Error(`Upload failed: ${res.status}`);
   }
 }
+
+/** 兼容：旧方法名 */
+export const uploadToS3 = uploadToStorage;
 
 /**
  * 步骤 3：通知 backend 文件已上传，创建 paper 记录并触发 AI 分析。
@@ -75,15 +83,32 @@ export function getPaper(paperId: ID): Promise<Paper> {
   return apiFetch<Paper>(`/api/papers/${paperId}`);
 }
 
-/** 项目下论文列表 */
+/** 项目下论文列表，支持按文件夹筛选 */
 export function listPapers(
   projectId: ID,
+  folderId?: ID,
   page = 0,
   size = 20,
 ): Promise<Page<PaperListItem>> {
+  const params = new URLSearchParams();
+  if (folderId) params.set("folderId", String(folderId));
+  params.set("page", String(page));
+  params.set("size", String(size));
+
   return apiFetch<Page<PaperListItem>>(
-    `/api/projects/${projectId}/papers?page=${page}&size=${size}`,
+    `/api/projects/${projectId}/papers?${params}`,
   );
+}
+
+/** 移动论文到文件夹 */
+export function movePaper(
+  paperId: ID,
+  folderId: ID | null,
+): Promise<void> {
+  return apiFetch<void>(`/api/papers/${paperId}/move`, {
+    method: "PUT",
+    body: JSON.stringify({ folderId }),
+  });
 }
 
 /** 轮询论文分析状态 */
