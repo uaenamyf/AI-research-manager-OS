@@ -23,7 +23,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -31,19 +30,20 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * 知识库服务实现：标签查询、语义搜索、知识图谱。
+ * 知识库服务实现：标签查询、模糊搜索、知识图谱。
  *
- * <p>搜索链路：按 user_id 取论文范围 -> 调 ai-service /search 做向量语义检索
- * （带 X-Internal-Token）-> 聚合 paper 元数据返回；ai-service 不可达时降级
- * 为 title/authors LIKE 模糊搜索。</p>
+ * <p>标签：聚合各论文 summary 中 AI 生成的 tags（{name, category}），
+ * 具体 tag 与所属大类（category）都作为 tag 统计。</p>
  *
- * <p>图谱链路：调 ai-service /graph/similarities 取论文两两向量相似度建边；
- * ai-service 不可达时降级为 title 共享关键词建边。</p>
+ * <p>搜索链路：按 user_id 取论文范围 -> title/authors LIKE 模糊搜索
+ * （简单模式，不做 RAG 向量检索；ai-service /search 接口保留未删）。</p>
+ *
+ * <p>图谱链路：按论文 tags 共享情况建边（共享 tag 越多权重越高）；
+ * 若论文均无 tags（旧数据），降级为调 ai-service /graph/similarities
+ * 向量相似度建边。</p>
  *
  * @author myf
  * @since 2026-07-08
@@ -71,18 +71,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     /** 图谱：总边数上限。 */
     private static final int MAX_LINKS = 60;
 
-    /** 图谱降级：标题共享词中的停用词（不参与建边）。 */
-    private static final Set<String> STOPWORDS = Set.of(
-            "the", "a", "an", "and", "of", "on", "in", "for", "with", "to", "from",
-            "at", "by", "is", "are", "was", "were", "be", "based", "using", "via",
-            "toward", "towards", "their", "this", "that", "we", "our", "its");
-
-    /** ai-service 返回的单个命中项。 */
-    private record SemanticHit(Long paperId, String snippet, double score) {
-    }
-
     /**
-     * 获取标签（MVP 暂用 title 关键词占位聚合）。
+     * 获取标签：聚合各论文 summary 中 AI 生成的 tags（{name, category}）。
+     *
+     * <p>具体 tag（name）与所属大类（category）都作为 tag 返回：
+     * 大类 tag 的 category 为空，表示它自身就是大类（如「人工智能」「工业领域」）；
+     * 具体 tag 的 category 指向它所属的大类（如「机器学习」->「人工智能」）。</p>
      */
     @Override
     public List<KnowledgeTagDto> listTags(Long userId) {
@@ -90,27 +84,52 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 new LambdaQueryWrapper<Paper>()
                         .eq(Paper::getUserId, userId)
                         .isNotNull(Paper::getTitle));
-        // MVP：以 title 关键词占位聚合；P1 接入真实标签表后替换
-        Map<String, Long> counts = new HashMap<>();
+
+        // key(小写) -> 展示名（保留首个出现的大小写）；key -> 计数；key -> 所属大类
+        Map<String, String> nameDisplay = new HashMap<>();
+        Map<String, Integer> nameCount = new HashMap<>();
+        Map<String, String> nameCategory = new HashMap<>();
+        Map<String, String> categoryDisplay = new HashMap<>();
+        Map<String, Integer> categoryCount = new HashMap<>();
+
         for (Paper p : papers) {
-            if (p.getTitle() == null) {
-                continue;
-            }
-            for (String kw : p.getTitle().toLowerCase().split("[^a-z0-9]+")) {
-                if (kw.isEmpty()) {
-                    continue;
+            for (PaperTag pt : parseTags(p.getSummary())) {
+                String name = pt.name().trim();
+                String category = pt.category().trim();
+                if (!name.isEmpty()) {
+                    String nk = name.toLowerCase();
+                    nameDisplay.putIfAbsent(nk, name);
+                    nameCount.merge(nk, 1, Integer::sum);
+                    if (!category.isEmpty()) {
+                        // 具体 tag 的 category 用大类展示名（归一化），保证与分组标题一致
+                        String ck = category.toLowerCase();
+                        categoryDisplay.putIfAbsent(ck, category);
+                        nameCategory.put(nk, categoryDisplay.get(ck));
+                    }
                 }
-                counts.merge(kw, 1L, Long::sum);
+                if (!category.isEmpty()) {
+                    String ck = category.toLowerCase();
+                    categoryDisplay.putIfAbsent(ck, category);
+                    categoryCount.merge(ck, 1, Integer::sum);
+                }
             }
         }
-        return counts.entrySet().stream()
-                .map(e -> new KnowledgeTagDto(null, e.getKey(), e.getValue().intValue()))
+
+        List<KnowledgeTagDto> tags = new ArrayList<>();
+        nameCount.forEach((nk, cnt) -> tags.add(
+                new KnowledgeTagDto(null, nameDisplay.get(nk), cnt, nameCategory.get(nk))));
+        categoryCount.forEach((ck, cnt) -> tags.add(
+                new KnowledgeTagDto(null, categoryDisplay.get(ck), cnt, null)));
+        return tags.stream()
                 .sorted(Comparator.comparingInt(KnowledgeTagDto::getCount).reversed())
                 .toList();
     }
 
     /**
-     * 语义搜索：先经 ai-service 向量检索，失败降级为 LIKE 模糊搜索。
+     * 模糊搜索：直接对 title/authors 做 LIKE 模糊匹配（简单模式）。
+     *
+     * <p>当前不做 RAG 向量检索；ai-service /search 接口与 semanticSearch
+     * 方法保留未删，后续可恢复。</p>
      */
     @Override
     public List<KnowledgeSearchResult> search(Long userId, String query, int limit) {
@@ -121,18 +140,15 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return Collections.emptyList();
         }
 
-        // 2. 语义搜索（ai-service），失败降级
-        try {
-            List<SemanticHit> hits = semanticSearch(papers, query, limit);
-            return aggregate(papers, hits);
-        } catch (Exception e) {
-            log.warn("ai-service 语义搜索不可用，降级为 LIKE 搜索：{}", e.getMessage());
-            return fallbackSearch(papers, query, limit);
-        }
+        // 2. title/authors 模糊匹配
+        return fallbackSearch(papers, query, limit);
     }
 
     /**
-     * 知识图谱：论文间关联（向量相似度优先，降级共享关键词）。
+     * 知识图谱：按论文 tags 相关度建边。
+     *
+     * <p>主路径：两两论文共享 tag（含大类）越多权重越高；
+     * 若论文均无 tags（旧数据），降级为向量相似度建边（semanticGraph）。</p>
      */
     @Override
     public KnowledgeGraphResult graph(Long userId) {
@@ -142,12 +158,14 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return new KnowledgeGraphResult(Collections.emptyList(), Collections.emptyList());
         }
 
-        List<KnowledgeGraphLink> links;
-        try {
-            links = semanticGraph(papers);
-        } catch (Exception e) {
-            log.warn("ai-service 图谱相似度不可用，降级为共享关键词关联：{}", e.getMessage());
-            links = tagGraph(papers);
+        List<KnowledgeGraphLink> links = tagGraph(papers);
+        // 旧数据没有 tags 时降级为向量相似度建边
+        if (links.isEmpty()) {
+            try {
+                links = semanticGraph(papers);
+            } catch (Exception e) {
+                log.warn("ai-service 图谱相似度不可用：{}", e.getMessage());
+            }
         }
 
         List<KnowledgeGraphNode> nodes = papers.stream()
@@ -205,17 +223,26 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 降级图谱：两两论文按 title 共享关键词数建边（weight=共享词数）。
+     * 图谱主路径：两两论文按 tags 共享数建边（weight=共享 tag 数）。
+     *
+     * <p>共享判断同时覆盖具体 tag（name）与所属大类（category）：
+     * 「机器学习」与「强化学习」同属「人工智能」，即可通过大类产生关联。</p>
      */
     private List<KnowledgeGraphLink> tagGraph(List<Paper> papers) {
         List<KnowledgeGraphLink> links = new ArrayList<>();
         for (int i = 0; i < papers.size() && links.size() < MAX_LINKS; i++) {
-            Set<String> wi = keywords(papers.get(i));
+            Set<String> si = tagNames(papers.get(i));
+            if (si.isEmpty()) {
+                continue;
+            }
             for (int j = i + 1; j < papers.size() && links.size() < MAX_LINKS; j++) {
-                Set<String> wj = keywords(papers.get(j));
+                Set<String> sj = tagNames(papers.get(j));
+                if (sj.isEmpty()) {
+                    continue;
+                }
                 int shared = 0;
-                for (String k : wi) {
-                    if (wj.contains(k)) {
+                for (String k : si) {
+                    if (sj.contains(k)) {
                         shared++;
                     }
                 }
@@ -228,75 +255,22 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         return links;
     }
 
-    /** 提取论文标题关键词（小写、去停用词）。 */
-    private Set<String> keywords(Paper p) {
-        if (p.getTitle() == null) {
-            return Collections.emptySet();
-        }
-        return Arrays.stream(p.getTitle().toLowerCase().split("[^a-z0-9]+"))
-                .filter(w -> !w.isEmpty())
-                .filter(w -> !STOPWORDS.contains(w))
-                .collect(Collectors.toSet());
-    }
-
-    /**
-     * 调用 ai-service /search 做跨论文向量检索。
-     */
-    private List<SemanticHit> semanticSearch(List<Paper> papers, String query, int limit) throws Exception {
-        String aiUrl = appProperties.getAiService().getBaseUrl() + "/search";
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("paperIds", papers.stream().map(Paper::getId).toList());
-        payload.put("query", query);
-        payload.put("topK", limit);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(aiUrl))
-                .header("Content-Type", "application/json")
-                .header("X-Internal-Token", appProperties.getAiService().getInternalToken())
-                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
-                .build();
-
-        HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (resp.statusCode() != 200) {
-            throw new IllegalStateException("ai-service /search 返回 " + resp.statusCode());
-        }
-
-        JsonNode results = objectMapper.readTree(resp.body()).path("results");
-        List<SemanticHit> hits = new java.util.ArrayList<>();
-        for (JsonNode r : results) {
-            hits.add(new SemanticHit(
-                    r.path("paperId").asLong(),
-                    r.path("content").asText(""),
-                    r.path("score").asDouble(0.0)
-            ));
-        }
-        return hits;
-    }
-
-    /**
-     * 聚合 ai-service 命中项与 paper 元数据。
-     */
-    private List<KnowledgeSearchResult> aggregate(List<Paper> papers, List<SemanticHit> hits) {
-        Map<Long, Paper> byId = new HashMap<>();
-        for (Paper p : papers) {
-            byId.put(p.getId(), p);
-        }
-        return hits.stream().map(hit -> {
-            Paper p = byId.get(hit.paperId());
-            if (p == null) {
-                return null;
+    /** 提取论文的全部 tag 名（具体 tag + 大类，小写去空白，用于建边匹配）。 */
+    private Set<String> tagNames(Paper p) {
+        Set<String> names = new HashSet<>();
+        for (PaperTag pt : parseTags(p.getSummary())) {
+            if (!pt.name().isBlank()) {
+                names.add(pt.name().trim().toLowerCase());
             }
-            return new KnowledgeSearchResult(
-                    p.getId(), p.getTitle(), p.getAuthors(),
-                    truncate(hit.snippet(), 200),
-                    extractTags(p.getSummary()),
-                    hit.score()
-            );
-        }).filter(Objects::nonNull).toList();
+            if (!pt.category().isBlank()) {
+                names.add(pt.category().trim().toLowerCase());
+            }
+        }
+        return names;
     }
 
     /**
-     * 降级搜索：title/authors LIKE 模糊匹配（内存过滤，保持原语义）。
+     * 模糊搜索：title/authors LIKE 匹配（内存过滤）。
      */
     private List<KnowledgeSearchResult> fallbackSearch(List<Paper> papers, String query, int limit) {
         return papers.stream()
@@ -313,20 +287,52 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         return text != null && text.toLowerCase().contains(keyword.toLowerCase());
     }
 
-    private String truncate(String text, int max) {
-        if (text == null || text.length() <= max) {
-            return text;
+    /**
+     * 从 summary（Paper Intelligence Card JSON）提取 tags 名称列表。
+     * 兼容三种存储形态：对象数组 [{"name","category"}]、字符串数组、逗号分隔字符串。
+     */
+    private List<String> extractTags(Map<String, Object> summary) {
+        if (summary == null || !(summary.get("tags") instanceof List<?> raw)) {
+            return Collections.emptyList();
         }
-        return text.substring(0, max) + "...";
+        List<String> names = new ArrayList<>();
+        for (Object item : raw) {
+            if (item instanceof Map<?, ?> m) {
+                Object name = m.get("name");
+                if (name != null && !name.toString().isBlank()) {
+                    names.add(name.toString());
+                }
+            } else if (item != null && !item.toString().isBlank()) {
+                names.add(item.toString());
+            }
+        }
+        return names;
     }
 
     /**
-     * 从 summary（Paper Intelligence Card JSON）提取 tags 列表。
+     * 解析 summary 中的 tags 为 PaperTag 列表（兼容对象数组/字符串数组）。
      */
-    private List<String> extractTags(Map<String, Object> summary) {
-        if (summary == null || !(summary.get("tags") instanceof String tagsStr) || tagsStr.isBlank()) {
+    private List<PaperTag> parseTags(Map<String, Object> summary) {
+        if (summary == null || !(summary.get("tags") instanceof List<?> raw)) {
             return Collections.emptyList();
         }
-        return List.of(tagsStr.split(","));
+        List<PaperTag> tags = new ArrayList<>();
+        for (Object item : raw) {
+            if (item instanceof Map<?, ?> m) {
+                tags.add(new PaperTag(
+                        str(m.get("name")), str(m.get("category"))));
+            } else if (item != null) {
+                tags.add(new PaperTag(item.toString(), ""));
+            }
+        }
+        return tags;
+    }
+
+    private String str(Object o) {
+        return o == null ? "" : o.toString().trim();
+    }
+
+    /** summary tags 中的单个标签：name + 所属大类 category。 */
+    private record PaperTag(String name, String category) {
     }
 }

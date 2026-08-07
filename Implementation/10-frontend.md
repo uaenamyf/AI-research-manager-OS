@@ -113,7 +113,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 - `projects/[id]/page.tsx` - F2/F3 项目详情 + 论文列表 + 上传
 - `papers/[id]/page.tsx` - F4 Paper Workspace（PDF + Card 双栏）
 - `papers/[id]/chat/page.tsx` - F5 Paper Chat
-- `knowledge/page.tsx` - F6 知识库（标签 + 搜索）
+- `knowledge/page.tsx` - F6 知识库（Tags 分组展示 + 模糊搜索 + 图谱）
 - `writing/page.tsx` - F7 Review Generator（选论文 + 生成）
 - `settings/page.tsx` - 账户 + 订阅档位
 

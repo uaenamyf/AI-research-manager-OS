@@ -79,23 +79,14 @@ export default function KnowledgePage() {
       {tab === "tags" && (
         <Card className="p-4">
           <h2 className="mb-3 font-semibold text-gray-900">Tags</h2>
-        <div className="flex flex-wrap gap-2">
           {tags.length === 0 ? (
             <p className="text-sm text-gray-500">
               No tags yet. Upload papers to auto-generate tags.
             </p>
           ) : (
-            tags.map((tag) => (
-              <Badge
-                key={tag.name}
-                className="bg-gray-100 text-gray-700"
-              >
-                {tag.name} ({tag.count})
-              </Badge>
-            ))
+            <TagGroups tags={tags} />
           )}
-        </div>
-      </Card>
+        </Card>
       )}
 
       {tab === "search" && (
@@ -152,7 +143,7 @@ export default function KnowledgePage() {
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="font-semibold text-gray-900">Paper Graph</h2>
             <span className="text-xs text-gray-400">
-              Auto-linked by embedding similarity
+              Linked by shared AI tags
             </span>
           </div>
           {graphLoading ? (
@@ -164,6 +155,63 @@ export default function KnowledgePage() {
           )}
         </Card>
       )}
+    </div>
+  );
+}
+
+/**
+ * Tags 按大类分组展示：
+ * 大类 tag（category 为空）作为分组标题，具体 tag 挂在对应大类下。
+ */
+function TagGroups({ tags }: { tags: KnowledgeTag[] }) {
+  // 大类：category 为空的 tag（如「人工智能」「工业领域」）
+  const categories = tags.filter((t) => !t.category);
+  // 具体 tag：有 category 的 tag（如「机器学习」->「人工智能」）
+  const specific = tags.filter((t) => t.category);
+
+  // 具体 tag 归入其大类
+  const groups = new Map<string, KnowledgeTag[]>();
+  for (const t of specific) {
+    const key = t.category!;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(t);
+  }
+
+  // 大类标题集合（合并 categories + 只出现在 groups 中的 category key）
+  const categoryNames = new Set<string>([
+    ...categories.map((c) => c.name),
+    ...groups.keys(),
+  ]);
+
+  return (
+    <div className="space-y-4">
+      {Array.from(categoryNames).map((name) => {
+        const cat = categories.find((c) => c.name === name);
+        const children = groups.get(name) ?? [];
+        return (
+          <div key={name}>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="rounded bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white">
+                {name}
+              </span>
+              {cat && cat.count > 0 && (
+                <span className="text-xs text-gray-400">{cat.count} papers</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 pl-2">
+              {children.length > 0 ? (
+                children.map((tag) => (
+                  <Badge key={tag.name} className="bg-gray-100 text-gray-700">
+                    {tag.name} ({tag.count})
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-xs text-gray-400">No sub-tags</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

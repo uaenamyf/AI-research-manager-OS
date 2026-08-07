@@ -159,6 +159,8 @@ export interface KnowledgeTag {
   id: ID;
   name: string;
   count: number;
+  /** 所属大类（如「机器学习」->「人工智能」）；为空表示该 tag 本身是大类 */
+  category?: string | null;
 }
 
 export interface KnowledgeSearchResult {

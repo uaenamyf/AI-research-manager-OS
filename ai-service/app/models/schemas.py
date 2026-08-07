@@ -14,6 +14,17 @@ class PaperAnalyzeRequest(BaseModel):
     pdf_url: str = Field(..., alias="pdfUrl")
 
 
+class PaperTag(BaseModel):
+    """论文标签：具体 tag + 所属大类（category）。
+
+    例如 {"name": "机器学习", "category": "人工智能"}；
+    category 即「领域大类」，可单独作为 tag 使用（如「工业领域」「生物领域」）。
+    """
+
+    name: str = ""
+    category: str = ""
+
+
 class PaperAnalyzeResult(BaseModel):
     """paper_agent 输出，回调 backend 的 summary 字段。"""
 
@@ -25,6 +36,8 @@ class PaperAnalyzeResult(BaseModel):
     finding: str = ""
     limitation: str = ""
     future_work: str = ""
+    # AI 根据 Keywords + 摘要生成的标签（带大类归属），用于 Knowledge Tags / Graph
+    tags: list[PaperTag] = []
 
 
 class ChatStreamRequest(BaseModel):

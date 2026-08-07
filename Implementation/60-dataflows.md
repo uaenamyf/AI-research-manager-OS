@@ -26,7 +26,42 @@
 [Frontend] 轮询 /papers/{id}/status 或 SSE 通知
 ```
 
-## 6.2 Paper Chat（同步 SSE）
+## 6.2 Knowledge Base（Tags / Search / Graph）
+
+```
+[Frontend] GET /api/knowledge/tags
+    ↓
+[Backend] KnowledgeServiceImpl.listTags
+    ├── 取该用户全部 paper.summary
+    └── 聚合 summary.tags（[{name, category}]）：
+        ├── 具体 tag 统计 count（如「机器学习」）
+        └── 大类 category 统计 count（如「人工智能」）
+    ↓
+[Frontend] Tags Tab 按 category 分组渲染
+```
+
+```
+[Frontend] GET /api/knowledge/search?q=&limit=
+    ↓
+[Backend] KnowledgeServiceImpl.search
+    └── title / authors 大小写不敏感 LIKE 模糊匹配（内存过滤）
+        （不做 RAG 向量检索；ai-service /search 接口保留未删）
+```
+
+```
+[Frontend] GET /api/knowledge/graph
+    ↓
+[Backend] KnowledgeServiceImpl.graph
+    ├── 主路径：两两论文按共享 tag（含大类）数建边，weight=共享数
+    └── 均无 tags（旧数据）时降级：POST ai-service /graph/similarities
+        → 向量相似度建边（reason=semantic）
+```
+
+- tags 来源：paper_agent 生成 Paper Card 时由 LLM 基于 Keywords + 摘要生成
+  `tags: [{name, category}]`（见 30-ai-service.md §paper_agent），
+  随 `summary` 回调入库（JSONB）。
+
+## 6.3 Paper Chat（同步 SSE）
 
 ```
 [Frontend] GET /papers/{id}/chat/stream?q=Why+CNN
@@ -43,7 +78,7 @@
 [Backend] 透传 SSE -> [Frontend]
 ```
 
-## 6.3 Literature Review 生成（异步）
+## 6.4 Literature Review 生成（异步）
 
 ```
 [Frontend] POST /review/generate {paperIds, topic}

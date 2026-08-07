@@ -50,6 +50,16 @@ app.include_router(chat_router,    prefix="/rag",   tags=["rag"])
 app.include_router(review_router,  prefix="/review", tags=["review"])
 ```
 
+## Paper Agent（生成 Paper Intelligence Card + Tags）
+
+`app/agents/paper_agent.py` 调用 LLM 生成结构化论文摘要，字段：
+`title / authors / year / doi / method / finding / limitation / future_work / tags`。
+
+`tags` 为 `[{name, category}]` 数组（`app/models/schemas.py` 的 `PaperTag`）：
+- `name`：具体主题/技术（如「机器学习」「声学监测」），由 LLM 基于论文 Keywords 与摘要生成（4-8 个），不使用论文标题。
+- `category`：所属领域大类（如「人工智能」「工业领域」「生物领域」），相似 tag 归入同一大类；大类本身也可作为 tag 使用。
+- 随 `summary` 回调 backend 存入 `paper.summary`（JSONB），供 Knowledge Tags / Graph 使用。
+
 ## 内部鉴权（backend -> ai-service）
 
 ai-service 只接受 backend 的调用，用共享密钥校验：

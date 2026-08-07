@@ -8,7 +8,7 @@ from loguru import logger
 
 from app.agents.prompts.paper_card import PAPER_CARD_SYSTEM, PAPER_CARD_USER
 from app.llm.client import llm_client
-from app.models.schemas import PaperAnalyzeResult
+from app.models.schemas import PaperAnalyzeResult, PaperTag
 
 
 async def generate_paper_card(paper_text: str) -> PaperAnalyzeResult:
@@ -72,4 +72,25 @@ def _parse_json_response(raw: str) -> PaperAnalyzeResult:
         finding=data.get("finding", ""),
         limitation=data.get("limitation", ""),
         future_work=data.get("future_work", ""),
+        tags=_parse_tags(data.get("tags")),
     )
+
+
+def _parse_tags(raw) -> list[PaperTag]:
+    """解析 LLM 返回的 tags，兼容两种格式：
+
+    - 对象数组：[{"name": "机器学习", "category": "人工智能"}, ...]
+    - 字符串数组：["机器学习", "强化学习"]（category 留空）
+    """
+    if not raw:
+        return []
+    tags: list[PaperTag] = []
+    for item in raw:
+        if isinstance(item, dict):
+            tags.append(
+                PaperTag(name=str(item.get("name", "")).strip(), category=str(item.get("category", "")).strip())
+            )
+        elif isinstance(item, str) and item.strip():
+            tags.append(PaperTag(name=item.strip(), category=""))
+    # 过滤空 name
+    return [t for t in tags if t.name]
