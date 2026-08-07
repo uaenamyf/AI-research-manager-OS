@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getProject } from "@/lib/api/projects";
-import { getPaper, listPapers, movePaper } from "@/lib/api/papers";
+import { getPaper, listPapers, movePaper, deletePaper } from "@/lib/api/papers";
 import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { PaperUploader } from "@/components/paper/PaperUploader";
 import { PdfViewer } from "@/components/paper/PdfViewer";
@@ -214,6 +214,25 @@ export default function ProjectDetailPage() {
     );
   };
 
+  /** 删除论文（连同向量索引；确认后刷新所在节点列表） */
+  const handleDeletePaper = async (
+    paperId: ID,
+    title: string,
+    ownerFolderId: ID | null,
+  ) => {
+    if (!window.confirm(`确定删除论文「${title}」吗？\n删除后无法恢复。`)) {
+      return;
+    }
+    try {
+      await deletePaper(paperId);
+      loadNodePapers(ownerFolderId, true);
+      // 若右侧正预览该论文，清空选择
+      setSelectedPaper((prev) => (prev?.id === paperId ? null : prev));
+    } catch {
+      alert("删除论文失败，请重试");
+    }
+  };
+
   // 渲染论文项（树内缩进显示，可拖拽到其他文件夹）
   const renderPapers = (
     papers: PaperListItem[],
@@ -239,7 +258,7 @@ export default function ProjectDetailPage() {
               dragPaperRef.current = null;
               setDropTargetKey(null);
             }}
-            className={`flex items-center gap-1 rounded-md px-2 py-1 cursor-pointer text-sm ${
+            className={`group flex items-center gap-1 rounded-md px-2 py-1 cursor-pointer text-sm ${
               selectedPaper?.id === paper.id
                 ? "bg-blue-100 text-blue-800"
                 : "hover:bg-gray-100"
@@ -250,6 +269,29 @@ export default function ProjectDetailPage() {
             <span className="w-4" />
             <span>📄</span>
             <span className="truncate flex-1">{paper.title}</span>
+            {/* 删除按钮：hover 行时显示，stopPropagation 避免触发论文选中/拖拽 */}
+            <button
+              type="button"
+              title="删除论文"
+              draggable={false}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeletePaper(paper.id, paper.title, ownerFolderId);
+              }}
+              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 px-1"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
           </div>
         ))}
       </div>
