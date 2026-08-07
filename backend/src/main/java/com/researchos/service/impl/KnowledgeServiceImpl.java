@@ -201,9 +201,17 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
         }
 
+        // 2026-08-09 myf: 节点标题/作者取 summary 真实值，空则回退文件名/作者
         List<KnowledgeGraphNode> nodes = papers.stream()
-                .map(p -> new KnowledgeGraphNode(
-                        p.getId(), p.getTitle(), p.getAuthors(), extractTags(p.getSummary())))
+                .map(p -> {
+                    Map<String, Object> s = p.getSummary();
+                    String realTitle = s != null && !str(s.get("title")).isEmpty()
+                            ? str(s.get("title")) : p.getTitle();
+                    String realAuthors = s != null && !str(s.get("authors")).isEmpty()
+                            ? str(s.get("authors")) : p.getAuthors();
+                    return new KnowledgeGraphNode(
+                            p.getId(), realTitle, realAuthors, extractTags(p.getSummary()));
+                })
                 .toList();
         return new KnowledgeGraphResult(nodes, links);
     }

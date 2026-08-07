@@ -33,6 +33,24 @@ export function getCurrentUser(): Promise<User> {
   return apiFetch<User>("/api/auth/me");
 }
 
+// ===== 开发/测试模式自动登录 =====
+// date: 2026-08-07
+// dev: myf
+// changelog: 测试阶段免手动登录：dev 模式静默登录 demo 账号
+const DEMO_EMAIL = "demo@researchos.local";
+const DEMO_PASSWORD = "Demo@123456";
+
+/** 仅非生产环境启用自动登录，避免污染线上。 */
+export function isDevAutoLoginEnabled(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+/** 静默登录 demo 账号，返回当前用户。 */
+export async function demoLogin(): Promise<User> {
+  const res = await login({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  return res.user;
+}
+
 /** Google OAuth 重定向地址 */
 export function getGoogleOAuthUrl(): string {
   const base =

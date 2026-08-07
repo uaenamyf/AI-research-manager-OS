@@ -6,22 +6,49 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
-import { getCurrentUser } from "@/lib/api/auth";
+import { demoLogin, getCurrentUser, isDevAutoLoginEnabled } from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
+
+/**
+ * 恢复登录态：先拉当前用户；失败且在 dev 模式则静默登录 demo 账号。
+ * 带指数重试，覆盖 backend 启动窗口期（最多 4 次，间隔 1s/2s/4s/8s）。
+ */
+async function restoreAuth(
+  setUser: (user: import("@/types").User | null) => void,
+  attempt = 0,
+): Promise<void> {
+  const MAX_ATTEMPTS = 4;
+  try {
+    const user = await getCurrentUser();
+    setUser(user);
+  } catch {
+    if (attempt < MAX_ATTEMPTS) {
+      if (isDevAutoLoginEnabled()) {
+        try {
+          const user = await demoLogin();
+          setUser(user);
+          return;
+        } catch {
+          /* backend 未就绪，等待重试 */
+        }
+      }
+      setTimeout(
+        () => restoreAuth(setUser, attempt + 1),
+        1000 * 2 ** attempt,
+      );
+    }
+  }
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
-  // 挂载时若未登录（如 OAuth 重定向回来），尝试拉取当前用户
+  // 挂载时若未登录（如 reload / OAuth 重定向回来），恢复登录态
   useEffect(() => {
     if (!user) {
-      getCurrentUser()
-        .then(setUser)
-        .catch(() => {
-          /* 未登录，保持 null */
-        });
+      restoreAuth(setUser);
     }
   }, [user, setUser]);
 

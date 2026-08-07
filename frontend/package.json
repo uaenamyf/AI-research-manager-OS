@@ -16,6 +16,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
     "@types/d3-force": "^3.0.10",
+    "3d-force-graph": "^1.80.0",
     "clsx": "^2.1.1",
     "d3-force": "^3.0.0",
     "lucide-react": "^0.474.0",
@@ -24,6 +25,7 @@
     "react-dom": "19.0.0",
     "react-pdf": "^9.2.1",
     "tailwind-merge": "^3.0.1",
+    "three": "^0.185.1",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

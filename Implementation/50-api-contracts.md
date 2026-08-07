@@ -106,6 +106,9 @@
 
 - 建边规则：两两论文共享 tag（具体 tag + 大类）数 >= 1 即建边，`weight` = 共享 tag 数；共享判断同时覆盖具体 tag 与所属大类（「机器学习」与「强化学习」同属「人工智能」即可通过大类关联）。
 - 论文均无 tags（旧数据）时降级为向量相似度建边（`reason=semantic`）。
+- `nodes[].title` / `authors` 取 summary（Paper Card）中 AI 解析出的真实标题/作者（空则回退上传文件名/原始作者）。
+- 前端渲染时**合成 tag 中心节点**（字符串 id 如 `tag:deep-learning`）与 tag→论文边，构成 3D 恒星环绕图（3d-force-graph），后端接口本身不返回 tag 节点。
+- 3D 渲染细节（前端 KnowledgeGraph3D）：tag 节点为金色恒星（半径随旗下论文数增大），论文为行星球体（degree >= 3 高亮蓝色）；`controlType: "orbit"` + `controls().autoRotate` 实现自动旋转；`enableNodeDrag(false)` 禁用节点拖拽仅保留视角旋转/缩放；节点名称**常驻显示**（`nodeThreeObject` 定制球体 + CanvasTexture 文字 Sprite，tag 名金色、论文标题截断 16 字符浅色，无需 hover）。
 
 ### Paper 上传响应示例
 
