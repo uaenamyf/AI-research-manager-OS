@@ -1,6 +1,7 @@
 package com.researchos.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.researchos.common.exception.BusinessException;
@@ -118,13 +119,18 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
 
     /**
      * 移动论文到文件夹。
+     * folderId 为 null 表示移到根目录；updateById 默认 NOT_NULL 策略会忽略 null 字段，
+     * 因此必须用 update wrapper 显式 set，否则「拖回根目录」不生效。
      */
     @Override
     @Transactional
     public void movePaper(Long userId, Long paperId, Long folderId) {
-        Paper paper = requirePaperOwnedBy(paperId, userId);
-        paper.setFolderId(folderId);
-        updateById(paper);
+        requirePaperOwnedBy(paperId, userId);
+        LambdaUpdateWrapper<Paper> wrapper = new LambdaUpdateWrapper<Paper>()
+                .eq(Paper::getId, paperId)
+                .eq(Paper::getUserId, userId)
+                .set(Paper::getFolderId, folderId);
+        update(wrapper);
     }
 
     /**
