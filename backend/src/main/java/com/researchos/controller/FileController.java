@@ -80,6 +80,22 @@ public class FileController {
             HttpServletRequest request,
             HttpServletResponse response) throws IOException {
 
+        // 校验访问权限：JWT 已认证 或 携带内部 token（ai-service 下载）
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        boolean authenticated = auth != null && auth.isAuthenticated()
+                && !(auth.getPrincipal() instanceof String);
+        boolean internal = appProperties.getAiService().getInternalToken() != null
+                && appProperties.getAiService().getInternalToken()
+                        .equals(request.getHeader("X-Internal-Token"));
+        if (!authenticated && !internal) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(
+                    "{\"code\":401,\"message\":\"未登录或缺少内部访问令牌\",\"data\":null}");
+            return;
+        }
+
         String key = extractKeyFromUri(request.getRequestURI());
         log.debug("下载文件: {}", key);
 

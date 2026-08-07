@@ -230,19 +230,24 @@ class TaskConsumer:
     async def _download_pdf(self, pdf_url: str) -> bytes | None:
         """下载 PDF 文件。
 
-        目前 pdf_url 是 S3 key（如 "papers/uuid/filename.pdf"）。
-        开发阶段：支持本地文件路径直接读取。
-        生产环境：应通过 S3 presigned URL 下载。
+        支持三种来源：
+        1. 本地绝对路径（开发期测试用，直接读文件）
+        2. HTTP(S) URL（生产 S3 presigned URL）
+        3. S3 相对 key（如 "papers/uuid/filename.pdf"）：
+           拼接 backend 的 /api/files/{key} 下载。
+           local 模式该端点直接读 backend/uploads 文件；
+           S3 模式该端点 302 重定向 presigned URL（httpx 自动跟随）。
         """
-        # 开发阶段：支持本地文件路径
         import os
 
-        # 尝试作为本地路径读取（开发期测试用）
+        from app.core.config import settings
+
+        # 1. 本地绝对路径
         if os.path.exists(pdf_url):
             with open(pdf_url, "rb") as f:
                 return f.read()
 
-        # 尝试作为 URL 下载
+        # 2. HTTP(S) URL
         if pdf_url.startswith("http"):
             import httpx
 
@@ -253,13 +258,23 @@ class TaskConsumer:
                 logger.error(f"下载 PDF 失败：{pdf_url}, status={resp.status_code}")
                 return None
 
-        # S3 key 格式：生产环境需通过 StorageService 获取 presigned URL
-        # TODO: 对接 S3/R2 下载（当前开发阶段用本地文件测试）
-        logger.warning(
-            f"pdf_url={pdf_url} 非 HTTP URL 且非本地路径，"
-            "生产环境需对接 S3 presigned URL 下载"
-        )
-        return None
+        # 3. S3 相对 key：经 backend /api/files/{key} 下载
+        import urllib.parse
+
+        headers = {"X-Internal-Token": settings.INTERNAL_TOKEN}
+        key = pdf_url.lstrip("/")
+        encoded_key = urllib.parse.quote(key, safe="/")
+        download_url = f"{settings.BACKEND_URL}/api/files/{encoded_key}"
+        logger.info(f"经 backend 下载 PDF：{download_url}")
+
+        import httpx
+
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.get(download_url, headers=headers, timeout=60.0)
+            if resp.status_code == 200:
+                return resp.content
+            logger.error(f"下载 PDF 失败：{download_url}, status={resp.status_code}")
+            return None
 
 
 # 全局单例

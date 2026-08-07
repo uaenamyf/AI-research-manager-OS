@@ -37,6 +37,9 @@ backend/target/
 # 本地存储（local 模式上传目录）
 backend/uploads/
 
+# 本地测试论文样本（端到端测试用，不入库）
+test_paper/
+
 # 本地工具链（Maven/Redis 等）
 tools/
 

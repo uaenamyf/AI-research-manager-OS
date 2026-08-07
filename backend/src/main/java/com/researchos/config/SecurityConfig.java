@@ -50,6 +50,8 @@ public class SecurityConfig {
                 .requestMatchers("/login/oauth2/code/*").permitAll()
                 // 内部回调端点（用 X-Internal-Token 校验，不走 JWT）
                 .requestMatchers("/internal/**").permitAll()
+                // 文件下载端点：JWT 认证或 X-Internal-Token 均可（FileController 内校验）
+                .requestMatchers("/api/files/**").permitAll()
                 // 健康检查
                 .requestMatchers("/actuator/**", "/api/health").permitAll()
                 // OPTIONS 预检放行
