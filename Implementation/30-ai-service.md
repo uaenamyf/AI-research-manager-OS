@@ -56,8 +56,9 @@ app.include_router(review_router,  prefix="/review", tags=["review"])
 `title / authors / year / doi / method / finding / limitation / future_work / tags`。
 
 `tags` 为 `[{name, category}]` 数组（`app/models/schemas.py` 的 `PaperTag`）：
-- `name`：具体主题/技术（如「机器学习」「声学监测」），由 LLM 基于论文 Keywords 与摘要生成（4-8 个），不使用论文标题。
-- `category`：所属领域大类（如「人工智能」「工业领域」「生物领域」），相似 tag 归入同一大类；大类本身也可作为 tag 使用。
+- `name`：仅限**方法论**或**宽泛领域**（如「深度学习」「信号处理」「生物声学」），由 LLM 基于论文 Keywords 与摘要**归纳**生成（4-8 个），不使用论文标题，也不逐字照抄 keywords。
+- `category`：所属**顶层大类领域**（如「人工智能」「生物」「工程」「数学」），相似方法论归入同一大类（「深度学习」「强化学习」都归「人工智能」）；大类本身也可作为 tag 使用。
+- **禁止**使用细分领域作 category（如 Wildlife Biology、marine biology、Bioacoustics 这类子领域只能出现在 `name`）。
 - 随 `summary` 回调 backend 存入 `paper.summary`（JSONB），供 Knowledge Tags / Graph 使用。
 
 ## 内部鉴权（backend -> ai-service）

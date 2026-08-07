@@ -6,6 +6,7 @@ import Link from "next/link";
 import { listTags, searchKnowledge, getKnowledgeGraph } from "@/lib/api/knowledge";
 import { Card, Input, Badge } from "@/components/ui";
 import KnowledgeGraph from "@/components/knowledge/KnowledgeGraph";
+import { toTitleCase } from "@/lib/utils";
 import type {
   KnowledgeGraph as KnowledgeGraphType,
   KnowledgeSearchResult,
@@ -127,7 +128,7 @@ export default function KnowledgePage() {
                       key={t}
                       className="bg-gray-50 text-xs text-gray-500"
                     >
-                      {t}
+                      {toTitleCase(t)}
                     </Badge>
                   ))}
                 </div>
@@ -162,12 +163,20 @@ export default function KnowledgePage() {
 /**
  * Tags 按大类分组展示：
  * 大类 tag（category 为空）作为分组标题，具体 tag 挂在对应大类下。
+ * 展示前统一 Title Case（每个词首字母大写），分组 key 与标题基于归一化后的值。
  */
 function TagGroups({ tags }: { tags: KnowledgeTag[] }) {
+  // 归一化：name/category 统一 Title Case，避免大小写差异导致分组分裂
+  const normalized: KnowledgeTag[] = tags.map((t) => ({
+    ...t,
+    name: toTitleCase(t.name),
+    category: t.category ? toTitleCase(t.category) : undefined,
+  }));
+
   // 大类：category 为空的 tag（如「人工智能」「工业领域」）
-  const categories = tags.filter((t) => !t.category);
+  const categories = normalized.filter((t) => !t.category);
   // 具体 tag：有 category 的 tag（如「机器学习」->「人工智能」）
-  const specific = tags.filter((t) => t.category);
+  const specific = normalized.filter((t) => t.category);
 
   // 具体 tag 归入其大类
   const groups = new Map<string, KnowledgeTag[]>();

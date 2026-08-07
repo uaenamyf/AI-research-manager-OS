@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as d3 from "d3-force";
+import { toTitleCase } from "@/lib/utils";
 import type { GraphLink, GraphNode, KnowledgeGraph } from "@/types";
 
 const WIDTH = 760;
@@ -202,7 +203,7 @@ export default function KnowledgeGraph({ graph }: { graph: KnowledgeGraph }) {
                     key={t}
                     className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600"
                   >
-                    {t}
+                    {toTitleCase(t)}
                   </span>
                 ))}
               </p>

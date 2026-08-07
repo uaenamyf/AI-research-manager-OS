@@ -78,6 +78,7 @@
 ```
 
 - 匹配范围：论文 title / authors 大小写不敏感包含匹配。
+- title / authors 取 summary（Paper Card）中 AI 解析出的真实标题/作者（`paper.title` 列仅存上传文件名，作为兜底参与匹配）。
 - `snippet` 当前为 title；`score` 固定 1.0（模糊搜索无相关度排序，按论文 id 顺序返回）。
 
 `GET /api/knowledge/graph` 响应 `data`：

@@ -271,15 +271,31 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     /**
      * 模糊搜索：title/authors LIKE 匹配（内存过滤）。
+     *
+     * <p>真实标题/作者存在 summary（Paper Intelligence Card）中，paper.title
+     * 仅为上传文件名，故匹配与展示均优先用 summary 内的 title/authors，
+     * 文件名作为兜底参与匹配。</p>
      */
     private List<KnowledgeSearchResult> fallbackSearch(List<Paper> papers, String query, int limit) {
         return papers.stream()
-                .filter(p -> containsIgnoreCase(p.getTitle(), query) || containsIgnoreCase(p.getAuthors(), query))
+                .filter(p -> {
+                    Map<String, Object> s = p.getSummary();
+                    String realTitle = s != null ? str(s.get("title")) : "";
+                    String realAuthors = s != null ? str(s.get("authors")) : "";
+                    return containsIgnoreCase(realTitle, query)
+                            || containsIgnoreCase(realAuthors, query)
+                            || containsIgnoreCase(p.getTitle(), query);
+                })
                 .limit(limit)
-                .map(p -> new KnowledgeSearchResult(
-                        p.getId(), p.getTitle(), p.getAuthors(),
-                        p.getTitle(), extractTags(p.getSummary()), 1.0
-                ))
+                .map(p -> {
+                    Map<String, Object> s = p.getSummary();
+                    String realTitle = s != null ? str(s.get("title")) : p.getTitle();
+                    String realAuthors = s != null ? str(s.get("authors")) : p.getAuthors();
+                    return new KnowledgeSearchResult(
+                            p.getId(), realTitle, realAuthors,
+                            realTitle, extractTags(p.getSummary()), 1.0
+                    );
+                })
                 .toList();
     }
 

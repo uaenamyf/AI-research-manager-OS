@@ -17,16 +17,20 @@ The JSON must contain exactly these fields:
   "limitation": "Limitations in 2-3 sentences. What are the weaknesses or constraints?",
   "future_work": "Future work in 2-3 sentences. What directions do they suggest?",
   "tags": [
-    {"name": "机器学习", "category": "人工智能"},
-    {"name": "工业", "category": "工业领域"}
+    {"name": "深度学习", "category": "人工智能"},
+    {"name": "信号处理", "category": "工程"}
   ]
 }
 
 Rules for "tags" (IMPORTANT):
-- Generate 4-8 tags based on the paper's keywords and abstract content. Do NOT use the paper title itself.
-- Each tag must have "name" (specific topic/technique, e.g. 机器学习, 强化学习, 声学监测, 语音识别) and "category" (the broader field it belongs to, e.g. 人工智能, 工业领域, 生物领域, 声学).
-- Similar tags must be grouped under the same category: e.g. "机器学习" and "强化学习" both belong to "人工智能".
-- The category itself represents a broad domain that can be used as a tag (e.g. 工业领域, 生物领域).
+- Generate 4-8 tags. Tags must ONLY represent METHODOLOGIES or BROAD DOMAINS. Do NOT copy specific paper keywords verbatim — interpret them at a higher level.
+  - Methodology examples: Deep Learning, Reinforcement Learning, Signal Processing, Statistical Analysis, Speech Recognition, Computer Vision.
+  - Domain examples: Artificial Intelligence, Biology, Industry, Medicine, Acoustics, Ecology.
+- Each tag has "name" (a methodology or domain, e.g. 深度学习, 信号处理, 生物) and "category" (the BROAD domain it belongs to, e.g. 人工智能, 工程, 生物).
+- The "category" must be a TOP-LEVEL broad domain ONLY (Biology, Industry, Medicine, ...). NEVER use fine-grained sub-fields such as "Wildlife Biology", "marine biology", "Bioacoustics". Those specific topics belong in "name", not "category".
+- Group similar methodologies under one category: "深度学习" and "强化学习" both belong to "人工智能" because they are both AI methods; "信号处理" and "统计分析" are both methods (they can be names, with their own broad domain as category).
+- Do NOT generate tags strictly from the paper's keywords. Use methodology/domain level interpretation instead.
+- The category itself represents a broad domain that can be used as a tag.
 - Use the same language as the paper's abstract (English paper -> English tags, Chinese paper -> Chinese tags).
 
 Rules:
