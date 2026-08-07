@@ -158,9 +158,24 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
     @Transactional
     public void deleteFolder(Long userId, Long folderId) {
         checkOwnership(userId, folderId);
-        // 级联删除由 ON DELETE CASCADE / SET NULL 处理
-        // folder_id SET NULL，paper 不会被删
-        removeById(folderId);
+        // 递归收集该文件夹及其所有子孙文件夹 id，一并删除
+        // （folder.parent_id 外键为 ON DELETE SET NULL，需显式递归删除子文件夹，
+        //   否则删除父文件夹后子文件夹会残留为顶级文件夹）
+        List<Long> ids = new ArrayList<>();
+        ids.add(folderId);
+        List<Long> batch = Collections.singletonList(folderId);
+        while (!batch.isEmpty()) {
+            batch = list(new LambdaQueryWrapper<Folder>()
+                    .eq(Folder::getUserId, userId)
+                    .in(Folder::getParentId, batch)
+                    .select(Folder::getId))
+                    .stream()
+                    .map(Folder::getId)
+                    .collect(Collectors.toList());
+            ids.addAll(batch);
+        }
+        // 文件夹内论文由 paper.folder_id 的 ON DELETE SET NULL 自动移回根目录（不删除论文）
+        removeByIds(ids);
     }
 
     @Override

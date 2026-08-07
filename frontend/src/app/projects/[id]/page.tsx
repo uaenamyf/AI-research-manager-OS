@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getProject } from "@/lib/api/projects";
 import { getPaper, listPapers, movePaper } from "@/lib/api/papers";
-import { getFolderTree, createFolder } from "@/lib/api/folders";
+import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { PaperUploader } from "@/components/paper/PaperUploader";
 import { PdfViewer } from "@/components/paper/PdfViewer";
 import { Card } from "@/components/ui";
@@ -97,6 +97,30 @@ export default function ProjectDetailPage() {
     loadNodePapers(selectedFolderId, true);
   };
 
+  /** 删除文件夹（连同其下所有子文件夹；文件夹内论文移回 All Papers） */
+  const handleDeleteFolder = async (folderId: ID, name: string) => {
+    if (
+      !window.confirm(
+        `确定删除文件夹「${name}」吗？\n子文件夹将一并删除，文件夹内的论文会移回 All Papers。`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteFolder(folderId);
+      // 清理展开/选中状态中的已删除节点
+      setExpandedNodes((prev) => {
+        const next = new Set(prev);
+        next.delete(nodeKey(folderId));
+        return next;
+      });
+      if (selectedFolderId === folderId) setSelectedFolderId(null);
+      await loadFolders();
+    } catch {
+      alert("删除文件夹失败，请重试");
+    }
+  };
+
   // 拖放论文到目标文件夹（null = 根目录 All Papers）
   const handleDrop = async (targetFolderId: ID | null) => {
     const drag = dragPaperRef.current;
@@ -126,6 +150,7 @@ export default function ProjectDetailPage() {
     return (
       <div
         key={folder.id}
+        className="group"
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -155,7 +180,29 @@ export default function ProjectDetailPage() {
             {isExpanded ? "▼" : "▶"}
           </span>
           <span>📁</span>
-          <span className="truncate">{folder.name}</span>
+          <span className="truncate flex-1">{folder.name}</span>
+          {/* 删除按钮：hover 行时显示，stopPropagation 避免触发选中/展开 */}
+          <button
+            type="button"
+            title="删除文件夹"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteFolder(folder.id, folder.name);
+            }}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 px-1"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         </div>
         {isExpanded && (
           <div>
