@@ -112,40 +112,13 @@ export default function KnowledgePage() {
               No tags yet. Upload papers to auto-generate tags.
             </p>
           ) : (
-            <TagGroups tags={tags} selectedTag={selectedTag} onTagClick={handleTagClick} />
-          )}
-
-          {selectedTag && (
-            <div className="mt-6 border-t border-gray-100 pt-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">
-                Papers tagged “{toTitleCase(selectedTag)}”
-              </h3>
-              {tagLoading ? (
-                <p className="text-sm text-gray-500">Loading…</p>
-              ) : tagPapers.length === 0 ? (
-                <p className="text-sm text-gray-500">No papers found.</p>
-              ) : (
-                <div className="space-y-2">
-                  {tagPapers.map((p) => (
-                    <Link
-                      key={p.paperId}
-                      href={`/papers/${p.paperId}`}
-                      className="block rounded-md border border-gray-100 p-3 hover:bg-gray-50"
-                    >
-                      <p className="text-sm font-medium text-gray-900">{p.title}</p>
-                      <p className="text-xs text-gray-500">{p.authors}</p>
-                      <div className="mt-1 flex gap-1">
-                        {p.tags.map((t) => (
-                          <Badge key={t} className="bg-gray-50 text-xs text-gray-500">
-                            {toTitleCase(t)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            <TagGroups
+              tags={tags}
+              selectedTag={selectedTag}
+              onTagClick={handleTagClick}
+              papers={tagPapers}
+              papersLoading={tagLoading}
+            />
           )}
         </Card>
       )}
@@ -224,17 +197,38 @@ export default function KnowledgePage() {
  * Tags 按大类分组展示：
  * 大类 tag（category 为空）作为分组标题，具体 tag 挂在对应大类下。
  * 展示前统一 Title Case（每个词首字母大写），分组 key 与标题基于归一化后的值。
- * SubTag 可点击（onTagClick），点击后展示该 tag 下的论文。
+ * SubTag 可点击（onTagClick），点击后论文面板就地展开在该 subtag 旁。
+ * 面板方向随点击位置自适应：靠近视口底部时向上展开，靠近右缘时向左对齐，避免超出可视区域。
  */
 function TagGroups({
   tags,
   selectedTag,
   onTagClick,
+  papers,
+  papersLoading,
 }: {
   tags: KnowledgeTag[];
   selectedTag: string | null;
   onTagClick: (tag: string) => void;
+  papers: KnowledgeSearchResult[];
+  papersLoading: boolean;
 }) {
+  // 弹窗方向：up=true 向上展开；left=true 右缘对齐
+  const [pos, setPos] = useState<{ up: boolean; left: boolean }>({
+    up: false,
+    left: false,
+  });
+
+  const handleTagClick = (e: React.MouseEvent, name: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const PANEL_W = 384; // w-96
+    const PANEL_H = 320; // 面板估算高度（标题 + 最多 3 条文献 + padding）
+    setPos({
+      up: rect.bottom + PANEL_H > window.innerHeight,
+      left: rect.right + PANEL_W > window.innerWidth,
+    });
+    onTagClick(name);
+  };
   // 归一化：name/category 统一 Title Case，避免大小写差异导致分组分裂
   const normalized: KnowledgeTag[] = tags.map((t) => ({
     ...t,
@@ -281,18 +275,61 @@ function TagGroups({
                 children.map((tag) => {
                   const active = selectedTag === tag.name;
                   return (
-                    <button
-                      key={tag.name}
-                      onClick={() => onTagClick(tag.name)}
-                      title={`View papers tagged ${tag.name}`}
-                      className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
-                        active
-                          ? "bg-blue-600 text-white hover:bg-blue-500"
-                          : "bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700"
-                      }`}
-                    >
-                      {tag.name} ({tag.count})
-                    </button>
+                    <div key={tag.name} className="relative">
+                      <button
+                        onClick={(e) => handleTagClick(e, tag.name)}
+                        title={`View papers tagged ${tag.name}`}
+                        className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
+                          active
+                            ? "bg-blue-600 text-white hover:bg-blue-500"
+                            : "bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700"
+                        }`}
+                      >
+                        {tag.name} ({tag.count})
+                      </button>
+                      {active && (
+                        <div
+                          className={`absolute z-10 w-96 max-w-[min(24rem,calc(100vw-2rem))] rounded-md border border-gray-200 bg-white p-3 shadow-lg ${
+                            pos.up ? "bottom-full mb-2" : "top-full mt-2"
+                          } ${pos.left ? "right-0" : "left-0"}`}
+                        >
+                          <p className="mb-2 text-xs font-semibold text-gray-900">
+                            Papers tagged “{tag.name}”
+                          </p>
+                          {papersLoading ? (
+                            <p className="text-xs text-gray-500">Loading…</p>
+                          ) : papers.length === 0 ? (
+                            <p className="text-xs text-gray-500">No papers found.</p>
+                          ) : (
+                            <div className="max-h-72 space-y-2 overflow-y-auto">
+                              {papers.map((p) => (
+                                <Link
+                                  key={p.paperId}
+                                  href={`/papers/${p.paperId}`}
+                                  onClick={() => onTagClick(tag.name)}
+                                  className="block rounded-md border border-gray-100 p-2 hover:bg-gray-50"
+                                >
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {p.title}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{p.authors}</p>
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {p.tags.map((t) => (
+                                      <Badge
+                                        key={t}
+                                        className="bg-gray-50 text-xs text-gray-500"
+                                      >
+                                        {toTitleCase(t)}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })
               ) : (
