@@ -22,6 +22,16 @@ export async function apiFetch<T>(
     ...init,
   });
 
+  // date: 2026-08-07
+  // dev: myf
+  // changelog: 登录态失效（401）时引导回登录页；排除 auth 接口避免死循环
+  if (res.status === 401 && !path.startsWith("/api/auth/")) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+    throw new ApiError(401, "登录已过期，请重新登录");
+  }
+
   if (!res.ok) {
     throw new ApiError(res.status, await res.text());
   }

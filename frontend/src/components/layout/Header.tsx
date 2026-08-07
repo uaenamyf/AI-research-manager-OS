@@ -1,6 +1,7 @@
 /** 顶栏：侧边栏开关 + 用户信息。 */
 "use client";
 
+import Link from "next/link";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 
@@ -26,7 +27,15 @@ export function Header() {
             </span>
           </>
         ) : (
-          <span className="text-sm text-gray-400">Not signed in</span>
+          // date: 2026-08-07
+          // dev: myf
+          // changelog: 未登录时显示可点击的 Sign in 按钮，直达登录页
+          <Link
+            href="/login"
+            className="rounded-md bg-gray-900 px-4 py-1.5 text-sm text-white hover:bg-gray-700"
+          >
+            Sign in
+          </Link>
         )}
       </div>
     </header>
