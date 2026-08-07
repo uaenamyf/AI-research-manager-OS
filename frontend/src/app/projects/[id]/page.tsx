@@ -36,13 +36,13 @@ export default function ProjectDetailPage() {
   };
 
   const loadPapers = async (folderId: ID | null) => {
-    const page = await listPapers(projectId, folderId, 0, 100);
+    const page = await listPapers(projectId, folderId ?? undefined, 0, 100);
     setPapers(page.items);
   };
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
-    await createFolder(projectId, selectedFolderId, newFolderName.trim());
+    await createFolder(projectId, selectedFolderId ?? undefined, newFolderName.trim());
     setNewFolderName("");
     setShowNewFolder(false);
     await loadFolders();
