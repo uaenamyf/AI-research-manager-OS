@@ -1,7 +1,7 @@
 /** PDF 多文件上传组件（presigned POST 三步流程，小并发队列）。 */
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { getUploadUrl, uploadToStorage, createPaper } from "@/lib/api/papers";
 import type { ID, PaperUploadResponse } from "@/types";
 import { formatBytes } from "@/lib/utils";
@@ -19,13 +19,16 @@ export function PaperUploader({
   projectId,
   folderId,
   onUploaded,
+  compact = false,
 }: {
   projectId: ID;
   folderId?: ID | null;
   onUploaded?: (res: PaperUploadResponse) => void;
+  compact?: boolean;
 }) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateItem = (index: number, patch: Partial<UploadItem>) => {
     setItems((prev) =>
@@ -60,40 +63,65 @@ export function PaperUploader({
     }
   };
 
-  const handleUpload = async () => {
-    if (items.length === 0 || uploading) return;
+  const handleUpload = async (files?: File[]) => {
+    // 传入 files 时直接上传（compact 模式：选完即传）；否则上传已选列表
+    const list =
+      files?.map((file) => ({ file, status: "pending" as const })) ?? items;
+    if (list.length === 0 || uploading) return;
+    if (files) setItems(list);
     setUploading(true);
     let last: PaperUploadResponse | undefined;
     let cursor = 0;
     // 固定并发数的 worker 队列
     const worker = async () => {
-      while (cursor < items.length) {
+      while (cursor < list.length) {
         const i = cursor++;
-        const res = await uploadOne(items[i], i);
+        const res = await uploadOne(list[i], i);
         if (res) last = res;
       }
     };
     await Promise.all(
-      Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker),
+      Array.from({ length: Math.min(CONCURRENCY, list.length) }, worker),
     );
     setUploading(false);
     // 全部结束后统一通知父组件刷新列表
     if (last) onUploaded?.(last);
   };
 
+  // compact 模式：选择文件后立即上传
+  const handleCompactFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    e.target.value = ""; // 允许重复选择同一文件
+    if (!files || files.length === 0) return;
+    handleUpload(Array.from(files));
+  };
+
   const doneCount = items.filter((it) => it.status === "done").length;
 
   return (
-    <div className="rounded-lg border border-dashed border-gray-300 p-4">
+    <div
+      className={
+        compact
+          ? "flex items-center gap-2"
+          : "rounded-lg border border-dashed border-gray-300 p-4"
+      }
+    >
       <input
+        ref={fileInputRef}
         type="file"
         accept="application/pdf"
         multiple
-        onChange={(e) => handleFiles(e.target.files)}
-        className="block w-full text-sm text-gray-600"
+        onChange={compact ? handleCompactFiles : (e) => handleFiles(e.target.files)}
+        className={
+          compact ? "hidden" : "block w-full text-sm text-gray-600"
+        }
       />
       {items.length > 0 && (
-        <ul className="mt-2 space-y-1 text-xs text-gray-600">
+        <ul
+          className={
+            compact ? "hidden" : "mt-2 space-y-1 text-xs text-gray-600"
+          }
+        >
           {items.map((it, i) => (
             <li key={i} className="flex items-center justify-between gap-2">
               <span className="truncate">
@@ -120,15 +148,19 @@ export function PaperUploader({
         </ul>
       )}
       <button
-        onClick={handleUpload}
-        disabled={items.length === 0 || uploading}
-        className="mt-3 rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
+        onClick={() => (compact ? fileInputRef.current?.click() : handleUpload())}
+        disabled={!compact && (items.length === 0 || uploading)}
+        className={
+          compact
+            ? "whitespace-nowrap text-xs text-blue-600 hover:text-blue-800"
+            : "mt-3 rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
+        }
       >
         {uploading
           ? `Uploading ${doneCount}/${items.length}…`
           : items.length > 1
-            ? `Upload & Analyze (${items.length})`
-            : "Upload & Analyze"}
+            ? `Upload & Analyze File (${items.length})`
+            : "Upload & Analyze File"}
       </button>
     </div>
   );
