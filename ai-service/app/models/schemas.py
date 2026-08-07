@@ -104,6 +104,25 @@ class WritingTransformResponse(BaseModel):
     result: str = ""
 
 
+class WritingRewriteRequest(BaseModel):
+    """POST /writing/rewrite 请求体。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    text: str
+    # 改写动作：polish | expand | shorten | translate | rebuttal | cover_letter
+    action: str = "polish"
+    # 可选：额外指令（如翻译目标语言、审稿意见内容）
+    instruction: str = ""
+
+
+class WritingRewriteResult(BaseModel):
+    """writing_agent 输出。"""
+
+    action: str
+    text: str
+
+
 class PaperSimilarityRequest(BaseModel):
     """POST /graph/similarities 请求体（论文相似度）。"""
 

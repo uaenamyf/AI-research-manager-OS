@@ -14,6 +14,8 @@ from app.models.schemas import (
     PaperSimilarityRequest,
     PaperSimilarityResponse,
     ReviewGenerateRequest,
+    WritingRewriteRequest,
+    WritingRewriteResult,
     WritingTransformRequest,
     WritingTransformResponse,
 )
@@ -30,6 +32,8 @@ __all__ = [
     "PaperSimilarityRequest",
     "PaperSimilarityResponse",
     "ReviewGenerateRequest",
+    "WritingRewriteRequest",
+    "WritingRewriteResult",
     "WritingTransformRequest",
     "WritingTransformResponse",
 ]

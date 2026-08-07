@@ -110,6 +110,14 @@
 - 前端渲染时**合成 tag 中心节点**（字符串 id 如 `tag:deep-learning`）与 tag→论文边，构成 3D 恒星环绕图（3d-force-graph），后端接口本身不返回 tag 节点。
 - 3D 渲染细节（前端 KnowledgeGraph3D）：tag 节点为金色恒星（半径随旗下论文数增大），论文为行星球体（degree >= 3 高亮蓝色）；`controlType: "orbit"` + `controls().autoRotate` 实现自动旋转；`enableNodeDrag(false)` 禁用节点拖拽仅保留视角旋转/缩放；节点名称**常驻显示**（`nodeThreeObject` 定制球体 + CanvasTexture 文字 Sprite，tag 名金色、论文标题截断 16 字符浅色，无需 hover）。
 
+### Writing（Agent 4：改写 / 润色）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/writing/rewrite` | body: `{text, action, instruction?}`，同步返回 `{action, text}` |
+
+> `action` 取值：`polish` / `expand` / `shorten` / `translate` / `rebuttal` / `cover_letter`。
+
 ### Paper 上传响应示例
 
 ```json
@@ -133,6 +141,7 @@
 | POST | `/search` | Knowledge 跨论文语义搜索（接口保留，当前 backend 未调用） | 同步 |
 | POST | `/graph/similarities` | Knowledge 图谱论文两两相似度（接口保留，当前仅 tags 为空时降级用） | 同步 |
 | POST | `/writing/transform` | Writing Agent 文本变换 | 同步 |
+| POST | `/writing/rewrite` | 文本改写 / 润色（Agent 4） | 同步 |
 
 > 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）、语义搜索与调试。
 

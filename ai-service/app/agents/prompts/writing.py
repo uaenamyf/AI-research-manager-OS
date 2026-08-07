@@ -52,3 +52,42 @@ WRITING_USER = """{instruction}
 [Text]
 {text}
 """
+
+# ===== rewrite 端点专用模板（f65dae78 侧新增，与 transform 共存） =====
+REWRITE_USER = """{action_instruction}
+
+{instruction_block}[TEXT]
+{text}
+
+Return only the resulting text."""
+
+# 每种 action 对应的具体指令（rewrite 端点用）
+ACTION_INSTRUCTIONS: dict[str, str] = {
+    "polish": (
+        "Polish the following text to improve clarity, grammar, and academic tone. "
+        "Keep the structure and length roughly the same."
+    ),
+    "expand": (
+        "Expand the following text with more detail, elaboration, and supporting "
+        "explanation, while staying faithful to the original meaning."
+    ),
+    "shorten": (
+        "Condense the following text to be more concise while preserving all key "
+        "information and academic tone."
+    ),
+    "translate": (
+        "Translate the following text into the target language specified in the "
+        "instruction (default: English if none given), preserving academic tone and terminology."
+    ),
+    "rebuttal": (
+        "Draft a professional, polite point-by-point response to the reviewer comments "
+        "provided in the instruction, based on the author's text/manuscript context below."
+    ),
+    "cover_letter": (
+        "Write a concise, professional cover letter to the journal editor based on the "
+        "manuscript summary provided below."
+    ),
+}
+
+# 未知 action 的兜底（rewrite 端点用）
+DEFAULT_ACTION = "polish"

@@ -224,8 +224,13 @@ export type WritingAction =
   | "rewrite"
   | "polish"
   | "review_response"
-  | "cover_letter";
+  | "cover_letter"
+  | "expand"
+  | "shorten"
+  | "translate"
+  | "rebuttal";
 
+/** 文本变换请求（Writing Studio /transform）。 */
 export interface WritingTransformRequest {
   text: string;
   action: WritingAction;
@@ -233,6 +238,18 @@ export interface WritingTransformRequest {
 
 export interface WritingTransformResult {
   result: string;
+}
+
+/** 改写请求（Assistant /rewrite）。 */
+export interface WritingRewriteRequest {
+  text: string;
+  action: WritingAction;
+  instruction?: string;
+}
+
+export interface WritingRewriteResult {
+  action: string;
+  text: string;
 }
 
 // ===== 错误 =====
