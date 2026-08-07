@@ -46,6 +46,7 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/knowledge/tags` | AI 标签聚合（含大类 category） |
+| GET | `/api/knowledge/tags/{tag}/papers` | 按标签（name 或 category）查论文列表 |
 | GET | `/api/knowledge/search?q=&limit=` | title/authors 模糊搜索 |
 | GET | `/api/knowledge/graph` | 知识图谱（tags 共享建边） |
 
@@ -61,6 +62,19 @@
 
 - `category` 为该 tag 所属大类（如「机器学习」->「人工智能」）；`category` 为 `null` 表示该 tag 本身是大类（可直接作分组标题）。
 - tags 来源：各论文 summary（Paper Card）中 AI 生成的 `tags` 数组（`[{name, category}]`），聚合统计 count。
+
+`GET /api/knowledge/tags/{tag}/papers` 响应 `data` 与 search 相同（`KnowledgeSearchResult[]`）：
+
+```json
+[
+  {"paperId": 10, "title": "ERes2NetV2: ...", "authors": "Yafeng Chen, ...",
+   "snippet": "ERes2NetV2: ...", "tags": ["声纹识别", "深度学习"], "score": 1.0}
+]
+```
+
+- `{tag}` 为前端点击的 SubTag 或大类名（URL 编码），匹配忽略大小写（name 与 category 均参与匹配）。
+- title / authors 取 summary 真实标题/作者（`paper.title` 列仅存文件名，作为兜底）。
+- 用途：Tags 页点击 SubTag 展示该分类下的论文列表。
 
 `GET /api/knowledge/search` 响应 `data` 示例：
 

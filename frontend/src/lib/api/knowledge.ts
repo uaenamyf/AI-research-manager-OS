@@ -1,7 +1,6 @@
 ﻿/** Knowledge Base 相关 API（F6）。 */
 import { apiFetch } from "./client";
 import type {
-  ID,
   KnowledgeGraph,
   KnowledgeSearchResult,
   KnowledgeTag,
@@ -22,14 +21,12 @@ export function searchKnowledge(
   );
 }
 
-/** 获取某标签下的论文 ID */
+/** 获取某标签（name 或 category）下的论文列表 */
 export function getPapersByTag(
   tag: string,
-  page = 0,
-  size = 20,
-): Promise<ID[]> {
-  return apiFetch<ID[]>(
-    `/api/knowledge/tags/${encodeURIComponent(tag)}/papers?page=${page}&size=${size}`,
+): Promise<KnowledgeSearchResult[]> {
+  return apiFetch<KnowledgeSearchResult[]>(
+    `/api/knowledge/tags/${encodeURIComponent(tag)}/papers`,
   );
 }
 

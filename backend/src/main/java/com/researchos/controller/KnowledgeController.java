@@ -31,6 +31,12 @@ public class KnowledgeController {
         return ApiResponse.ok(knowledgeService.listTags(userId));
     }
 
+    @GetMapping("/tags/{tag}/papers")
+    public ApiResponse<List<KnowledgeSearchResult>> papersByTag(@PathVariable String tag) {
+        Long userId = currentUserResolver.requireUserId();
+        return ApiResponse.ok(knowledgeService.papersByTag(userId, tag));
+    }
+
     @GetMapping("/search")
     public ApiResponse<List<KnowledgeSearchResult>> search(
             @RequestParam String q,

@@ -2,6 +2,7 @@ package com.researchos.service.impl;
 
 import com.researchos.common.exception.BusinessException;
 import com.researchos.common.exception.ErrorCode;
+import com.researchos.config.AppProperties;
 import com.researchos.dto.AuthResponse;
 import com.researchos.dto.LoginRequest;
 import com.researchos.dto.RegisterRequest;
@@ -34,6 +35,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final JwtTokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final AppProperties props;
 
     @Override
     @Transactional
@@ -77,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
         Cookie cookie = new Cookie("access_token", token);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        cookie.setMaxAge(30 * 60);
+        cookie.setMaxAge((int) props.getJwt().getAccessTtl().toSeconds());
         response.addCookie(cookie);
     }
 

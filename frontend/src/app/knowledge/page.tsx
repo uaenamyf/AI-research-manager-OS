@@ -3,7 +3,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { listTags, searchKnowledge, getKnowledgeGraph } from "@/lib/api/knowledge";
+import {
+  getPapersByTag,
+  listTags,
+  searchKnowledge,
+  getKnowledgeGraph,
+} from "@/lib/api/knowledge";
 import { Card, Input, Badge } from "@/components/ui";
 import KnowledgeGraph from "@/components/knowledge/KnowledgeGraph";
 import { toTitleCase } from "@/lib/utils";
@@ -24,6 +29,9 @@ const TABS: { value: KnowledgeTab; label: string }[] = [
 export default function KnowledgePage() {
   const [tab, setTab] = useState<KnowledgeTab>("tags");
   const [tags, setTags] = useState<KnowledgeTag[]>([]);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [tagPapers, setTagPapers] = useState<KnowledgeSearchResult[]>([]);
+  const [tagLoading, setTagLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -43,6 +51,25 @@ export default function KnowledgePage() {
       .catch(() => {})
       .finally(() => setGraphLoading(false));
   }, [tab, graph.nodes.length]);
+
+  const handleTagClick = async (tag: string) => {
+    if (selectedTag === tag) {
+      // 再次点击收起
+      setSelectedTag(null);
+      setTagPapers([]);
+      return;
+    }
+    setSelectedTag(tag);
+    setTagLoading(true);
+    try {
+      const papers = await getPapersByTag(tag);
+      setTagPapers(papers);
+    } catch {
+      setTagPapers([]);
+    } finally {
+      setTagLoading(false);
+    }
+  };
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -85,7 +112,40 @@ export default function KnowledgePage() {
               No tags yet. Upload papers to auto-generate tags.
             </p>
           ) : (
-            <TagGroups tags={tags} />
+            <TagGroups tags={tags} selectedTag={selectedTag} onTagClick={handleTagClick} />
+          )}
+
+          {selectedTag && (
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">
+                Papers tagged “{toTitleCase(selectedTag)}”
+              </h3>
+              {tagLoading ? (
+                <p className="text-sm text-gray-500">Loading…</p>
+              ) : tagPapers.length === 0 ? (
+                <p className="text-sm text-gray-500">No papers found.</p>
+              ) : (
+                <div className="space-y-2">
+                  {tagPapers.map((p) => (
+                    <Link
+                      key={p.paperId}
+                      href={`/papers/${p.paperId}`}
+                      className="block rounded-md border border-gray-100 p-3 hover:bg-gray-50"
+                    >
+                      <p className="text-sm font-medium text-gray-900">{p.title}</p>
+                      <p className="text-xs text-gray-500">{p.authors}</p>
+                      <div className="mt-1 flex gap-1">
+                        {p.tags.map((t) => (
+                          <Badge key={t} className="bg-gray-50 text-xs text-gray-500">
+                            {toTitleCase(t)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </Card>
       )}
@@ -164,8 +224,17 @@ export default function KnowledgePage() {
  * Tags 按大类分组展示：
  * 大类 tag（category 为空）作为分组标题，具体 tag 挂在对应大类下。
  * 展示前统一 Title Case（每个词首字母大写），分组 key 与标题基于归一化后的值。
+ * SubTag 可点击（onTagClick），点击后展示该 tag 下的论文。
  */
-function TagGroups({ tags }: { tags: KnowledgeTag[] }) {
+function TagGroups({
+  tags,
+  selectedTag,
+  onTagClick,
+}: {
+  tags: KnowledgeTag[];
+  selectedTag: string | null;
+  onTagClick: (tag: string) => void;
+}) {
   // 归一化：name/category 统一 Title Case，避免大小写差异导致分组分裂
   const normalized: KnowledgeTag[] = tags.map((t) => ({
     ...t,
@@ -209,11 +278,23 @@ function TagGroups({ tags }: { tags: KnowledgeTag[] }) {
             </div>
             <div className="flex flex-wrap gap-2 pl-2">
               {children.length > 0 ? (
-                children.map((tag) => (
-                  <Badge key={tag.name} className="bg-gray-100 text-gray-700">
-                    {tag.name} ({tag.count})
-                  </Badge>
-                ))
+                children.map((tag) => {
+                  const active = selectedTag === tag.name;
+                  return (
+                    <button
+                      key={tag.name}
+                      onClick={() => onTagClick(tag.name)}
+                      title={`View papers tagged ${tag.name}`}
+                      className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
+                        active
+                          ? "bg-blue-600 text-white hover:bg-blue-500"
+                          : "bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700"
+                      }`}
+                    >
+                      {tag.name} ({tag.count})
+                    </button>
+                  );
+                })
               ) : (
                 <span className="text-xs text-gray-400">No sub-tags</span>
               )}

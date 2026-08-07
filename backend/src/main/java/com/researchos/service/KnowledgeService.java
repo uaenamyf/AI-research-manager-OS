@@ -26,6 +26,11 @@ public interface KnowledgeService {
     List<KnowledgeSearchResult> search(Long userId, String query, int limit);
 
     /**
+     * 按标签查论文：返回带该 tag（name 或 category 忽略大小写）的论文列表。
+     */
+    List<KnowledgeSearchResult> papersByTag(Long userId, String tag);
+
+    /**
      * 知识图谱：论文间关联（向量相似度优先，降级共享关键词）。
      */
     KnowledgeGraphResult graph(Long userId);

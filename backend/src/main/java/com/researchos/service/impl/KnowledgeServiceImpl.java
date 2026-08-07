@@ -145,6 +145,39 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
+     * 按标签查论文：匹配 summary tags 中 name 或 category（忽略大小写）。
+     *
+     * <p>与 listTags 的归一化逻辑一致（小写比较），点击前端展示的任意
+     * tag（具体 tag 或大类）都能命中对应论文。</p>
+     */
+    @Override
+    public List<KnowledgeSearchResult> papersByTag(Long userId, String tag) {
+        String key = tag.trim().toLowerCase();
+        List<Paper> papers = paperMapper.selectList(
+                new LambdaQueryWrapper<Paper>().eq(Paper::getUserId, userId));
+        return papers.stream()
+                .filter(p -> {
+                    for (PaperTag pt : parseTags(p.getSummary())) {
+                        if (pt.name().trim().toLowerCase().equals(key)
+                                || pt.category().trim().toLowerCase().equals(key)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .map(p -> {
+                    Map<String, Object> s = p.getSummary();
+                    String realTitle = s != null ? str(s.get("title")) : p.getTitle();
+                    String realAuthors = s != null ? str(s.get("authors")) : p.getAuthors();
+                    return new KnowledgeSearchResult(
+                            p.getId(), realTitle, realAuthors,
+                            realTitle, extractTags(p.getSummary()), 1.0
+                    );
+                })
+                .toList();
+    }
+
+    /**
      * 知识图谱：按论文 tags 相关度建边。
      *
      * <p>主路径：两两论文共享 tag（含大类）越多权重越高；

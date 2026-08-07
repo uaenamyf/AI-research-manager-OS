@@ -35,8 +35,8 @@ mybatis-plus:
 app:
   jwt:
     secret: ${JWT_SECRET:dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
-    access-ttl: 30m
-    refresh-ttl: 7d
+    access-ttl: 7d
+    refresh-ttl: 30d
   storage:
     type: ${STORAGE_TYPE:local}
     bucket: ${STORAGE_BUCKET:researchos-pdfs}
