@@ -74,7 +74,10 @@ function ReviewGenerator() {
 
   useEffect(() => {
     if (!selectedProject) return;
-    listPapers(selectedProject, 0, 200).then((p) => setPapers(p.items));
+    // date: 2026-08-07
+    // dev: myf
+    // changelog: 修复 listPapers 参数错位（folderId 误传 0、page 误传 200 导致论文列表为空）
+    listPapers(selectedProject, undefined, 0, 200).then((p) => setPapers(p.items));
     setSelectedPaperIds([]);
   }, [selectedProject]);
 
