@@ -2,7 +2,7 @@
  * Writing 页面：Literature Review Assistant（F7）+ Writing Assistant（Agent 4）。
  *
  * - Tab 1: Review Generator——选论文 + Topic 生成综述（异步任务）
- * - Tab 2: Writing Assistant——改写/润色/回复审稿人/Cover letter（同步）
+ * - Tab 2: Writing Assistant——改写/润色/翻译/审稿回复/Cover letter（同步）
  */
 "use client";
 
@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { listProjects } from "@/lib/api/projects";
 import { listPapers } from "@/lib/api/papers";
 import { generateReview, pollReviewTask } from "@/lib/api/reviews";
-import { transformText } from "@/lib/api/writing";
+import { rewriteText } from "@/lib/api/writing";
 import { Card, Button, Input, Textarea, Spinner } from "@/components/ui";
 import type {
   ID,
@@ -19,12 +19,23 @@ import type {
   WritingAction,
 } from "@/types";
 
-const WRITING_ACTIONS: { value: WritingAction; label: string }[] = [
-  { value: "rewrite", label: "Rewrite（改写）" },
-  { value: "polish", label: "Polish（润色）" },
-  { value: "review_response", label: "Reply to Reviewers（回复审稿人）" },
+const WRITING_ACTIONS: {
+  value: WritingAction;
+  label: string;
+  needsInstruction?: boolean;
+}[] = [
+  { value: "polish", label: "Polish" },
+  { value: "expand", label: "Expand" },
+  { value: "shorten", label: "Shorten" },
+  { value: "translate", label: "Translate", needsInstruction: true },
+  { value: "rebuttal", label: "Reviewer Rebuttal", needsInstruction: true },
   { value: "cover_letter", label: "Cover Letter" },
 ];
+
+const INSTRUCTION_PLACEHOLDER: Partial<Record<WritingAction, string>> = {
+  translate: "Target language, e.g. Chinese",
+  rebuttal: "Paste the reviewer comments here",
+};
 
 export default function WritingPage() {
   const [tab, setTab] = useState<"review" | "assistant">("review");
@@ -193,13 +204,18 @@ function ReviewGenerator() {
   );
 }
 
+// 2026-08-07 myf: 将 /assistant 页完整版 Writing Assistant 并入 Tab 2，
+// 统一走 /api/writing/rewrite（支持 instruction），删除旧 transform 精简版
 // ===== Tab 2: Writing Assistant（Agent 4） =====
 function WritingAssistant() {
   const [action, setAction] = useState<WritingAction>("polish");
   const [text, setText] = useState("");
+  const [instruction, setInstruction] = useState("");
   const [result, setResult] = useState("");
   const [transforming, setTransforming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const current = WRITING_ACTIONS.find((a) => a.value === action);
 
   const handleTransform = async () => {
     if (!text.trim()) return;
@@ -207,8 +223,8 @@ function WritingAssistant() {
     setError(null);
     setResult("");
     try {
-      const { result: out } = await transformText({ text, action });
-      setResult(out);
+      const res = await rewriteText({ text, action, instruction });
+      setResult(res.text);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -232,6 +248,14 @@ function WritingAssistant() {
             </Button>
           ))}
         </div>
+        {current?.needsInstruction && (
+          <input
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder={INSTRUCTION_PLACEHOLDER[action] ?? ""}
+            className="mt-3 h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-900 focus:outline-none"
+          />
+        )}
       </Card>
 
       <Card className="p-4">
@@ -248,9 +272,15 @@ function WritingAssistant() {
           disabled={transforming || !text.trim()}
           className="mt-3"
         >
-          {transforming ? "Transforming..." : "Transform"}
+          {transforming ? "Working..." : "Rewrite"}
         </Button>
       </Card>
+
+      {transforming && (
+        <Card className="flex items-center gap-2 p-4 text-sm text-blue-600">
+          <Spinner /> Rewriting your text...
+        </Card>
+      )}
 
       {error && (
         <Card className="p-4 text-sm text-red-600">{error}</Card>
@@ -258,16 +288,19 @@ function WritingAssistant() {
 
       {result && (
         <Card className="p-6">
-          <h2 className="mb-3 font-semibold text-gray-900">Result</h2>
-          <div className="whitespace-pre-wrap text-gray-800">{result}</div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => navigator.clipboard.writeText(result)}
-          >
-            Copy
-          </Button>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Result</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigator.clipboard.writeText(result)}
+            >
+              Copy
+            </Button>
+          </div>
+          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-800">
+            {result}
+          </div>
         </Card>
       )}
     </div>
