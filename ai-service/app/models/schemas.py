@@ -89,21 +89,6 @@ class KnowledgeSearchResponse(BaseModel):
     results: list[KnowledgeSearchHit] = []
 
 
-class WritingTransformRequest(BaseModel):
-    """POST /writing/transform 请求体（Writing Agent）。"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    text: str
-    action: str = "polish"
-
-
-class WritingTransformResponse(BaseModel):
-    """Writing Agent 变换结果。"""
-
-    result: str = ""
-
-
 class WritingRewriteRequest(BaseModel):
     """POST /writing/rewrite 请求体。"""
 

@@ -1,7 +1,9 @@
 package com.researchos.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 文本改写请求，与前端 WritingRewriteRequest 对齐。
@@ -10,6 +12,8 @@ import lombok.Data;
  * @since 2026-07-26
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class WritingRewriteRequest {
     @NotBlank
     private String text;

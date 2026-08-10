@@ -2,8 +2,6 @@ package com.researchos.controller;
 
 import com.researchos.common.response.ApiResponse;
 import com.researchos.dto.WritingRewriteRequest;
-import com.researchos.dto.WritingTransformRequest;
-import com.researchos.dto.WritingTransformResult;
 import com.researchos.security.CurrentUserResolver;
 import com.researchos.service.WritingService;
 import jakarta.validation.Valid;
@@ -28,12 +26,6 @@ public class WritingController {
 
     private final WritingService writingService;
     private final CurrentUserResolver currentUserResolver;
-
-    @PostMapping("/transform")
-    public ApiResponse<WritingTransformResult> transform(
-            @Valid @RequestBody WritingTransformRequest req) {
-        return ApiResponse.ok(writingService.transform(req));
-    }
 
     @PostMapping("/rewrite")
     public ApiResponse<Map<String, String>> rewrite(

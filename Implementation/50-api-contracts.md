@@ -140,29 +140,33 @@
 | POST | `/review/generate` | 综述生成 | 同步 |
 | POST | `/search` | Knowledge 跨论文语义搜索（接口保留，当前 backend 未调用） | 同步 |
 | POST | `/graph/similarities` | Knowledge 图谱论文两两相似度（接口保留，当前仅 tags 为空时降级用） | 同步 |
-| POST | `/writing/transform` | Writing Agent 文本变换 | 同步 |
 | POST | `/writing/rewrite` | 文本改写 / 润色（Agent 4） | 同步 |
 
 > 常规异步任务走 RabbitMQ（见 `70-async-mq.md`），HTTP 端点主要用于同步链路（Chat）、语义搜索与调试。
 
-### POST /writing/transform（Writing Agent）
+### POST /writing/rewrite（Writing Agent）
+
+> 原 `/writing/transform` 端点已移除（2026-08-10），统一由本端点承担文本改写/润色/翻译/审稿回复/Cover letter。
 
 请求：
 
 ```json
 {
   "text": "This paper proposes ...",
-  "action": "polish"
+  "action": "polish",
+  "instruction": "translate to Chinese"
 }
 ```
 
-- `action` 枚举：`rewrite`（改写）/ `polish`（润色）/ `review_response`（回复审稿人）/ `cover_letter`（Cover letter），未知 action 兜底为 IMPROVE。
+- `action` 枚举：`polish`（润色）/ `expand`（扩写）/ `shorten`（精简）/ `translate`（翻译）/ `rebuttal`（回复审稿人）/ `cover_letter`（Cover letter），未知 action 兜底为 polish。
+- `instruction` 可选，用于 translate（目标语言）与 rebuttal（审稿意见）。
 
 响应（200）：
 
 ```json
 {
-  "result": "This manuscript proposes ..."
+  "action": "polish",
+  "text": "This manuscript proposes ..."
 }
 ```
 
