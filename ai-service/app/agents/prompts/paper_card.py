@@ -12,6 +12,9 @@ The JSON must contain exactly these fields:
   "authors": "Author names, comma-separated",
   "year": 2024,
   "doi": "DOI if available, empty string if not",
+  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "abstract": "Concise abstract in 2-4 sentences: motivation, what was done, and main outcome.",
+  "workflow": "Research workflow in 4-8 sentences. Describe the ENTIRE experimental process step by step in chronological order: data collection, preprocessing, methodology/model, experiments, results and evaluation.",
   "method": "Core methodology in 2-3 sentences. What approach/technique did they use?",
   "finding": "Key findings in 2-3 sentences. What were the main results?",
   "limitation": "Limitations in 2-3 sentences. What are the weaknesses or constraints?",
@@ -21,6 +24,17 @@ The JSON must contain exactly these fields:
     {"name": "信号处理", "category": "工程"}
   ]
 }
+
+Rules for "keywords":
+- Extract 4-8 concise keywords that best represent the paper's topics.
+- Use the same language as the paper (English paper -> English keywords, Chinese paper -> Chinese keywords).
+
+Rules for "abstract":
+- Write a concise abstract in the paper's language covering motivation, method, and main result.
+
+Rules for "workflow":
+- Describe the paper's complete experimental/research workflow in chronological order: data collection, preprocessing, methods, experiments, results, evaluation.
+- Write 4-8 sentences in the paper's language.
 
 Rules for "tags" (IMPORTANT):
 - Generate 4-8 tags. Tags must ONLY represent METHODOLOGIES or BROAD DOMAINS. Do NOT copy specific paper keywords verbatim — interpret them at a higher level.

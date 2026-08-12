@@ -32,6 +32,9 @@ class PaperAnalyzeResult(BaseModel):
     authors: str = ""
     year: int | None = None
     doi: str = ""
+    keywords: list[str] = []
+    abstract: str = ""
+    workflow: str = ""
     method: str = ""
     finding: str = ""
     limitation: str = ""

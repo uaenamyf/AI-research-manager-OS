@@ -110,6 +110,9 @@ export interface PaperIntelligenceCard {
   authors?: string;
   year?: number;
   journal?: string;
+  keywords?: string[];
+  abstract?: string;
+  workflow?: string;
   researchQuestion?: string;
   method?: string;
   dataset?: string;

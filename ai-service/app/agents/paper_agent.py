@@ -68,12 +68,26 @@ def _parse_json_response(raw: str) -> PaperAnalyzeResult:
         authors=data.get("authors", ""),
         year=data.get("year"),
         doi=data.get("doi", ""),
+        keywords=_parse_string_list(data.get("keywords")),
+        abstract=data.get("abstract", ""),
+        workflow=data.get("workflow", ""),
         method=data.get("method", ""),
         finding=data.get("finding", ""),
         limitation=data.get("limitation", ""),
         future_work=data.get("future_work", ""),
         tags=_parse_tags(data.get("tags")),
     )
+
+
+def _parse_string_list(raw) -> list[str]:
+    """解析字符串列表字段（keywords），兼容数组与逗号分隔字符串。"""
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    if isinstance(raw, str):
+        return [x.strip() for x in raw.split(",") if x.strip()]
+    return []
 
 
 def _parse_tags(raw) -> list[PaperTag]:
