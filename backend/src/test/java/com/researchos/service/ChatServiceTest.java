@@ -6,6 +6,7 @@ import com.researchos.config.AppProperties;
 import com.researchos.entity.Conversation;
 import com.researchos.entity.Paper;
 import com.researchos.service.impl.ChatServiceImpl;
+import com.researchos.service.support.LlmOverrideBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -43,6 +44,9 @@ class ChatServiceTest {
 
     @Mock
     private AppProperties appProperties;
+
+    @Mock
+    private LlmOverrideBuilder llmOverrideBuilder;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();

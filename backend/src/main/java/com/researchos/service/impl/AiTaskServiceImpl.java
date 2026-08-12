@@ -10,6 +10,7 @@ import com.researchos.entity.AiTask;
 import com.researchos.mapper.AiTaskMapper;
 import com.researchos.service.AiTaskService;
 import com.researchos.service.PaperService;
+import com.researchos.service.support.LlmOverrideBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -32,6 +34,7 @@ public class AiTaskServiceImpl extends ServiceImpl<AiTaskMapper, AiTask> impleme
 
     private final RabbitTemplate rabbitTemplate;
     private final PaperService paperService;
+    private final LlmOverrideBuilder llmOverrideBuilder;
 
     /**
      * 创建综述任务 + 发 MQ。
@@ -51,11 +54,19 @@ public class AiTaskServiceImpl extends ServiceImpl<AiTaskMapper, AiTask> impleme
         task.setCreatedTime(OffsetDateTime.now());
         save(task);
 
+        // 2026-08-12 myf: payload 携带用户自定义 LLM 配置，ai-service 消费时应用 override
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("paperIds", req.getPaperIds());
+        payload.put("topic", req.getTopic());
+        Map<String, Object> llmOverride = llmOverrideBuilder.build(userId);
+        if (llmOverride != null && !llmOverride.isEmpty()) {
+            payload.put("llmOverride", llmOverride);
+        }
+
         rabbitTemplate.convertAndSend(
                 RabbitConfig.EXCHANGE_AI_TASK,
                 RabbitConfig.ROUTING_REVIEW_GENERATE,
-                new AiTaskMessage(task.getTaskId(), "REVIEW_GENERATION",
-                        Map.of("paperIds", req.getPaperIds(), "topic", req.getTopic())));
+                new AiTaskMessage(task.getTaskId(), "REVIEW_GENERATION", payload));
 
         return task.getTaskId();
     }

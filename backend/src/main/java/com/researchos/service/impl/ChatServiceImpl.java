@@ -10,6 +10,7 @@ import com.researchos.entity.Paper;
 import com.researchos.mapper.ConversationMapper;
 import com.researchos.service.ChatService;
 import com.researchos.service.PaperService;
+import com.researchos.service.support.LlmOverrideBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,8 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
     private final PaperService paperService;
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
+    // 2026-08-12 myf: LLM 覆盖配置构建器（用户自定义 API Key / 模型等）
+    private final LlmOverrideBuilder llmOverrideBuilder;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
@@ -70,6 +73,15 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("paperId", paperId);
             payload.put("question", question);
+            // 2026-08-12 myf: 透传用户自定义 LLM 配置 + RAG 检索参数
+            Map<String, Object> llmOverride = llmOverrideBuilder.build(userId);
+            if (llmOverride != null) {
+                payload.put("llmOverride", llmOverride);
+            }
+            Map<String, Object> knowledgeParams = llmOverrideBuilder.buildKnowledgeParams(userId);
+            if (knowledgeParams != null) {
+                payload.putAll(knowledgeParams);
+            }
             String body = objectMapper.writeValueAsString(payload);
 
             HttpRequest request = HttpRequest.newBuilder()

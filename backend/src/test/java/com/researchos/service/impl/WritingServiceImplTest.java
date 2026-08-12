@@ -4,11 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.researchos.common.exception.BusinessException;
 import com.researchos.common.exception.ErrorCode;
 import com.researchos.config.AppProperties;
+import com.researchos.dto.UserSettings;
 import com.researchos.dto.WritingRewriteRequest;
+import com.researchos.service.SettingsService;
+import com.researchos.service.support.LlmOverrideBuilder;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -52,7 +56,10 @@ class WritingServiceImplTest {
         AppProperties props = new AppProperties();
         props.getAiService().setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
         props.getAiService().setInternalToken("test-internal-token");
-        service = new WritingServiceImpl(props, objectMapper);
+        SettingsService settingsService = Mockito.mock(SettingsService.class);
+        Mockito.when(settingsService.getSettings(Mockito.anyLong())).thenReturn(new UserSettings());
+        LlmOverrideBuilder llmOverrideBuilder = new LlmOverrideBuilder(settingsService);
+        service = new WritingServiceImpl(props, objectMapper, settingsService, llmOverrideBuilder);
     }
 
     @AfterEach

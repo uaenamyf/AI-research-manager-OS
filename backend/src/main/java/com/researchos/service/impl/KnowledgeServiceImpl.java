@@ -9,9 +9,11 @@ import com.researchos.dto.KnowledgeGraphNode;
 import com.researchos.dto.KnowledgeGraphResult;
 import com.researchos.dto.KnowledgeSearchResult;
 import com.researchos.dto.KnowledgeTagDto;
+import com.researchos.dto.UserSettings;
 import com.researchos.entity.Paper;
 import com.researchos.mapper.PaperMapper;
 import com.researchos.service.KnowledgeService;
+import com.researchos.service.SettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -56,6 +58,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final PaperMapper paperMapper;
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
+    // 2026-08-12 myf: 读取用户自定义 Knowledge/RAG 配置（retrieveTopK 覆盖默认 limit）
+    private final SettingsService settingsService;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
@@ -140,8 +144,21 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return Collections.emptyList();
         }
 
+        // 2026-08-12 myf: 用户自定义 retrieveTopK 覆盖默认 limit（Settings -> Knowledge）
+        int effectiveLimit = limit;
+        try {
+            UserSettings settings = settingsService.getSettings(userId);
+            if (settings != null && settings.getKnowledge() != null
+                    && settings.getKnowledge().getRetrieveTopK() != null
+                    && settings.getKnowledge().getRetrieveTopK() > 0) {
+                effectiveLimit = settings.getKnowledge().getRetrieveTopK();
+            }
+        } catch (Exception e) {
+            log.warn("读取用户 Knowledge 配置失败，使用默认 limit={}: userId={}", limit, userId, e);
+        }
+
         // 2. title/authors 模糊匹配
-        return fallbackSearch(papers, query, limit);
+        return fallbackSearch(papers, query, effectiveLimit);
     }
 
     /**
