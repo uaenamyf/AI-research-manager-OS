@@ -245,6 +245,35 @@ export interface WritingRewriteResult {
   text: string;
 }
 
+// ===== Agent 4.5 划词翻译（Paper Card Tab2）=====
+/** 翻译方式：machine=翻译器（快），llm=大模型（准） */
+export type TranslateMode = "machine" | "llm";
+
+/** 机器翻译请求（backend /api/writing/translate-machine） */
+export interface MachineTranslateRequest {
+  text: string;
+  targetLang?: string;
+}
+
+export interface MachineTranslateResult {
+  text: string;
+  sourceLang?: string;
+  targetLang: string;
+}
+
+/** 划词翻译可用的目标语言（Google 语言码 → 中文名） */
+export const TRANSLATE_LANGS: { code: string; label: string }[] = [
+  { code: "zh-CN", label: "中文" },
+  { code: "en", label: "English" },
+  { code: "ja", label: "日本語" },
+  { code: "ko", label: "한국어" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "es", label: "Español" },
+  { code: "ru", label: "Русский" },
+  { code: "pt", label: "Português" },
+];
+
 // ===== 错误 =====
 export class ApiError extends Error {
   constructor(
