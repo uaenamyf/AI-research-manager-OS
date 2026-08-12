@@ -50,6 +50,11 @@ class ChatStreamRequest(BaseModel):
 
     paper_id: int = Field(..., alias="paperId")
     question: str
+    # 2026-08-12 myf: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
+    llm_override: LlmOverride | None = Field(default=None, alias="llmOverride")
+    # 2026-08-12 myf: 用户自定义 RAG 检索参数（0/None 用系统默认）
+    retrieve_top_k: int | None = Field(default=None, alias="retrieveTopK")
+    similarity_threshold: float | None = Field(default=None, alias="similarityThreshold")
 
 
 class ReviewGenerateRequest(BaseModel):
@@ -59,6 +64,8 @@ class ReviewGenerateRequest(BaseModel):
 
     paper_ids: list[int] = Field(..., alias="paperIds")
     topic: str = ""
+    # 2026-08-12 myf: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
+    llm_override: LlmOverride | None = Field(default=None, alias="llmOverride")
 
 
 class KnowledgeSearchRequest(BaseModel):
@@ -92,6 +99,21 @@ class KnowledgeSearchResponse(BaseModel):
     results: list[KnowledgeSearchHit] = []
 
 
+class LlmOverride(BaseModel):
+    """请求级 LLM 配置覆盖（用户自定义 API Key / Base URL / 模型）。
+
+    所有字段均可选，None 表示使用系统全局配置。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    provider: str | None = None
+    api_key: str | None = Field(default=None, alias="apiKey")
+    base_url: str | None = Field(default=None, alias="baseUrl")
+    default_model: str | None = Field(default=None, alias="defaultModel")
+    temperature: float | None = None
+
+
 class WritingRewriteRequest(BaseModel):
     """POST /writing/rewrite 请求体。"""
 
@@ -102,6 +124,8 @@ class WritingRewriteRequest(BaseModel):
     action: str = "polish"
     # 可选：额外指令（如翻译目标语言、审稿意见内容）
     instruction: str = ""
+    # 2026-08-12 myf: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
+    llm_override: LlmOverride | None = Field(default=None, alias="llmOverride")
 
 
 class WritingRewriteResult(BaseModel):

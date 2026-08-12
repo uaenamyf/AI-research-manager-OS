@@ -37,6 +37,8 @@ async def chat_stream(
     paper_id: int,
     question: str,
     top_k: int = 0,
+    similarity_threshold: float | None = None,
+    override=None,
 ) -> AsyncIterator[str]:
     """流式问答：检索论文上下文 + LLM 流式生成。
 
@@ -45,11 +47,15 @@ async def chat_stream(
         paper_id: 论文 ID
         question: 用户问题
         top_k: 检索条数
+        similarity_threshold: 相似度下限（过滤低分结果）
+        override: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
     Yields:
         逐 token 的回答文本
     """
     # 1. RAG 检索
-    chunks = await retriever.retrieve(paper_id, question, top_k)
+    chunks = await retriever.retrieve(
+        paper_id, question, top_k, similarity_threshold
+    )
 
     # 2. 构造 context
     context = build_context(chunks)
@@ -67,6 +73,7 @@ async def chat_stream(
     async for token in llm_client.stream(
         system=CHAT_SYSTEM,
         user=user_prompt,
+        override=override,
     ):
         yield token
 

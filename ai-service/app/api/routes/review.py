@@ -20,7 +20,12 @@ async def generate_review(req: ReviewGenerateRequest):
     """
     from app.agents.review_agent import generate_review as agent_generate
     from app.core.db import get_db_pool
+    from app.llm.client import LLMOverride
 
     pool = await get_db_pool()
-    markdown = await agent_generate(pool, req.paper_ids, req.topic)
+    # 2026-08-12 myf: 应用用户自定义 LLM 配置覆盖
+    override = LLMOverride.from_dict(
+        req.llm_override.model_dump(by_alias=False) if req.llm_override else None
+    )
+    markdown = await agent_generate(pool, req.paper_ids, req.topic, override=override)
     return {"markdown": markdown}

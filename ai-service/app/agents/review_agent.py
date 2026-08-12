@@ -20,6 +20,7 @@ async def generate_review(
     pool: asyncpg.Pool,
     paper_ids: list[int],
     topic: str,
+    override=None,
 ) -> str:
     """生成 Literature Review。
 
@@ -34,6 +35,7 @@ async def generate_review(
         pool: 数据库连接池
         paper_ids: 论文 ID 列表
         topic: 综述主题
+        override: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等），None 用系统默认
     Returns:
         Markdown 格式的综述文本
     """
@@ -72,7 +74,10 @@ async def generate_review(
         f"综述生成：papers={len(papers)}, 检索片段={len(chunks)}, "
         f"topic='{topic[:50]}'"
     )
-    markdown = await llm_client.complete(system=REVIEW_SYSTEM, user=user_prompt)
+    # 2026-08-12 myf: 支持用户自定义 LLM 配置覆盖
+    markdown = await llm_client.complete(
+        system=REVIEW_SYSTEM, user=user_prompt, override=override
+    )
 
     result = _strip_code_fence(markdown)
     logger.info(f"综述生成完成，长度={len(result)} 字符")

@@ -8,6 +8,14 @@ from app.agents import writing_agent
 from app.agents.writing_agent import SUPPORTED_ACTIONS, _strip_code_fence, rewrite
 
 
+@pytest.fixture(autouse=True)
+def _clear_llm_cache():
+    """每个测试前后清空改写缓存，避免测试间相互污染。"""
+    writing_agent.clear_cache()
+    yield
+    writing_agent.clear_cache()
+
+
 def test_supported_actions():
     """支持的动作齐全。"""
     for action in ("polish", "expand", "shorten", "translate", "rebuttal", "cover_letter"):
@@ -77,6 +85,39 @@ async def test_rewrite_with_instruction(monkeypatch):
     assert result == "翻译结果"
     assert "translate to Chinese" in captured["user"]
     assert "INSTRUCTION" in captured["user"]
+
+
+@pytest.mark.asyncio
+async def test_rewrite_cache_hit(monkeypatch):
+    """相同输入第二次调用走缓存，不重复调 LLM。"""
+    calls = {"n": 0}
+
+    async def fake_complete(system, user, model=""):
+        calls["n"] += 1
+        return "cached result"
+
+    monkeypatch.setattr(writing_agent.llm_client, "complete", fake_complete)
+
+    r1 = await rewrite("same text", "translate", "中文")
+    r2 = await rewrite("same text", "translate", "中文")
+    assert r1 == r2 == "cached result"
+    assert calls["n"] == 1  # 只调了一次 LLM
+
+
+@pytest.mark.asyncio
+async def test_rewrite_cache_miss_on_diff_input(monkeypatch):
+    """不同文本不命中缓存，各自调用 LLM。"""
+    calls = {"n": 0}
+
+    async def fake_complete(system, user, model=""):
+        calls["n"] += 1
+        return "out"
+
+    monkeypatch.setattr(writing_agent.llm_client, "complete", fake_complete)
+
+    await rewrite("text A", "translate")
+    await rewrite("text B", "translate")
+    assert calls["n"] == 2
 
 
 @pytest.mark.asyncio

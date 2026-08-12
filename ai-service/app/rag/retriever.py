@@ -46,6 +46,7 @@ class Retriever:
         paper_id: int,
         query: str,
         top_k: int = 0,
+        similarity_threshold: float | None = None,
     ) -> list[RetrievedChunk]:
         """检索与问题最相关的论文分块。
 
@@ -53,6 +54,7 @@ class Retriever:
             paper_id: 论文 ID（单论文问答）
             query: 用户问题
             top_k: 返回条数（0 用默认值）
+            similarity_threshold: 相似度下限（过滤低分结果，None 不过滤）
         Returns:
             RetrievedChunk 列表，按加权分数降序
         """
@@ -64,7 +66,10 @@ class Retriever:
 
         # 2. 向量检索（多取一些，加权后截断）
         raw_results = await self.vector_store.search(
-            paper_id, query_embedding, top_k=top_k * 2
+            paper_id,
+            query_embedding,
+            top_k=top_k * 2,
+            similarity_threshold=similarity_threshold,
         )
 
         if not raw_results:

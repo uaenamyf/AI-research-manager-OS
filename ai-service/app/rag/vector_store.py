@@ -56,6 +56,7 @@ class VectorStore:
         paper_id: int,
         query_embedding: list[float],
         top_k: int = 5,
+        similarity_threshold: float | None = None,
     ) -> list[dict]:
         """向量相似度检索（cosine），限定 paper_id。
 
@@ -63,25 +64,37 @@ class VectorStore:
             paper_id: 论文 ID（单论文问答时过滤）
             query_embedding: 查询向量
             top_k: 返回条数
+            similarity_threshold: 相似度下限（过滤低分结果，None 不过滤）
         Returns:
             [{id, section, content, score}, ...]
         """
         vec_str = self._vec_to_str(query_embedding)
 
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
+        # 2026-08-12 myf: 支持用户自定义相似度阈值
+        if similarity_threshold is not None:
+            sql = """
+                SELECT id, section, content,
+                       1 - (embedding <=> $1::vector) AS score
+                FROM paper_chunk
+                WHERE paper_id = $2
+                  AND 1 - (embedding <=> $1::vector) >= $3
+                ORDER BY embedding <=> $1::vector
+                LIMIT $4
+            """
+            params = [vec_str, paper_id, similarity_threshold, top_k]
+        else:
+            sql = """
                 SELECT id, section, content,
                        1 - (embedding <=> $1::vector) AS score
                 FROM paper_chunk
                 WHERE paper_id = $2
                 ORDER BY embedding <=> $1::vector
                 LIMIT $3
-                """,
-                vec_str,
-                paper_id,
-                top_k,
-            )
+            """
+            params = [vec_str, paper_id, top_k]
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(sql, *params)
 
         return [
             {

@@ -33,6 +33,18 @@ async def chat_stream(req: ChatStreamRequest):
     - data: {"type":"done"}                      # 流结束
     """
     from app.agents.chat_agent import chat_stream as agent_stream
+    from app.llm.client import LLMOverride
+
+    # 2026-08-12 myf: 解析请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
+    llm_override = None
+    if req.llm_override:
+        llm_override = LLMOverride(
+            provider=req.llm_override.provider,
+            api_key=req.llm_override.api_key,
+            base_url=req.llm_override.base_url,
+            default_model=req.llm_override.default_model,
+            temperature=req.llm_override.temperature,
+        )
 
     async def event_generator():
         """生成 SSE 事件流。"""
@@ -42,8 +54,13 @@ async def chat_stream(req: ChatStreamRequest):
             vector_store = VectorStore(pool)
             retriever = Retriever(vector_store)
 
-            # 1. 先检索（为了拿到 citations）
-            chunks = await retriever.retrieve(req.paper_id, req.question)
+            # 1. 先检索（为了拿到 citations），使用用户自定义检索参数
+            chunks = await retriever.retrieve(
+                req.paper_id,
+                req.question,
+                top_k=req.retrieve_top_k or 0,
+                similarity_threshold=req.similarity_threshold,
+            )
             citation_ids = [c.id for c in chunks]
 
             # 发送 citation 事件
@@ -68,6 +85,7 @@ async def chat_stream(req: ChatStreamRequest):
             async for token in llm_client.stream(
                 system=CHAT_SYSTEM,
                 user=user_prompt,
+                override=llm_override,
             ):
                 token_event = json.dumps({"type": "token", "content": token})
                 yield f"data: {token_event}\n\n"

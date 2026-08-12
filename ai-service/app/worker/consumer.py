@@ -100,7 +100,7 @@ class TaskConsumer:
         """处理 review.generate 消息。
 
         消息体格式（与 backend AiTaskMessage 对齐）：
-        { "taskId": 123, "type": "REVIEW_GENERATION", "payload": { "paperIds": [1,2], "topic": "..." } }
+        { "taskId": 123, "type": "REVIEW_GENERATION", "payload": { "paperIds": [1,2], "topic": "...", "llmOverride": {...} } }
         """
         async with message.process(requeue=False):
             msg = None
@@ -109,13 +109,16 @@ class TaskConsumer:
                 task_id = msg["taskId"]
                 paper_ids = msg["payload"]["paperIds"]
                 topic = msg["payload"].get("topic", "")
+                # 2026-08-12 myf: 透传用户自定义 LLM 配置（backend 在 MQ 消息中携带）
+                llm_override = msg["payload"].get("llmOverride")
 
                 logger.info(
                     f"收到综述生成任务：taskId={task_id}, "
-                    f"paperIds={paper_ids}, topic='{topic[:50]}'"
+                    f"paperIds={paper_ids}, topic='{topic[:50]}', "
+                    f"llmOverride={bool(llm_override)}"
                 )
 
-                await self._process_review(task_id, paper_ids, topic)
+                await self._process_review(task_id, paper_ids, topic, llm_override)
 
             except Exception as e:
                 logger.error(f"处理综述消息失败：{e}\n{traceback.format_exc()}")
@@ -130,7 +133,13 @@ class TaskConsumer:
                 except Exception:
                     pass
 
-    async def _process_review(self, task_id: int, paper_ids: list[int], topic: str):
+    async def _process_review(
+        self,
+        task_id: int,
+        paper_ids: list[int],
+        topic: str,
+        llm_override: dict | None = None,
+    ):
         """综述生成全流程编排。
 
         步骤：
@@ -140,11 +149,15 @@ class TaskConsumer:
         """
         from app.agents.review_agent import generate_review
         from app.core.db import get_db_pool
+        from app.llm.client import LLMOverride
 
         pool = await get_db_pool()
 
+        # 2026-08-12 myf: 应用用户自定义 LLM 配置（MQ payload 中携带）
+        override = LLMOverride.from_dict(llm_override)
+
         # 1-2. 生成综述
-        markdown = await generate_review(pool, paper_ids, topic)
+        markdown = await generate_review(pool, paper_ids, topic, override=override)
 
         # 3. 回调 backend
         result = {"markdown": markdown}

@@ -37,11 +37,8 @@ ACTION_INSTRUCTIONS: dict[str, str] = {
         "information and academic tone."
     ),
     "translate": (
-        "Translate the following text into the target language requested in the "
-        "instruction. The instruction may be written in English (e.g., 'Translate "
-        "into Simplified Chinese') or Chinese (e.g., '翻译成简体中文') - follow "
-        "whichever language is given. If no target language is specified, default "
-        "to Simplified Chinese. Preserve academic tone and technical terminology."
+        "Translate the following text into the target language specified in the "
+        "instruction (default: English if none given), preserving academic tone and terminology."
     ),
     "rebuttal": (
         "Draft a professional, polite point-by-point response to the reviewer comments "
