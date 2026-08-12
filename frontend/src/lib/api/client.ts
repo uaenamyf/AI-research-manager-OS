@@ -33,7 +33,16 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, await res.text());
+    // 尝试从后端统一响应体中提取 message，避免向用户展示原始 JSON
+    const raw = await res.text();
+    let msg = raw;
+    try {
+      const parsed = JSON.parse(raw) as Partial<ApiResponse<unknown>>;
+      if (parsed?.message) msg = parsed.message;
+    } catch {
+      // 非 JSON 响应，原样展示
+    }
+    throw new ApiError(res.status, msg);
   }
 
   const body: ApiResponse<T> = await res.json();

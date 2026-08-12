@@ -16,6 +16,7 @@ export default function PaperWorkspacePage() {
   const paperId = Number(params.id);
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedText, setSelectedText] = useState("");
 
   const { status } = usePaperStatus(
     paper?.status === "PROCESSING" ? paperId : null,
@@ -70,7 +71,10 @@ export default function PaperWorkspacePage() {
         {/* 左：PDF 阅读器 */}
         <Card className="h-[70vh] overflow-hidden">
           {paper.pdfUrl ? (
-            <PdfViewer pdfUrl={getPdfProxyUrl()} />
+            <PdfViewer
+              pdfUrl={getPdfProxyUrl()}
+              onSelectText={setSelectedText}
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-gray-400">
               No PDF available
@@ -90,7 +94,10 @@ export default function PaperWorkspacePage() {
               Analysis failed. Please try re-uploading.
             </Card>
           )}
-          {paper.summary && <PaperCard card={paper.summary} />}
+          <PaperCard
+            card={paper.summary ?? undefined}
+            selectedText={selectedText}
+          />
         </div>
       </div>
     </div>
