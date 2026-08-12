@@ -284,3 +284,52 @@ export class ApiError extends Error {
     this.name = "ApiError";
   }
 }
+
+// ===== F8 用户设置（Settings 页面）=====
+/** LLM 提供商选项 */
+export const LLM_PROVIDERS: { value: string; label: string }[] = [
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "deepseek", label: "DeepSeek" },
+  { value: "doubao", label: "豆包（火山引擎）" },
+  { value: "qwen", label: "通义千问" },
+  { value: "glm", label: "智谱 GLM" },
+];
+
+/** 机器翻译提供商选项 */
+export const TRANSLATE_PROVIDERS: { value: string; label: string }[] = [
+  { value: "google", label: "Google 翻译" },
+  { value: "deepl", label: "DeepL" },
+  { value: "baidu", label: "百度翻译" },
+  { value: "youdao", label: "有道翻译" },
+];
+
+/** 用户 LLM 设置 */
+export interface UserLlmSettings {
+  provider?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  defaultModel?: string;
+  temperature?: number;
+}
+
+/** 用户翻译设置 */
+export interface UserTranslationSettings {
+  defaultMode?: TranslateMode;
+  defaultTargetLang?: string;
+  machineProvider?: string;
+  machineApiKey?: string;
+}
+
+/** 用户 Knowledge / RAG 设置 */
+export interface UserKnowledgeSettings {
+  retrieveTopK?: number;
+  similarityThreshold?: number;
+}
+
+/** 用户设置（与 backend UserSettings DTO 对齐） */
+export interface UserSettings {
+  llm: UserLlmSettings;
+  translation: UserTranslationSettings;
+  knowledge: UserKnowledgeSettings;
+}

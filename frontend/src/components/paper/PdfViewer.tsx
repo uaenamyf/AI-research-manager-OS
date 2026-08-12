@@ -8,13 +8,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export function PdfViewer({
-  pdfUrl,
-  onSelectText,
-}: {
-  pdfUrl: string;
-  onSelectText?: (text: string) => void;
-}) {
+export function PdfViewer({ pdfUrl }: { pdfUrl: string }) {
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1.0);
@@ -24,13 +18,6 @@ export function PdfViewer({
     setNumPages(numPages);
     setLoading(false);
   }, []);
-
-  // 划词：mouseup 时捕获选中文本，上抛给父组件（仅非空时回调）
-  const handleMouseUp = useCallback(() => {
-    if (!onSelectText) return;
-    const text = window.getSelection()?.toString().trim() ?? "";
-    if (text) onSelectText(text);
-  }, [onSelectText]);
 
   const zoomIn = () => setScale((s) => Math.min(s + 0.25, 3.0));
   const zoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
@@ -81,7 +68,7 @@ export function PdfViewer({
       </div>
 
       {/* PDF 内容 */}
-      <div className="flex-1 overflow-auto bg-gray-100 p-4" onMouseUp={handleMouseUp}>
+      <div className="flex-1 overflow-auto bg-gray-100 p-4">
         {loading && (
           <div className="text-center py-8">
             <p className="text-sm text-gray-500">Loading PDF...</p>

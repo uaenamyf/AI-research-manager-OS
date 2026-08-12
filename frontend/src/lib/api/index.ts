@@ -7,5 +7,6 @@ export * as chatApi from "./chat";
 export * as knowledgeApi from "./knowledge";
 export * as reviewApi from "./reviews";
 export * as writingApi from "./writing";
+export * as settingsApi from "./settings";
 export { apiFetch, apiFetchRaw } from "./client";
 export { ApiError } from "@/types";

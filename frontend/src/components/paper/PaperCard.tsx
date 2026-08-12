@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getUserSettings } from "@/lib/api/settings";
 import { rewriteText, translateMachine } from "@/lib/api/writing";
 import { TRANSLATE_LANGS, type PaperIntelligenceCard } from "@/types";
 import { CardField } from "./CardField";
@@ -102,6 +103,7 @@ function CardContent({ card }: { card: PaperIntelligenceCard }) {
 
 /** Tab2：划词翻译面板（翻译器 / 大模型 可选）。 */
 function TranslatePanel() {
+  // 2026-08-12 myf: 初始值读取用户设置（Settings -> 翻译设置），未配置用系统默认
   const [mode, setMode] = useState<TranslateMode>("machine");
   const [targetLang, setTargetLang] = useState("zh-CN");
   const [sourceText, setSourceText] = useState("");
@@ -111,6 +113,31 @@ function TranslatePanel() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 挂载时加载用户翻译设置：默认模式 / 默认目标语言
+  useEffect(() => {
+    let cancelled = false;
+    getUserSettings()
+      .then((s) => {
+        if (cancelled) return;
+        const t = s?.translation;
+        if (t?.defaultMode === "llm" || t?.defaultMode === "machine") {
+          setMode(t.defaultMode);
+        }
+        if (
+          t?.defaultTargetLang &&
+          TRANSLATE_LANGS.some((l) => l.code === t.defaultTargetLang)
+        ) {
+          setTargetLang(t.defaultTargetLang);
+        }
+      })
+      .catch(() => {
+        // 读取失败静默回退系统默认，不影响翻译面板使用
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 划词自动填充：监听全局 mouseup，选区非空时填入原文输入框
   useEffect(() => {
