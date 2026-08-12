@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     oauth_provider VARCHAR(50),
     oauth_id VARCHAR(255),
     plan VARCHAR(20) DEFAULT 'FREE',
+    settings CLOB DEFAULT '{}',  -- 用户级配置 JSON：llm / translation / knowledge 等偏好（H2 用 CLOB 避免 JSON 类型引号问题）
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
