@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.test-dist/
+*.log
+.test-history-*/
+.test-service-*/
+.test-live-history.jsonl
+.env

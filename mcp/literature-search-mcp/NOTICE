@@ -1,0 +1,12 @@
+literature-search-mcp
+Copyright 2026 InkVell Inc. (Synthetic Sciences)
+
+This standalone project adapts literature-connector concepts and selected parsing,
+normalization, and HTTP-reliability patterns from the OpenScience project. It has
+been rewritten for Node.js, the Model Context Protocol SDK, deterministic
+multi-source aggregation, and independent operation. It does not import or depend
+on the OpenScience runtime.
+
+The Apache License 2.0 text was copied from the OpenScience distribution.
+Provider names and trademarks belong to their respective owners. Provider data
+remains subject to each provider's terms, licenses, and attribution requirements.
