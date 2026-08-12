@@ -333,3 +333,54 @@ export interface UserSettings {
   translation: UserTranslationSettings;
   knowledge: UserKnowledgeSettings;
 }
+
+// ===== Literature Search（Review Tab 3：literature-search-mcp 学术检索）=====
+/** 各数据源检索状态 */
+export interface LiteratureSourceStatus {
+  source: string;
+  status: "ok" | "empty" | "rate_limited" | "timeout" | "error";
+  result_count: number;
+  duration_ms: number;
+  error?: {
+    type: string;
+    message: string;
+    status?: number;
+    retryable: boolean;
+  };
+}
+
+/** 单条结果命中的来源证据 */
+export interface LiteratureSourceEvidence {
+  source: string;
+  rank: number;
+  source_id: string;
+  url?: string;
+  pdf_url?: string;
+}
+
+/** 融合排序后的一条文献 */
+export interface LiteratureResult {
+  rank: number;
+  fused_score: number;
+  title: string;
+  abstract?: string;
+  identifiers: Record<string, string>;
+  url?: string;
+  pdf_url?: string;
+  year?: number;
+  authors?: string[];
+  venue?: string;
+  open_access?: boolean;
+  source_evidence: LiteratureSourceEvidence[];
+}
+
+/** literature-search-mcp SearchResponse（与 ai-service 透传对齐） */
+export interface LiteratureSearchResponse {
+  query: string;
+  parameters: Record<string, unknown>;
+  results: LiteratureResult[];
+  source_statuses: LiteratureSourceStatus[];
+  total_candidates: number;
+  returned: number;
+  all_sources_failed: boolean;
+}
