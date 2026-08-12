@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # ── backend 回调地址 ──
     BACKEND_URL: str = "http://localhost:8080"
 
+    # ── 文献检索 MCP（literature-search-mcp 的 dist/server.js 绝对路径）──
+    LITERATURE_MCP_SERVER: str = str(
+        _BASE_DIR.parent / "mcp" / "literature-search-mcp" / "dist" / "server.js"
+    )
+
     # ── LLM 配置 ──
     LLM_PROVIDER: str = "openai"  # openai | anthropic
     OPENAI_API_KEY: str = ""

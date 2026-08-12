@@ -107,7 +107,7 @@ async def test_generate_review_orchestration(monkeypatch):
 
     captured = {}
 
-    async def fake_complete(system, user, model=""):
+    async def fake_complete(system, user, model="", override=None):
         captured["system"] = system
         captured["user"] = user
         return "# Review\n\nSynthesis [P1][P2]."
