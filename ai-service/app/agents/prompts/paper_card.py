@@ -37,14 +37,14 @@ Rules for "workflow":
 - Write 4-8 sentences in the paper's language.
 
 Rules for "tags" (IMPORTANT):
-- Generate 4-8 tags. Tags must ONLY represent METHODOLOGIES or BROAD DOMAINS. Do NOT copy specific paper keywords verbatim — interpret them at a higher level.
-  - Methodology examples: Deep Learning, Reinforcement Learning, Signal Processing, Statistical Analysis, Speech Recognition, Computer Vision.
-  - Domain examples: Artificial Intelligence, Biology, Industry, Medicine, Acoustics, Ecology.
-- Each tag has "name" (a methodology or domain, e.g. 深度学习, 信号处理, 生物) and "category" (the BROAD domain it belongs to, e.g. 人工智能, 工程, 生物).
-- The "category" must be a TOP-LEVEL broad domain ONLY (Biology, Industry, Medicine, ...). NEVER use fine-grained sub-fields such as "Wildlife Biology", "marine biology", "Bioacoustics". Those specific topics belong in "name", not "category".
-- Group similar methodologies under one category: "深度学习" and "强化学习" both belong to "人工智能" because they are both AI methods; "信号处理" and "统计分析" are both methods (they can be names, with their own broad domain as category).
-- Do NOT generate tags strictly from the paper's keywords. Use methodology/domain level interpretation instead.
-- The category itself represents a broad domain that can be used as a tag.
+- Generate 3-5 tags. Tags must be SPECIFIC enough to distinguish this paper from papers in other fields.
+- "name" must be a concrete technique, method, or sub-field (e.g. Hidden Markov Models, Spectrogram Analysis, Passive Acoustic Monitoring, Transfer Learning, Animal Vocalization Classification). Ask yourself: "what makes this paper unique?" — that should drive the names.
+- "category" is the single top-level broad domain the name belongs to (e.g. Artificial Intelligence, Engineering, Biology, Medicine, Mathematics). Use ONLY top-level domains, never sub-fields.
+- FORBIDDEN: never use a broad domain as a "name". Words like "Artificial Intelligence", "Biology", "Engineering", "Machine Learning", "Deep Learning", "Acoustics", "Science" are too broad — they belong in "category" only.
+- FORBIDDEN: "name" must never equal "category" (case-insensitive). E.g. {"name": "Artificial Intelligence", "category": "Artificial Intelligence"} is invalid.
+- Do NOT copy the paper's keywords verbatim; interpret them one level up while keeping them specific.
+- Good "name" examples: Hidden Markov Models, Spectrogram Analysis, Passive Acoustic Monitoring, Convolutional Neural Networks, Wildlife Conservation, Primate Behavior.
+- Bad "name" examples (too broad): Artificial Intelligence, Biology, Engineering, Machine Learning, Acoustics, Research.
 - Use the same language as the paper's abstract (English paper -> English tags, Chinese paper -> Chinese tags).
 
 Rules:

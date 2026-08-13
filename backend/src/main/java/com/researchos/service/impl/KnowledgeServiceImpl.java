@@ -80,7 +80,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      *
      * <p>具体 tag（name）与所属大类（category）都作为 tag 返回：
      * 大类 tag 的 category 为空，表示它自身就是大类（如「人工智能」「工业领域」）；
-     * 具体 tag 的 category 指向它所属的大类（如「机器学习」->「人工智能」）。</p>
+     * 具体 tag 的 category 指向它所属的大类（如「机器学习」->「人工智能」）。
+     *
+     * 2026-08-13 myf: name 与 category 相同（忽略大小写）的 tag 视为重复，
+     * 不再单独作为具体 tag 展示（大类已作为分组标题），避免 tag 云出现大词重复。</p>
      */
     @Override
     public List<KnowledgeTagDto> listTags(Long userId) {
@@ -102,13 +105,18 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 String category = pt.category().trim();
                 if (!name.isEmpty()) {
                     String nk = name.toLowerCase();
-                    nameDisplay.putIfAbsent(nk, name);
-                    nameCount.merge(nk, 1, Integer::sum);
-                    if (!category.isEmpty()) {
-                        // 具体 tag 的 category 用大类展示名（归一化），保证与分组标题一致
-                        String ck = category.toLowerCase();
-                        categoryDisplay.putIfAbsent(ck, category);
-                        nameCategory.put(nk, categoryDisplay.get(ck));
+                    String ck = category.toLowerCase();
+                    // 2026-08-13 myf: name 与 category 相同视为重复（如
+                    // {"name":"Artificial Intelligence","category":"Artificial Intelligence"}），
+                    // 只计入大类计数，不单独作为具体 tag 展示
+                    if (category.isEmpty() || !nk.equals(ck)) {
+                        nameDisplay.putIfAbsent(nk, name);
+                        nameCount.merge(nk, 1, Integer::sum);
+                        if (!category.isEmpty()) {
+                            // 具体 tag 的 category 用大类展示名（归一化），保证与分组标题一致
+                            categoryDisplay.putIfAbsent(ck, category);
+                            nameCategory.put(nk, categoryDisplay.get(ck));
+                        }
                     }
                 }
                 if (!category.isEmpty()) {
@@ -317,7 +325,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private Set<String> tagNames(Paper p) {
         Set<String> names = new HashSet<>();
         for (PaperTag pt : parseTags(p.getSummary())) {
-            if (!pt.name().isBlank()) {
+            if (!pt.name().isBlank() && !pt.name().trim().equalsIgnoreCase(pt.category().trim())) {
+                // 2026-08-13 myf: name 与 category 相同（如 name=category=Artificial Intelligence）
+                // 只取大类，避免大词把无关论文全部连在一起
                 names.add(pt.name().trim().toLowerCase());
             }
             if (!pt.category().isBlank()) {
@@ -373,7 +383,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         for (Object item : raw) {
             if (item instanceof Map<?, ?> m) {
                 Object name = m.get("name");
-                if (name != null && !name.toString().isBlank()) {
+                Object category = m.get("category");
+                // 2026-08-13 myf: name 与 category 相同视为重复，不展示
+                if (name != null && !name.toString().isBlank()
+                        && (category == null || !name.toString().trim().equalsIgnoreCase(category.toString().trim()))) {
                     names.add(name.toString());
                 }
             } else if (item != null && !item.toString().isBlank()) {
