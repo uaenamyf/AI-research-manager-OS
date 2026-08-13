@@ -94,7 +94,10 @@ export function getPaper(paperId: ID): Promise<Paper> {
   return apiFetch<Paper>(`/api/papers/${paperId}`);
 }
 
-/** 项目下论文列表，支持按文件夹筛选 */
+/**
+ * 项目下论文列表，支持按文件夹筛选。
+ * folderId: undefined/null=根目录；-1=全部文件夹（不区分）；其它=指定文件夹
+ */
 export function listPapers(
   projectId: ID,
   folderId?: ID,
@@ -102,7 +105,9 @@ export function listPapers(
   size = 20,
 ): Promise<Page<PaperListItem>> {
   const params = new URLSearchParams();
-  if (folderId) params.set("folderId", String(folderId));
+  if (folderId !== undefined && folderId !== null) {
+    params.set("folderId", String(folderId));
+  }
   params.set("page", String(page));
   params.set("size", String(size));
 

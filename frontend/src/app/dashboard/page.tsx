@@ -20,9 +20,9 @@ export default function DashboardPage() {
       try {
         const page = await listProjects(0, 5);
         setProjects(page.items);
-        // 取第一个项目的论文作为最近论文（简化）
+        // 取第一个项目的论文作为最近论文（简化）；-1=全部文件夹
         if (page.items[0]) {
-          const paperPage = await listPapers(page.items[0].id, 0, 5);
+          const paperPage = await listPapers(page.items[0].id, -1, 5);
           setRecentPapers(paperPage.items);
         }
       } catch {

@@ -105,9 +105,11 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
                 .eq(Paper::getUserId, userId)
                 .orderByDesc(Paper::getCreatedTime);
 
-        // folderId = null 表示根目录（未归档的论文）
+        // folderId = null 表示根目录（未归档的论文）；folderId = -1 表示全部文件夹
         if (folderId == null) {
             wrapper.isNull(Paper::getFolderId);
+        } else if (folderId == -1L) {
+            // 全部文件夹：不过滤
         } else {
             wrapper.eq(Paper::getFolderId, folderId);
         }
