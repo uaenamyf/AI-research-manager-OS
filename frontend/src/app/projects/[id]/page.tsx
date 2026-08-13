@@ -26,7 +26,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<ResearchProject | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [papersByNode, setPapersByNode] = useState<Record<string, PaperListItem[]>>({});
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["all"]));
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedFolderId, setSelectedFolderId] = useState<ID | null>(null); // null = 根目录（上传目标）
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
@@ -171,7 +171,10 @@ export default function ProjectDetailPage() {
                 : "hover:bg-gray-100"
           }`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
-          onClick={() => handleNodeClick(folder.id)}
+          onClick={(e) => {
+            handleNodeClick(folder.id);
+            toggleNode(folder.id, e);
+          }}
         >
           <span
             className="w-4 h-4 flex items-center justify-center text-gray-500"
@@ -311,7 +314,6 @@ export default function ProjectDetailPage() {
   if (!project) return <p>Project not found</p>;
 
   const rootPapers = papersByNode["all"] ?? [];
-  const isRootExpanded = expandedNodes.has("all");
 
   // PDF 代理 URL
   const getPdfProxyUrl = (pdfUrl: string) => {
@@ -386,8 +388,9 @@ export default function ProjectDetailPage() {
 
           {/* 树区域 */}
           <div className="flex-1 overflow-y-auto mt-1">
-            {/* 根目录：All Papers（可展开） */}
+            {/* 未归档论文（不在任何文件夹，上传默认位置）：平铺显示，可拖到文件夹 */}
             <div
+              className={dropTargetKey === "all" ? "rounded-md ring-1 ring-blue-400" : ""}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDropTargetKey("all");
@@ -397,29 +400,13 @@ export default function ProjectDetailPage() {
                 handleDrop(null);
               }}
             >
-              <div
-                className={`flex items-center gap-1 rounded-md px-2 py-1 cursor-pointer text-sm ${
-                  selectedFolderId === null
-                    ? "bg-blue-100 text-blue-800"
-                    : dropTargetKey === "all"
-                      ? "bg-blue-50 ring-1 ring-blue-400"
-                      : "hover:bg-gray-100"
-                }`}
-                onClick={() => handleNodeClick(null)}
-              >
-                <span
-                  className="w-4 h-4 flex items-center justify-center text-gray-500"
-                  onClick={(e) => toggleNode(null, e)}
-                >
-                  {isRootExpanded ? "▼" : "▶"}
-                </span>
-                <span>📄</span>
-                <span className="truncate">All Papers</span>
-                <span className="text-xs text-gray-400">
-                  ({rootPapers.length})
-                </span>
-              </div>
-              {isRootExpanded && renderPapers(rootPapers, 0, null)}
+              {rootPapers.length > 0 ? (
+                renderPapers(rootPapers, 0, null)
+              ) : (
+                <p className="text-xs text-gray-400 px-2 py-1">
+                  上传的论文默认在这里，可拖拽到文件夹
+                </p>
+              )}
             </div>
 
             {/* 文件夹树 */}
