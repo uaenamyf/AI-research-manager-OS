@@ -6,7 +6,12 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
-import { demoLogin, getCurrentUser, isDevAutoLoginEnabled } from "@/lib/api/auth";
+import {
+  demoLogin,
+  getCurrentUser,
+  isDevAutoLoginEnabled,
+  isManualLogout,
+} from "@/lib/api/auth";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,6 +23,8 @@ async function restoreAuth(
   attempt = 0,
 ): Promise<void> {
   const MAX_ATTEMPTS = 4;
+  // 手动退出后保持退出状态，不再自动登录（含 dev 模式的 demo 静默登录）
+  if (isManualLogout()) return;
   try {
     const user = await getCurrentUser();
     setUser(user);

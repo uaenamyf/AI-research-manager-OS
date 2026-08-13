@@ -28,6 +28,30 @@ export function logout(): Promise<void> {
   return apiFetch<void>("/api/auth/logout", { method: "POST" });
 }
 
+// ===== 手动登出标记 =====
+// date: 2026-08-13
+// dev: myf
+// changelog: 手动退出后防止 dev 自动登录立即登回
+const MANUAL_LOGOUT_KEY = "researchos.manual_logout";
+
+/** 是否处于手动退出状态（本次标签页会话内）。 */
+export function isManualLogout(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    sessionStorage.getItem(MANUAL_LOGOUT_KEY) === "1"
+  );
+}
+
+/** 标记手动退出，跳过 dev 自动登录。 */
+export function markManualLogout(): void {
+  sessionStorage.setItem(MANUAL_LOGOUT_KEY, "1");
+}
+
+/** 手动登录成功后清除退出标记。 */
+export function clearManualLogout(): void {
+  sessionStorage.removeItem(MANUAL_LOGOUT_KEY);
+}
+
 /** 获取当前登录用户 */
 export function getCurrentUser(): Promise<User> {
   return apiFetch<User>("/api/auth/me");

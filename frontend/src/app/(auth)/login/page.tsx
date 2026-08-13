@@ -3,10 +3,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/api/auth";
+import { login, getGoogleOAuthUrl, clearManualLogout } from "@/lib/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { Button, Input, Card } from "@/components/ui";
-import { getGoogleOAuthUrl } from "@/lib/api/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,6 +21,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const { user } = await login({ email, password });
+      clearManualLogout();
       setUser(user);
       router.push("/dashboard");
     } catch (err) {

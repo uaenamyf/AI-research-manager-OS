@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { register } from "@/lib/api/auth";
+import { register, clearManualLogout } from "@/lib/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { Button, Input, Card } from "@/components/ui";
 import { getGoogleOAuthUrl } from "@/lib/api/auth";
@@ -21,8 +21,7 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      const { user } = await register({ email, password });
-      setUser(user);
+      const { user } = await register({ email, password });      clearManualLogout();      setUser(user);
       router.push("/dashboard");
     } catch (err) {
       setError((err as Error).message);

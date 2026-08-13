@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCurrentUser } from "@/lib/api/auth";
+import { useRouter } from "next/navigation";
+import { getCurrentUser, logout, markManualLogout } from "@/lib/api/auth";
 import {
   getUserSettings,
   patchUserSettings,
@@ -32,12 +33,15 @@ const DEFAULT_SETTINGS: UserSettingsType = {
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const storeLogout = useAuthStore((s) => s.logout);
   const [loading, setLoading] = useState(!user);
   const [settings, setSettings] = useState<UserSettingsType>(DEFAULT_SETTINGS);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   useEffect(() => {
@@ -72,6 +76,19 @@ export default function SettingsPage() {
       setSaveMsg({ type: "err", text: e.message || "保存失败" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // 后端不可达也照常清本地状态退出
+    } finally {
+      markManualLogout();
+      storeLogout();
+      router.push("/login");
     }
   };
 
@@ -117,6 +134,15 @@ export default function SettingsPage() {
             </dd>
           </div>
         </dl>
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? "退出中…" : "退出登录"}
+          </Button>
+        </div>
       </Card>
 
       {/* ===== Subscription ===== */}

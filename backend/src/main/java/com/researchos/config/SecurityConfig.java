@@ -44,7 +44,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // 认证相关放行
-                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/auth/oauth/**").permitAll()
                 // OAuth2 回调端点（浏览器从 Google 跳回）
                 .requestMatchers("/login/oauth2/code/*").permitAll()

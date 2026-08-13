@@ -1,13 +1,33 @@
-/** 顶栏：侧边栏开关 + 用户信息。 */
+/** 顶栏：侧边栏开关 + 用户信息 + 登录/退出。 */
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
+import { logout, markManualLogout } from "@/lib/api/auth";
 
 export function Header() {
+  const router = useRouter();
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const user = useAuthStore((s) => s.user);
+  const storeLogout = useAuthStore((s) => s.logout);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // 后端不可达也照常清本地状态退出
+    } finally {
+      markManualLogout();
+      storeLogout();
+      setLoggingOut(false);
+      router.push("/login");
+    }
+  };
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
@@ -25,6 +45,13 @@ export function Header() {
             <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
               {user.plan}
             </span>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50"
+            >
+              {loggingOut ? "Signing out..." : "Sign out"}
+            </button>
           </>
         ) : (
           // date: 2026-08-07
