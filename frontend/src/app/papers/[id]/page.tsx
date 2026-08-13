@@ -4,9 +4,15 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { getPaper } from "@/lib/api/papers";
-import { PdfViewer } from "@/components/paper/PdfViewer";
 import { PaperCard } from "@/components/paper/PaperCard";
+
+/** react-pdf 10.x 依赖浏览器 API（DOMMatrix），SSR 会 500，须禁用服务端渲染 */
+const PdfViewer = dynamic(
+  () => import("@/components/paper/PdfViewer").then((m) => m.PdfViewer),
+  { ssr: false, loading: () => <Spinner /> },
+);
 import { PaperStatusBadge } from "@/components/paper/PaperStatusBadge";
 import { Card, Spinner } from "@/components/ui";
 import { usePaperStatus } from "@/lib/hooks/usePaperStatus";

@@ -4,12 +4,18 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { getProject } from "@/lib/api/projects";
 import { getPaper, listPapers, movePaper, deletePaper } from "@/lib/api/papers";
 import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { PaperUploader } from "@/components/paper/PaperUploader";
-import { PdfViewer } from "@/components/paper/PdfViewer";
 import { Card } from "@/components/ui";
+
+/** react-pdf 10.x 依赖浏览器 API（DOMMatrix），SSR 会 500，须禁用服务端渲染 */
+const PdfViewer = dynamic(
+  () => import("@/components/paper/PdfViewer").then((m) => m.PdfViewer),
+  { ssr: false },
+);
 import type { Paper, PaperListItem, ResearchProject, Folder, ID } from "@/types";
 import { formatDate } from "@/lib/utils";
 
