@@ -12,26 +12,26 @@ import lombok.Getter;
 public enum ErrorCode {
 
     // 通用 1xxx
-    BAD_REQUEST(400, "请求参数错误"),
-    UNAUTHORIZED(401, "未登录或登录已过期"),
-    FORBIDDEN(403, "无权访问该资源"),
-    NOT_FOUND(404, "资源不存在"),
-    INTERNAL_ERROR(500, "系统内部错误"),
+    BAD_REQUEST(400, "Invalid request parameters"),
+    UNAUTHORIZED(401, "Not logged in or session expired"),
+    FORBIDDEN(403, "No permission to access this resource"),
+    NOT_FOUND(404, "Resource not found"),
+    INTERNAL_ERROR(500, "Internal server error"),
 
     // 认证 2xxx
-    EMAIL_ALREADY_EXISTS(2001, "邮箱已被注册"),
-    INVALID_CREDENTIALS(2002, "邮箱或密码错误"),
+    EMAIL_ALREADY_EXISTS(2001, "Email is already registered"),
+    INVALID_CREDENTIALS(2002, "Incorrect email or password"),
 
     // 业务 3xxx
-    PAPER_NOT_FOUND(3001, "论文不存在"),
-    PAPER_NOT_READY(3002, "论文尚未分析完成"),
-    PROJECT_NOT_FOUND(3003, "项目不存在"),
-    TASK_NOT_FOUND(3004, "任务不存在"),
-    QUOTA_EXCEEDED(3005, "免费额度已用完，请升级订阅"),
+    PAPER_NOT_FOUND(3001, "Paper not found"),
+    PAPER_NOT_READY(3002, "Paper has not been analyzed yet"),
+    PROJECT_NOT_FOUND(3003, "Project not found"),
+    TASK_NOT_FOUND(3004, "Task not found"),
+    QUOTA_EXCEEDED(3005, "Free quota exceeded, please upgrade your subscription"),
 
     // AI 服务 4xxx
-    AI_SERVICE_ERROR(4001, "AI 服务暂时不可用"),
-    AI_SERVICE_TIMEOUT(4002, "AI 服务响应超时");
+    AI_SERVICE_ERROR(4001, "AI service temporarily unavailable"),
+    AI_SERVICE_TIMEOUT(4002, "AI service response timeout");
 
     private final int code;
     private final String message;

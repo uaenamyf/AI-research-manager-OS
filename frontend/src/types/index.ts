@@ -263,9 +263,9 @@ export interface MachineTranslateResult {
 
 /** 划词翻译可用的目标语言（Google 语言码 → 中文名） */
 export const TRANSLATE_LANGS: { code: string; label: string }[] = [
-  { code: "zh-CN", label: "中文" },
+  { code: "zh-CN", label: "Chinese" },
   { code: "en", label: "English" },
-  { code: "ja", label: "日本語" },
+  { code: "ja", label: "Japanese" },
   { code: "ko", label: "한국어" },
   { code: "fr", label: "Français" },
   { code: "de", label: "Deutsch" },
@@ -291,18 +291,18 @@ export const LLM_PROVIDERS: { value: string; label: string }[] = [
   { value: "openai", label: "OpenAI" },
   { value: "anthropic", label: "Anthropic" },
   { value: "deepseek", label: "DeepSeek" },
-  { value: "doubao", label: "豆包（火山引擎）" },
-  { value: "qwen", label: "通义千问" },
-  { value: "glm", label: "智谱 GLM" },
+  { value: "doubao", label: "Doubao (Volcano Engine)" },
+  { value: "qwen", label: "Qwen" },
+  { value: "glm", label: "Zhipu GLM" },
 ];
 
 /** 机器翻译提供商选项（mymemory 为默认：无 key、国内可达） */
 export const TRANSLATE_PROVIDERS: { value: string; label: string }[] = [
-  { value: "mymemory", label: "MyMemory（免费）" },
-  { value: "google", label: "Google 翻译" },
+  { value: "mymemory", label: "MyMemory (Free)" },
+  { value: "google", label: "Google Translate" },
   { value: "deepl", label: "DeepL" },
-  { value: "baidu", label: "百度翻译" },
-  { value: "youdao", label: "有道翻译" },
+  { value: "baidu", label: "Baidu Translate" },
+  { value: "youdao", label: "Youdao Translate" },
 ];
 
 /** 用户 LLM 设置 */

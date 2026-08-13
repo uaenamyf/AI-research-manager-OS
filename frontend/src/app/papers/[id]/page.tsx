@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { getPaper } from "@/lib/api/papers";
 import { PdfViewer } from "@/components/paper/PdfViewer";
 import { PaperCard } from "@/components/paper/PaperCard";
@@ -55,13 +56,33 @@ export default function PaperWorkspacePage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            {paper.title || "Untitled"}
-          </h1>
-          <p className="text-sm text-gray-500">
-            {paper.authors} · {paper.year}
-          </p>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/projects/${paper.projectId}`}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-md px-2 py-1 -ml-2"
+          >
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span className="whitespace-nowrap">Back to project</span>
+          </Link>
+          <span className="text-gray-300">|</span>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              {paper.title || "Untitled"}
+            </h1>
+            <p className="text-sm text-gray-500">
+              {[paper.authors, paper.year].filter(Boolean).join(" · ")}
+            </p>
+          </div>
         </div>
         <PaperStatusBadge status={currentStatus} />
       </div>

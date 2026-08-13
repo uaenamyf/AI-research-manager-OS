@@ -71,7 +71,7 @@ public class AuthController {
     public void googleOAuth(HttpServletResponse response) throws java.io.IOException {
         ClientRegistration google = clientRegistrationRepository.findByRegistrationId("google");
         if (google == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "Google OAuth 未配置，请联系管理员");
+            throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "Google OAuth is not configured. Please contact the administrator");
         }
         response.sendRedirect("/oauth2/authorization/google");
     }

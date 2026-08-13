@@ -89,7 +89,7 @@ public class LiteratureServiceImpl implements LiteratureService {
             if (resp.statusCode() != 200) {
                 log.warn("ai-service /literature 返回 {}: {}", resp.statusCode(), resp.body());
                 throw new BusinessException(ErrorCode.AI_SERVICE_ERROR.getCode(),
-                        "学术检索服务暂时不可用，请稍后重试");
+                        "Academic search service temporarily unavailable. Please try again later");
             }
             return objectMapper.readValue(resp.body(), LinkedHashMap.class);
         } catch (BusinessException e) {
@@ -97,7 +97,7 @@ public class LiteratureServiceImpl implements LiteratureService {
         } catch (Exception e) {
             log.error("调用 ai-service /literature 异常", e);
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR.getCode(),
-                    "学术检索服务暂时不可用，请稍后重试");
+                    "Academic search service temporarily unavailable. Please try again later");
         }
     }
 }

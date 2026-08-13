@@ -76,7 +76,7 @@ export function PaperUploader({
         continue; // 网络抖动时重试
       }
       if (s === "FAILED") {
-        throw new Error("论文解析失败，请重试");
+        throw new Error("Paper analysis failed, please try again");
       }
       if (s !== "PROCESSING" && s !== "UPLOADED") {
         return;
@@ -210,12 +210,12 @@ export function PaperUploader({
                   )}
                   {it.status === "uploading" && (
                     <span className="tabular-nums text-blue-500">
-                      上传 {it.progress}%
+                      Uploading {it.progress}%
                     </span>
                   )}
                   {it.status === "analyzing" && (
                     <span className="tabular-nums animate-pulse text-indigo-500">
-                      解析中 {it.seconds}s
+                      Analyzing {it.seconds}s
                     </span>
                   )}
                   {it.status === "done" && (

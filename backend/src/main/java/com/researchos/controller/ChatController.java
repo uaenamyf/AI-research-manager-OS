@@ -59,7 +59,7 @@ public class ChatController {
         conv.setPaperId(paperId);
         conv.setUserId(userId);
         conv.setQuestion(question);
-        conv.setAnswer("（非流式接口待实现）");
+        conv.setAnswer("(Non-streaming endpoint not implemented yet)");
         chatService.saveHistory(userId, paperId, question, conv.getAnswer());
         return ApiResponse.ok(conv);
     }

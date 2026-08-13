@@ -336,10 +336,10 @@ const LITERATURE_SOURCES: { id: string; label: string }[] = [
 
 const SOURCE_STATUS_LABEL: Record<string, string> = {
   ok: "✅",
-  empty: "空",
-  rate_limited: "限流",
-  timeout: "超时",
-  error: "错误",
+  empty: "Empty",
+  rate_limited: "Rate Limited",
+  timeout: "Timeout",
+  error: "Error",
 };
 
 // ===== Tab 3: Literature Search（MCP 学术检索） =====
@@ -507,7 +507,7 @@ function LiteratureSearch() {
           <div className="space-y-3">
             {result.results.length === 0 ? (
               <Card className="p-6 text-center text-sm text-gray-500">
-                未找到匹配的文献，试试调整关键词或放宽过滤条件
+                No matching literature found. Try adjusting keywords or relaxing filters.
               </Card>
             ) : (
               result.results.map((r) => (

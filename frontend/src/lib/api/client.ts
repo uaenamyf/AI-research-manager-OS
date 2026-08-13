@@ -29,7 +29,7 @@ export async function apiFetch<T>(
     if (typeof window !== "undefined" && window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
-    throw new ApiError(401, "登录已过期，请重新登录");
+    throw new ApiError(401, "Session expired, please sign in again");
   }
 
   if (!res.ok) {

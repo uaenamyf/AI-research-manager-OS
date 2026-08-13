@@ -107,6 +107,6 @@ public class AiTaskServiceImpl extends ServiceImpl<AiTaskMapper, AiTask> impleme
     @org.springframework.amqp.rabbit.annotation.RabbitListener(queues = RabbitConfig.QUEUE_DLQ)
     public void handleDlq(AiTaskMessage msg) {
         log.error("任务进入 DLQ: {}", msg);
-        updateTaskResult(msg.getTaskId(), null, "FAILED", "消费失败超过重试次数");
+        updateTaskResult(msg.getTaskId(), null, "FAILED", "Consumption failed after exceeding retry limit");
     }
 }

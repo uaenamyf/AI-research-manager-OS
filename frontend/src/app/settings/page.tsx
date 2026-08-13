@@ -70,10 +70,10 @@ export default function SettingsPage() {
     try {
       const updated = await patchUserSettings(settings);
       setSettings(updated);
-      setSaveMsg({ type: "ok", text: "设置已保存" });
+      setSaveMsg({ type: "ok", text: "Settings saved" });
       setTimeout(() => setSaveMsg(null), 2500);
     } catch (e: any) {
-      setSaveMsg({ type: "err", text: e.message || "保存失败" });
+      setSaveMsg({ type: "err", text: e.message || "Save failed" });
     } finally {
       setSaving(false);
     }
@@ -101,7 +101,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <Button onClick={handleSave} disabled={saving || settingsLoading}>
           {saving && <Spinner className="mr-2" />}
-          {saving ? "保存中…" : "保存设置"}
+          {saving ? "Saving…" : "Save Settings"}
         </Button>
       </div>
 
@@ -140,7 +140,7 @@ export default function SettingsPage() {
             onClick={handleLogout}
             disabled={loggingOut}
           >
-            {loggingOut ? "退出中…" : "退出登录"}
+            {loggingOut ? "Signing out…" : "Sign out"}
           </Button>
         </div>
       </Card>
@@ -172,27 +172,27 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* ===== LLM 设置 ===== */}
+      {/* ===== LLM Settings ===== */}
       <Card className="p-5">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900">🧠 大模型设置</h2>
+            <h2 className="font-semibold text-gray-900">🧠 LLM Settings</h2>
             <p className="mt-1 text-xs text-gray-500">
-              配置你自己的 LLM API Key 和模型。留空则使用系统默认配置。
+              Configure your own LLM API key and model. Leave blank to use the system default.
             </p>
           </div>
         </div>
 
         {settingsLoading ? (
           <div className="py-8 text-center text-gray-400">
-            <Spinner /> <span className="ml-2">加载中…</span>
+            <Spinner /> <span className="ml-2">Loading…</span>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  提供商
+                  Provider
                 </label>
                 <select
                   className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                     })
                   }
                 >
-                  <option value="">系统默认</option>
+                  <option value="">System default</option>
                   {LLM_PROVIDERS.map((p) => (
                     <option key={p.value} value={p.value}>
                       {p.label}
@@ -214,10 +214,10 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  默认模型
+                  Default model
                 </label>
                 <Input
-                  placeholder="如 gpt-4o / claude-sonnet-4"
+                  placeholder="e.g. gpt-4o / claude-sonnet-4"
                   value={settings.llm.defaultModel || ""}
                   onChange={(e) =>
                     setSettings({
@@ -245,13 +245,13 @@ export default function SettingsPage() {
                 }
               />
               <p className="mt-1 text-xs text-gray-400">
-                密钥加密存储，仅用于你的 AI 请求
+                Stored encrypted and used only for your AI requests
               </p>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
-                Base URL（兼容端点，可选）
+                Base URL (compatible endpoint, optional)
               </label>
               <Input
                 placeholder="https://api.openai.com/v1"
@@ -264,13 +264,13 @@ export default function SettingsPage() {
                 }
               />
               <p className="mt-1 text-xs text-gray-400">
-                使用火山引擎、OneAPI、Azure 等兼容端点时填写
+                Fill in when using compatible endpoints such as Volcano Engine, OneAPI, or Azure
               </p>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
-                温度 Temperature: {settings.llm.temperature ?? 0.7}
+                Temperature: {settings.llm.temperature ?? 0.7}
               </label>
               <input
                 type="range"
@@ -290,31 +290,31 @@ export default function SettingsPage() {
                 className="w-full accent-gray-900"
               />
               <div className="flex justify-between text-xs text-gray-400">
-                <span>精确（0）</span>
-                <span>创意（2）</span>
+                <span>Precise (0)</span>
+                <span>Creative (2)</span>
               </div>
             </div>
           </div>
         )}
       </Card>
 
-      {/* ===== 翻译设置 ===== */}
+      {/* ===== Translation Settings ===== */}
       <Card className="p-5">
-        <h2 className="mb-1 font-semibold text-gray-900">🌐 翻译设置</h2>
+        <h2 className="mb-1 font-semibold text-gray-900">🌐 Translation Settings</h2>
         <p className="mb-4 text-xs text-gray-500">
-          配置划词翻译的默认行为和翻译服务。
+          Configure the default behavior and service for selection translation.
         </p>
 
         {settingsLoading ? (
           <div className="py-8 text-center text-gray-400">
-            <Spinner /> <span className="ml-2">加载中…</span>
+            <Spinner /> <span className="ml-2">Loading…</span>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  默认翻译模式
+                  Default translation mode
                 </label>
                 <select
                   className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
@@ -329,13 +329,13 @@ export default function SettingsPage() {
                     })
                   }
                 >
-                  <option value="machine">⚡ 翻译器（快）</option>
-                  <option value="llm">🧠 大模型（准）</option>
+                  <option value="machine">⚡ Translator (Fast)</option>
+                  <option value="llm">🧠 LLM (Accurate)</option>
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  默认目标语言
+                  Default target language
                 </label>
                 <select
                   className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
@@ -362,7 +362,7 @@ export default function SettingsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  机器翻译提供商
+                  Machine translation provider
                 </label>
                 <select
                   className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
@@ -386,11 +386,11 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  翻译 API Key（可选）
+                  Translation API Key (optional)
                 </label>
                 <Input
                   type="password"
-                  placeholder="百度填 appid:密钥；DeepL 填 Auth Key"
+                  placeholder="Baidu: appid:secret; DeepL: Auth Key"
                   value={settings.translation.machineApiKey || ""}
                   onChange={(e) =>
                     setSettings({
@@ -408,23 +408,23 @@ export default function SettingsPage() {
         )}
       </Card>
 
-      {/* ===== Knowledge 设置 ===== */}
+      {/* ===== Knowledge Settings ===== */}
       <Card className="p-5">
-        <h2 className="mb-1 font-semibold text-gray-900">📚 Knowledge & RAG 设置</h2>
+        <h2 className="mb-1 font-semibold text-gray-900">📚 Knowledge & RAG Settings</h2>
         <p className="mb-4 text-xs text-gray-500">
-          调整知识库检索和 RAG 的行为参数。
+          Adjust parameters for knowledge base retrieval and RAG.
         </p>
 
         {settingsLoading ? (
           <div className="py-8 text-center text-gray-400">
-            <Spinner /> <span className="ml-2">加载中…</span>
+            <Spinner /> <span className="ml-2">Loading…</span>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  检索 Top-K
+                  Retrieval Top-K
                 </label>
                 <Input
                   type="number"
@@ -441,11 +441,11 @@ export default function SettingsPage() {
                     })
                   }
                 />
-                <p className="mt-1 text-xs text-gray-400">返回最相关的片段数（1-20）</p>
+                <p className="mt-1 text-xs text-gray-400">Number of most relevant chunks to return (1-20)</p>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  相似度阈值
+                  Similarity threshold
                 </label>
                 <Input
                   type="number"
@@ -463,7 +463,7 @@ export default function SettingsPage() {
                     })
                   }
                 />
-                <p className="mt-1 text-xs text-gray-400">过滤低相似度结果（0-1）</p>
+                <p className="mt-1 text-xs text-gray-400">Filter out low-similarity results (0-1)</p>
               </div>
             </div>
           </div>

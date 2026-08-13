@@ -51,7 +51,7 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
         try {
             save(folder);
         } catch (DuplicateKeyException e) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "同目录下文件夹名重复");
+            throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "Folder name already exists in the same directory");
         }
 
         return folder;
@@ -134,17 +134,17 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
         if (newParentId != null) {
             Folder newParent = checkOwnership(userId, newParentId);
             if (!newParent.getProjectId().equals(folder.getProjectId())) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "不能跨项目移动文件夹");
+                throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "Cannot move folder across projects");
             }
 
             // 检查循环引用
             if (folderId.equals(newParentId)) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "不能将文件夹移动到自身");
+                throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "Cannot move a folder into itself");
             }
 
             // 检查是否将父文件夹移动到子文件夹中
             if (isDescendant(folderId, newParentId)) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "循环引用");
+                throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "Circular reference");
             }
         }
 

@@ -308,13 +308,13 @@ export default function KnowledgeGraph3D({
       ref={containerRef}
       style={{ height, width: "100%" }}
       role="img"
-      aria-label="论文关联知识图谱 3D：tag 中心恒星环绕图"
+      aria-label="Paper knowledge graph 3D: tag-centered star field"
       className="overflow-hidden rounded-lg"
     >
       {webglError && (
         <div className="flex h-full items-center justify-center">
           <p className="max-w-sm text-center text-sm text-gray-400">
-            {`3D 图谱初始化失败（${webglError}）。请使用支持 WebGL 的浏览器。`}
+            {`3D graph failed to initialize (${webglError}). Please use a browser with WebGL support.`}
           </p>
         </div>
       )}

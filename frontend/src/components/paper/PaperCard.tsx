@@ -44,7 +44,7 @@ export function PaperCard({ card }: { card: PaperIntelligenceCard }) {
             className={`${TAB_STYLE} ${tab === "translate" ? TAB_ACTIVE : TAB_INACTIVE}`}
             onClick={() => setTab("translate")}
           >
-            划词翻译
+            Translate
           </button>
         </div>
       </div>
@@ -172,7 +172,7 @@ function TranslatePanel() {
         const res = await rewriteText({
           text: sourceText,
           action: "translate",
-          instruction: `请将文本翻译成${targetLabel}，只输出译文，不要任何解释。`,
+          instruction: `Please translate the text into ${targetLabel}. Output only the translation with no explanation.`,
         });
         setResult(res.text);
         setSourceLang("");
@@ -180,8 +180,8 @@ function TranslatePanel() {
     } catch (e) {
       setError(
         mode === "machine"
-          ? "翻译器暂时不可用，请尝试「大模型翻译」。"
-          : "大模型翻译失败，请稍后重试。",
+          ? "Translator is temporarily unavailable. Try \"LLM Translation\" instead."
+          : "LLM translation failed. Please try again later.",
       );
     } finally {
       setLoading(false);
@@ -198,7 +198,7 @@ function TranslatePanel() {
   return (
     <div className="space-y-4 p-6">
       <p className="text-xs text-gray-500">
-        在 PDF 或上方文本中选中文字会自动填入；也可直接输入或粘贴。
+        Text selected in the PDF or above will be filled in automatically. You can also type or paste directly.
       </p>
 
       {/* 原文输入 */}
@@ -207,7 +207,7 @@ function TranslatePanel() {
           ref={textareaRef}
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value)}
-          placeholder="选中论文中的英文段落，或在此输入要翻译的文本…"
+          placeholder="Select a passage from the paper, or type the text to translate…"
           rows={5}
           className="w-full resize-y rounded-md border border-gray-300 p-3 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
@@ -224,9 +224,9 @@ function TranslatePanel() {
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
-            title="翻译器：快，免费额度"
+            title="Translator: fast, uses free quota"
           >
-            ⚡ 翻译器
+            ⚡ Translator
           </button>
           <button
             type="button"
@@ -236,14 +236,14 @@ function TranslatePanel() {
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
-            title="大模型：更准，适合学术表达"
+            title="LLM: more accurate, better for academic writing"
           >
-            🧠 大模型
+            🧠 LLM
           </button>
         </div>
 
         <label className="flex items-center gap-2 text-sm text-gray-600">
-          译成
+          Into
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
@@ -265,9 +265,9 @@ function TranslatePanel() {
         >
           {loading
             ? mode === "machine"
-              ? "翻译中…"
-              : "大模型生成中…"
-            : "翻译"}
+              ? "Translating…"
+              : "LLM generating…"
+            : "Translate"}
         </button>
       </div>
 
@@ -283,10 +283,10 @@ function TranslatePanel() {
         <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              译文
+              Translation
               {sourceLang && (
                 <span className="ml-2 normal-case tracking-normal text-gray-400">
-                  （检测到源语言：{sourceLang}）
+                  (Detected source language: {sourceLang})
                 </span>
               )}
             </span>
@@ -295,7 +295,7 @@ function TranslatePanel() {
               onClick={handleCopy}
               className="rounded px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
             >
-              {copied ? "✓ 已复制" : "复制"}
+              {copied ? "✓ Copied" : "Copy"}
             </button>
           </div>
           <p className="whitespace-pre-wrap text-sm text-gray-800">

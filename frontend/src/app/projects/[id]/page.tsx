@@ -101,7 +101,7 @@ export default function ProjectDetailPage() {
   const handleDeleteFolder = async (folderId: ID, name: string) => {
     if (
       !window.confirm(
-        `确定删除文件夹「${name}」吗？\n子文件夹将一并删除，文件夹内的论文会移回 All Papers。`,
+        `Delete folder "${name}"?\nSubfolders will also be deleted, and papers inside will be moved back to All Papers.`,
       )
     ) {
       return;
@@ -117,7 +117,7 @@ export default function ProjectDetailPage() {
       if (selectedFolderId === folderId) setSelectedFolderId(null);
       await loadFolders();
     } catch {
-      alert("删除文件夹失败，请重试");
+      alert("Failed to delete folder, please try again");
     }
   };
 
@@ -132,7 +132,7 @@ export default function ProjectDetailPage() {
       loadNodePapers(keyToFolderId(fromKey), true);
       if (fromKey !== targetKey) loadNodePapers(targetFolderId, true);
     } catch {
-      alert("移动论文失败，请重试");
+      alert("Failed to move paper, please try again");
     } finally {
       dragPaperRef.current = null;
       setDropTargetKey(null);
@@ -187,7 +187,7 @@ export default function ProjectDetailPage() {
           {/* 删除按钮：hover 行时显示，stopPropagation 避免触发选中/展开 */}
           <button
             type="button"
-            title="删除文件夹"
+            title="Delete folder"
             onClick={(e) => {
               e.stopPropagation();
               handleDeleteFolder(folder.id, folder.name);
@@ -223,7 +223,7 @@ export default function ProjectDetailPage() {
     title: string,
     ownerFolderId: ID | null,
   ) => {
-    if (!window.confirm(`确定删除论文「${title}」吗？\n删除后无法恢复。`)) {
+    if (!window.confirm(`Delete paper "${title}"?\nThis cannot be undone.`)) {
       return;
     }
     try {
@@ -232,7 +232,7 @@ export default function ProjectDetailPage() {
       // 若右侧正预览该论文，清空选择
       setSelectedPaper((prev) => (prev?.id === paperId ? null : prev));
     } catch {
-      alert("删除论文失败，请重试");
+      alert("Failed to delete paper, please try again");
     }
   };
 
@@ -275,7 +275,7 @@ export default function ProjectDetailPage() {
             {/* 删除按钮：hover 行时显示，stopPropagation 避免触发论文选中/拖拽 */}
             <button
               type="button"
-              title="删除论文"
+              title="Delete paper"
               draggable={false}
               onClick={(e) => {
                 e.stopPropagation();
@@ -323,14 +323,18 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col gap-4">
-      {/* Header */}
-      <div>
+      {/* Header：横排 */}
+      <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+        <span className="text-gray-300">|</span>
         <p className="text-sm text-gray-500">
           {project.domain} · {formatDate(project.createdTime)}
         </p>
         {project.description && (
-          <p className="mt-2 text-sm text-gray-600">{project.description}</p>
+          <span className="text-gray-300">|</span>
+        )}
+        {project.description && (
+          <p className="text-sm text-gray-600">{project.description}</p>
         )}
       </div>
 
@@ -404,7 +408,7 @@ export default function ProjectDetailPage() {
                 renderPapers(rootPapers, 0, null)
               ) : (
                 <p className="text-xs text-gray-400 px-2 py-1">
-                  上传的论文默认在这里，可拖拽到文件夹
+                  Uploaded papers appear here by default; drag them into a folder
                 </p>
               )}
             </div>
@@ -426,18 +430,22 @@ export default function ProjectDetailPage() {
         <Card className="flex-1 p-4 flex flex-col min-w-0 overflow-hidden">
           {selectedPaper ? (
             <>
-              {/* 论文头部 */}
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="min-w-0">
-                  <h2 className="font-semibold text-gray-900 truncate">
-                    {selectedPaper.title || "Untitled"}
-                  </h2>
-                  <p className="text-sm text-gray-500 truncate">
-                    {selectedPaper.authors} · {selectedPaper.year} ·{" "}
-                    {formatDate(selectedPaper.createdTime)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+              {/* 论文头部：横排 */}
+              <div className="flex items-center gap-3 flex-wrap mb-3">
+                <h2 className="font-semibold text-gray-900 truncate min-w-0">
+                  {selectedPaper.title || "Untitled"}
+                </h2>
+                <span className="text-gray-300">|</span>
+                <p className="text-sm text-gray-500 truncate min-w-0">
+                  {[
+                    selectedPaper.authors,
+                    selectedPaper.year,
+                    formatDate(selectedPaper.createdTime),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
                   <Link
                     href={`/papers/${selectedPaper.id}`}
                     className="text-xs text-blue-600 hover:text-blue-800"
@@ -461,7 +469,7 @@ export default function ProjectDetailPage() {
           ) : (
             <div className="flex h-full items-center justify-center">
               <p className="text-sm text-gray-400">
-                在左侧选择一篇论文查看详情与预览。
+                Select a paper on the left to view its details and preview.
               </p>
             </div>
           )}

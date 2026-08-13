@@ -54,7 +54,7 @@ public class FileController {
         }
 
         if (file.isEmpty()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "文件不能为空");
+            throw new BusinessException(ErrorCode.BAD_REQUEST.getCode(), "File cannot be empty");
         }
 
         try (InputStream is = file.getInputStream()) {
@@ -92,7 +92,7 @@ public class FileController {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(
-                    "{\"code\":401,\"message\":\"未登录或缺少内部访问令牌\",\"data\":null}");
+                    "{\"code\":401,\"message\":\"Not logged in or missing internal access token\",\"data\":null}");
             return;
         }
 
