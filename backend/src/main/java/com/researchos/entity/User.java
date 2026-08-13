@@ -8,7 +8,7 @@ import com.researchos.common.handler.JsonbTypeHandler;
 import com.researchos.dto.UserSettings;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 用户实体。
@@ -32,5 +32,5 @@ public class User {
     @TableField(typeHandler = JsonbTypeHandler.class)
     private UserSettings settings;
 
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 }

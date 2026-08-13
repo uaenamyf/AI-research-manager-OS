@@ -13,7 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,7 +46,7 @@ class UserServiceTest {
         testUser.setEmail("test@example.com");
         testUser.setPassword("encoded-password");
         testUser.setPlan("FREE");
-        testUser.setCreatedTime(OffsetDateTime.now());
+        testUser.setCreatedTime(LocalDateTime.now());
     }
 
     @Test

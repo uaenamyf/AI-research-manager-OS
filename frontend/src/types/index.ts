@@ -296,8 +296,9 @@ export const LLM_PROVIDERS: { value: string; label: string }[] = [
   { value: "glm", label: "智谱 GLM" },
 ];
 
-/** 机器翻译提供商选项 */
+/** 机器翻译提供商选项（mymemory 为默认：无 key、国内可达） */
 export const TRANSLATE_PROVIDERS: { value: string; label: string }[] = [
+  { value: "mymemory", label: "MyMemory（免费）" },
   { value: "google", label: "Google 翻译" },
   { value: "deepl", label: "DeepL" },
   { value: "baidu", label: "百度翻译" },

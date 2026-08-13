@@ -52,6 +52,17 @@ EMBEDDING_DIM=1536
 
 ```yaml
 services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: researchos
+      MYSQL_DATABASE: researchos
+      MYSQL_USER: researchos
+      MYSQL_PASSWORD: researchos
+    ports: ["3306:3306"]
+    volumes:
+      - mysqldata:/var/lib/mysql
+
   postgres:
     image: pgvector/pgvector:pg16
     environment:
@@ -73,19 +84,20 @@ services:
   backend:
     build: ./backend
     environment:
-      DB_HOST: postgres
+      DB_HOST: mysql
       REDIS_HOST: redis
       RABBIT_HOST: rabbitmq
     ports: ["8080:8080"]
-    depends_on: [postgres, redis, rabbitmq]
+    depends_on: [mysql, redis, rabbitmq]
 
   ai-service:
     build: ./ai-service
     environment:
       DATABASE_URL: postgresql+asyncpg://researchos:researchos@postgres:5432/researchos
+      MYSQL_URL: mysql://researchos:researchos@mysql:3306/researchos
       RABBITMQ_URL: amqp://rabbitmq:5672
     ports: ["8000:8000"]
-    depends_on: [postgres, rabbitmq]
+    depends_on: [postgres, mysql, rabbitmq]
 
   frontend:
     build: ./frontend
@@ -95,6 +107,7 @@ services:
     depends_on: [backend]
 
 volumes:
+  mysqldata:
   pgdata:
 ```
 

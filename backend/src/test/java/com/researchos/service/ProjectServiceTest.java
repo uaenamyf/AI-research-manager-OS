@@ -15,7 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -53,14 +53,14 @@ class ProjectServiceTest {
         testProject1.setUserId(TEST_USER_ID);
         testProject1.setName("AI Research Project");
         testProject1.setDomain("Machine Learning");
-        testProject1.setCreatedTime(OffsetDateTime.now());
+        testProject1.setCreatedTime(LocalDateTime.now());
 
         testProject2 = new ResearchProject();
         testProject2.setId(2L);
         testProject2.setUserId(TEST_USER_ID);
         testProject2.setName("NLP Paper Reading");
         testProject2.setDomain("Natural Language Processing");
-        testProject2.setCreatedTime(OffsetDateTime.now());
+        testProject2.setCreatedTime(LocalDateTime.now());
     }
 
     @Test

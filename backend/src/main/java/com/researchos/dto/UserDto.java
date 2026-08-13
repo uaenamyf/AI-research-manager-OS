@@ -2,7 +2,7 @@ package com.researchos.dto;
 
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 用户信息响应 DTO，与前端 User 对齐。
@@ -15,5 +15,5 @@ public class UserDto {
     private Long id;
     private String email;
     private String plan;
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 }

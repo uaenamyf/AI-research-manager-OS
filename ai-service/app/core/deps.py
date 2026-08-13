@@ -9,8 +9,8 @@ from fastapi import Request
 
 
 async def get_db_pool(request: Request) -> AsyncIterator[asyncpg.Pool]:
-    """获取全局数据库连接池（应用启动时初始化）。"""
+    """获取全局向量库连接池（PostgreSQL，应用启动时初始化）。"""
     pool: asyncpg.Pool = request.app.state.db_pool
     if pool is None:
-        raise RuntimeError("数据库连接池未初始化")
+        raise RuntimeError("向量库连接池未初始化")
     yield pool

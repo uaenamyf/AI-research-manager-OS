@@ -17,7 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,7 +79,7 @@ class PaperServiceTest {
         testPaper.setProjectId(TEST_PROJECT_ID);
         testPaper.setTitle("Test Paper");
         testPaper.setStatus("READY");
-        testPaper.setCreatedTime(OffsetDateTime.now());
+        testPaper.setCreatedTime(LocalDateTime.now());
     }
 
     @Test

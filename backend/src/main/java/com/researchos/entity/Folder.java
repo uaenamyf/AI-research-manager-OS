@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -38,9 +38,9 @@ public class Folder {
      */
     private Integer sortOrder;
 
-    private OffsetDateTime createdAt;
+    private LocalDateTime createdAt;
 
-    private OffsetDateTime updatedAt;
+    private LocalDateTime updatedAt;
 
     /**
      * 子文件夹（仅树接口填充，非数据库列）

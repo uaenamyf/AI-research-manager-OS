@@ -5,7 +5,8 @@
 ```
 Exchange: researchos.ai.task (direct)
   ├─ queue: q.paper.analyze    routing: paper.analyze
-  └─ queue: q.review.generate  routing: review.generate
+  ├─ queue: q.review.generate  routing: review.generate
+  └─ queue: q.paper.cleanup    routing: paper.delete   (跨库清理 PG paper_chunk)
 
 Exchange: researchos.ai.callback (direct)
   └─ queue: q.backend.callback  routing: task.callback
@@ -39,3 +40,15 @@ ai-service 处理完成后，通过 HTTP 回调 backend：
 - 综述生成：`PATCH /internal/task/{id}/result` body `{markdown}` 或 `{status:FAILED, error}`
 
 回调同样带 `X-Internal-Token`。
+
+## 跨库清理（双库架构）
+
+业务数据在 MySQL、向量在 PostgreSQL，`paper_chunk.paper_id` 是**逻辑外键**（PG 侧无物理外键，无 CASCADE）。
+
+**删除论文流程**（backend）：
+
+1. backend 删除 MySQL `paper` 行（事务内）。
+2. backend 发 MQ `paper.delete` 到 `q.paper.cleanup`，payload `{ paperId }`。
+3. ai-service 消费后执行 `DELETE FROM paper_chunk WHERE paper_id = $1`，完成后确认消息。
+
+> 不可依赖数据库 CASCADE——两张表在不同数据库实例，必须靠 MQ 保证最终一致。

@@ -7,7 +7,7 @@
 | # | 任务 | 服务 |
 | --- | --- | --- |
 | 1.1 | 仓库初始化 + docker-compose 跑通 | infra |
-| 1.2 | Flyway V1 建表 + pgvector 扩展 | backend |
+| 1.2 | MySQL 业务表建表 + PG pgvector 扩展 | backend |
 | 1.3 | Spring Security + JWT 注册登录 | backend |
 | 1.4 | Google OAuth 登录 | backend |
 | 1.5 | Project CRUD | backend |

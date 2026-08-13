@@ -12,7 +12,7 @@
 | [10-frontend.md](./10-frontend.md) | Next.js 目录结构、关键约定、API 客户端示例 | frontend 开发 |
 | [20-backend.md](./20-backend.md) | Spring Boot 目录结构、分层约定、统一响应、SSE 转发、MQ 下发 | backend 开发 |
 | [30-ai-service.md](./30-ai-service.md) | FastAPI 目录结构、路由、内部鉴权、Agent、RAG、worker | ai-service 开发 |
-| [40-database.md](./40-database.md) | 数据库 schema、Flyway 迁移、pgvector、关键设计点 | DB 改动、迁移脚本 |
+| [40-database.md](./40-database.md) | 双库 schema（MySQL 业务表 + PG 向量）、迁移脚本 | DB 改动、迁移脚本 |
 | [50-api-contracts.md](./50-api-contracts.md) | 前后端 API 契约、backend<->ai-service 契约 | 接口联调 |
 | [60-dataflows.md](./60-dataflows.md) | 上传分析/Chat/Review 三条核心链路时序图 | 端到端联调、排障 |
 | [70-async-mq.md](./70-async-mq.md) | RabbitMQ 拓扑、消息格式、重试与 DLQ | 异步任务开发 |

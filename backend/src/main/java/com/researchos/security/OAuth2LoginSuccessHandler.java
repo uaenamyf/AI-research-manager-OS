@@ -15,7 +15,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * Google OAuth 登录成功处理器：
@@ -61,7 +61,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     user = new User();
                     user.setEmail(email);
                     user.setPlan("FREE");
-                    user.setCreatedTime(OffsetDateTime.now());
+                    user.setCreatedTime(LocalDateTime.now());
                     userService.save(user);
                 }
                 // 已有邮箱账号：绑定 OAuth 身份（下次可用 OAuth 直接登录）

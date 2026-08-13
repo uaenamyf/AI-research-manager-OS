@@ -2,7 +2,7 @@ package com.researchos.dto;
 
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 论文列表项，与前端 PaperListItem 对齐。
@@ -18,5 +18,5 @@ public class PaperListItem {
     private Integer year;
     private String status;
     private Long folderId;
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 }

@@ -122,6 +122,24 @@ class LLMClient:
             model: 模型名（空则用 provider 默认模型）
             override: 请求级 LLM 配置覆盖（用户自定义）
         """
+        # 2026-08-13 myf: 用户自定义配置失败时自动回退系统默认，避免无效配置导致功能不可用
+        try:
+            return await self._complete_once(system, user, model, override)
+        except Exception as e:
+            if override and (override.api_key or override.base_url or override.provider):
+                logger.warning(
+                    f"用户自定义 LLM 配置调用失败，回退系统默认: {type(e).__name__}: {e}"
+                )
+                return await self._complete_once(system, user, "", None)
+            raise
+
+    async def _complete_once(
+        self,
+        system: str,
+        user: str,
+        model: str = "",
+        override: LLMOverride | None = None,
+    ) -> str:
         provider = self._resolve_provider(override)
         model = self._resolve_model(model, override)
         client = self._get_client_for_provider(provider, override)
@@ -170,6 +188,28 @@ class LLMClient:
             model: 模型名（空则用 provider 默认模型）
             override: 请求级 LLM 配置覆盖（用户自定义）
         """
+        # 2026-08-13 myf: 用户自定义配置失败时自动回退系统默认，避免无效配置导致功能不可用
+        try:
+            async for chunk in self._stream_once(system, user, model, override):
+                yield chunk
+            return
+        except Exception as e:
+            if override and (override.api_key or override.base_url or override.provider):
+                logger.warning(
+                    f"用户自定义 LLM 配置流式调用失败，回退系统默认: {type(e).__name__}: {e}"
+                )
+                async for chunk in self._stream_once(system, user, "", None):
+                    yield chunk
+                return
+            raise
+
+    async def _stream_once(
+        self,
+        system: str,
+        user: str,
+        model: str = "",
+        override: LLMOverride | None = None,
+    ) -> AsyncIterator[str]:
         provider = self._resolve_provider(override)
         model = self._resolve_model(model, override)
         client = self._get_client_for_provider(provider, override)

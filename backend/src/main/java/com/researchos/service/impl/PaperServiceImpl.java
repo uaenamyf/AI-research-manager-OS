@@ -25,7 +25,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -65,7 +65,7 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
         paper.setTitle(req.getFileName()); // 初始用文件名，AI 分析后更新
         paper.setPdfUrl(req.getS3Key());
         paper.setStatus("PROCESSING");
-        paper.setCreatedTime(OffsetDateTime.now());
+        paper.setCreatedTime(LocalDateTime.now());
         save(paper);
 
         // 发 MQ 触发 ai-service 分析

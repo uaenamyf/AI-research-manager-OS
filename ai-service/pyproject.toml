@@ -10,9 +10,10 @@ dependencies = [
     # 配置管理
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",
-    # 数据库（异步 PostgreSQL + pgvector）
+    # 数据库（PostgreSQL + pgvector 向量库 / MySQL 业务元数据）
     "asyncpg>=0.29.0",
     "pgvector>=0.3.6",
+    "aiomysql>=0.2.0",
     # Redis
     "redis[hiredis]>=5.0.0",
     # RabbitMQ

@@ -5,21 +5,19 @@ import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.MappedJdbcTypes;
 import org.apache.ibatis.type.MappedTypes;
 
-import java.lang.reflect.Constructor;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Map;
 
 /**
- * PostgreSQL JSONB 类型处理器。
- * 继承 JacksonTypeHandler 的序列化逻辑，但写入时用 PGobject 包装，
- * 解决 PostgreSQL "字段类型为 jsonb, 但表达式的类型为 character varying" 错误。
- * 用反射创建 PGobject，避免编译期对 postgresql 驱动的依赖（scope=runtime）。
+ * MySQL JSON 类型处理器。
+ * 继承 JacksonTypeHandler 的序列化逻辑，写入时直接用 setString 传 JSON 字符串，
+ * 由 MySQL 驱动识别为 JSON 列值。
  *
  * @author myf
  * @since 2026-07-10
  */
-@MappedJdbcTypes(JdbcType.OTHER)
+@MappedJdbcTypes(JdbcType.VARCHAR)
 @MappedTypes(Map.class)
 public class JsonbTypeHandler extends JacksonTypeHandler {
 
@@ -44,19 +42,6 @@ public class JsonbTypeHandler extends JacksonTypeHandler {
             }
         }
 
-        // 用反射创建 PGobject 包装，指定类型为 jsonb
-        try {
-            Class<?> pgObjectClass = Class.forName("org.postgresql.util.PGobject");
-            Constructor<?> constructor = pgObjectClass.getConstructor();
-            Object pgObject = constructor.newInstance();
-            pgObjectClass.getMethod("setType", String.class).invoke(pgObject, "jsonb");
-            pgObjectClass.getMethod("setValue", String.class).invoke(pgObject, json);
-            ps.setObject(i, pgObject);
-        } catch (ClassNotFoundException e) {
-            // 非 PostgreSQL 环境，直接设字符串
-            ps.setString(i, json);
-        } catch (Exception e) {
-            throw new SQLException("PGobject 创建失败", e);
-        }
+        ps.setString(i, json);
     }
 }

@@ -35,11 +35,12 @@
 │  Next.js    │                │  Spring Boot │             │   FastAPI    │
 │  (TS)       │ <───────────── │   (Java)     │ <────────── │  (Python)    │
 └─────────────┘   统一响应/SSE  └──────────────┘  结果回调   └──────────────┘
-                                      │
-                          ┌───────────┼───────────┐
-                          │           │           │
-                     PostgreSQL   Redis       RabbitMQ
-                     +pgvector   (缓存/会话)   (异步任务)
+                                      │                           │
+                          ┌───────────┼───────────┐               │
+                          │           │           │               │
+                        MySQL     Redis       RabbitMQ       PostgreSQL
+                     (业务数据)  (缓存/会话)   (异步任务)      +pgvector
+                                                              (向量库)
 ```
 
 **协作铁律**：服务间只通过**明确定义的契约**通信，禁止跨服务直接访问对方内部实现（数据库表、内部类、私有函数）。
@@ -115,16 +116,20 @@
 
 ## 3.4 数据库访问边界
 
-| 表 | backend 可读写 | ai-service 可读写 |
-| --- | --- | --- |
-| app_user | ✅ | ❌ |
-| research_project | ✅ | ❌ |
-| paper | ✅ | ❌（仅读 metadata） |
-| paper_chunk | ❌ | ✅ |
-| conversation | ✅ | ❌ |
-| ai_task | ✅ | ❌（仅通过回调间接更新 status/result） |
+**双库架构**：业务数据在 MySQL，AI 向量在 PostgreSQL。
+
+| 表 | 库 | backend 可读写 | ai-service 可读写 |
+| --- | --- | --- | --- |
+| app_user | MySQL | ✅ | ❌ |
+| research_project | MySQL | ✅ | ❌ |
+| folder | MySQL | ✅ | ❌ |
+| paper | MySQL | ✅ | ❌（仅读元数据） |
+| paper_chunk | PostgreSQL | ❌ | ✅ |
+| conversation | MySQL | ✅ | ❌ |
+| ai_task | MySQL | ✅ | ❌（仅通过回调间接更新 status/result） |
 
 > ai-service 如需 paper 的 pdf_url，由 backend 在 MQ 消息 payload 中传入，不自行查库。
+> `paper_chunk.paper_id` 是跨库逻辑外键（无物理约束），删除论文时 backend 发 MQ 让 ai-service 清理 PG chunk。
 
 ---
 
@@ -203,7 +208,7 @@ PENDING -> PROCESSING -> SUCCESS
 
 - `paper_chunk` 由 ai-service 写入，写入成功后才回调 backend 标记 `READY`。
 - 若 ai-service 写向量失败，回调 `FAILED`，backend 标记 paper 失败，前端提示重试。
-- 删除论文时：backend 删 `paper` 记录，发 MQ 让 ai-service 清理 `paper_chunk`（或由外键 CASCADE 处理，二者择一并明确）。
+- 删除论文时（双库无物理外键）：backend 删 MySQL `paper` 记录，发 MQ `paper.delete` 让 ai-service 清理 PG `paper_chunk`（跨库最终一致，见 `70-async-mq.md`）。
 
 ---
 

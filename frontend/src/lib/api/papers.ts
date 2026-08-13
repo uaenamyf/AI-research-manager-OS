@@ -32,26 +32,36 @@ export function getUploadUrl(
 /**
  * 步骤 2：前端直传文件到存储（S3 或本地）。
  * 用 FormData 携带 presigned POST 的 fields + file。
+ * 用 XMLHttpRequest 以获得真实的上传字节进度回调。
  */
-export async function uploadToStorage(
+export function uploadToStorage(
   presigned: PresignedPost,
   file: File,
+  onProgress?: (percent: number) => void,
 ): Promise<void> {
-  const form = new FormData();
-  for (const [key, value] of Object.entries(presigned.fields)) {
-    form.append(key, value);
-  }
-  form.append("file", file);
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(presigned.fields)) {
+      form.append(key, value);
+    }
+    form.append("file", file);
 
-  const res = await fetch(presigned.url, {
-    method: "POST",
-    body: form,
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", presigned.url);
     // 本地存储模式：presigned.url 指向后端 /api/local-upload/{token}，跨域直传需带 cookie
-    credentials: "include",
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed: ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed: network error"));
+    xhr.send(form);
   });
-  if (!res.ok) {
-    throw new Error(`Upload failed: ${res.status}`);
-  }
 }
 
 /** 兼容：旧方法名 */

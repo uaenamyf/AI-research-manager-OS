@@ -38,8 +38,8 @@ ai-research-os/
 | 后端语言 | Java | 21 LTS |
 | ORM | MyBatis-Plus | 3.5.x |
 | 安全 | Spring Security + JWT | 6.x |
-| 数据库 | PostgreSQL | 16 |
-| 向量库 | pgvector 扩展 | 0.7.x |
+| 数据库（业务） | MySQL | 8.x |
+| 向量库（AI） | PostgreSQL + pgvector 扩展 | 16 / 0.7.x |
 | 缓存 | Redis | 7.x |
 | 消息队列 | RabbitMQ | 3.13 |
 | AI 服务 | Python + FastAPI | 3.12 / 0.115 |

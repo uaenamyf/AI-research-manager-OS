@@ -9,7 +9,7 @@ import com.researchos.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -40,7 +40,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         if (limit == Integer.MAX_VALUE) return;
 
         // 本月上传数
-        OffsetDateTime monthStart = OffsetDateTime.now()
+        LocalDateTime monthStart = LocalDateTime.now()
                 .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         Long count = paperMapper.selectCount(
                 new LambdaQueryWrapper<Paper>()

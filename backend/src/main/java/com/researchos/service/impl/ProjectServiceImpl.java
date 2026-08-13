@@ -13,7 +13,7 @@ import com.researchos.service.ProjectService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 项目服务实现：CRUD，所有查询带 userId 过滤。
@@ -32,7 +32,7 @@ public class ProjectServiceImpl extends ServiceImpl<ProjectMapper, ResearchProje
         project.setName(req.getName());
         project.setDescription(req.getDescription());
         project.setDomain(req.getDomain());
-        project.setCreatedTime(OffsetDateTime.now());
+        project.setCreatedTime(LocalDateTime.now());
         save(project);
         return project;
     }

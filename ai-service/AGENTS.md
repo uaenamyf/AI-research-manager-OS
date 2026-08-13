@@ -10,11 +10,13 @@
 
 ## 铁律（禁止事项）
 
-1. ❌ **禁止写业务表**：`app_user` / `research_project` / `paper` / `conversation` / `ai_task` 一律不可写。ai-service 只能写 `paper_chunk`（向量），业务数据通过回调让 backend 更新。
+1. ❌ **禁止写业务表**：`app_user` / `research_project` / `paper` / `conversation` / `ai_task` 一律不可写（这些表在 **MySQL**）。ai-service 只能写 `paper_chunk`（**PostgreSQL** 向量库），业务数据通过回调让 backend 更新。
 2. ❌ **禁止直接对前端暴露**：所有端点必须校验 `X-Internal-Token`，只接受 backend 调用。
 3. ❌ **禁止持久化用户敏感信息**：LLM API key、用户密钥只在内存/环境变量，不落库不落盘。
 4. ❌ **禁止自行查业务库取 paper.pdf_url**：如需 pdf_url，由 backend 在 MQ 消息 payload 中传入。
 5. ❌ **禁止用 handoff 实现固定管道**：固定流程（如 paper -> review）用手动顺序执行。
+
+> **双库**：ai-service 维护两个连接池——`DATABASE_URL`（asyncpg → PG 向量库 `paper_chunk`）+ `MYSQL_URL`（aiomysql → MySQL 业务库，**只读** paper 元数据用于 review 等场景，绝不写）。
 
 ## 目录职责
 

@@ -18,11 +18,14 @@ backend/
 │   └── common/         # 统一响应（common.response）/ 异常（common.exception）
 ├── src/main/resources/
 │   ├── application.yml
-│   └── db/migration/   # Flyway 迁移脚本 V1__init.sql
+│   └── db/
+│       ├── migration-mysql/   # MySQL 业务表 DDL（V1__init.sql，手工执行）
+│       └── migration/         # 旧 PG 迁移（Flyway 已禁用，保留参考）
 └── pom.xml
 ```
 
 > 扁平结构的好处：目录少、找文件快，适合单人开发。业务域通过类名前缀区分。
+> **双库**：业务数据存 MySQL（唯一数据源），向量存 PG（ai-service 维护）。Flyway 已禁用，schema 手工执行。
 
 ## 关键组件
 

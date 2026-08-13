@@ -17,7 +17,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -51,7 +51,7 @@ public class AiTaskServiceImpl extends ServiceImpl<AiTaskMapper, AiTask> impleme
         task.setUserId(userId);
         task.setType("REVIEW_GENERATION");
         task.setStatus("PENDING");
-        task.setCreatedTime(OffsetDateTime.now());
+        task.setCreatedTime(LocalDateTime.now());
         save(task);
 
         // 2026-08-12 myf: payload 携带用户自定义 LLM 配置，ai-service 消费时应用 override

@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.researchos.common.handler.JsonbTypeHandler;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -28,5 +28,5 @@ public class AiTask {
     @TableField(typeHandler = JsonbTypeHandler.class)
     private Map<String, Object> result;
     private String error;
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 }

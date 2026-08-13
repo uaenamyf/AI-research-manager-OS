@@ -23,8 +23,13 @@ class Settings(BaseSettings):
     )
 
     # ── 基础设施 ──
+    # 向量库（PostgreSQL + pgvector，paper_chunk 表）
     DATABASE_URL: str = (
         "postgresql+asyncpg://researchos:researchos@localhost:5432/researchos"
+    )
+    # 业务库（MySQL，ai-service 只读 paper 元数据）
+    MYSQL_URL: str = (
+        "mysql://researchos:researchos@localhost:3306/researchos"
     )
     REDIS_URL: str = "redis://localhost:6379/0"
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
@@ -51,7 +56,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_API_KEY: str = ""  # 独立 embedding key，空则回退到 OPENAI_API_KEY
     EMBEDDING_BASE_URL: str = ""  # 独立 embedding base_url，空则回退到 OPENAI_BASE_URL
-    EMBEDDING_DIM: int = 1536  # text-embedding-3-small 实际输出 1536 维（与 DB vector(1536) 对齐）
+    EMBEDDING_DIM: int = 1536  # 兜底默认；生产由 .env 覆盖为 2048（doubao-embedding-vision），须与 PG vector(2048) 对齐
 
     # ── RAG 参数 ──
     CHUNK_SIZE: int = 512

@@ -1,6 +1,6 @@
 # date: 2026-07-10
 # dev: myf
-"""向量存储：pgvector 的 paper_chunk 表读写。"""
+"""向量存储：pgvector 的 paper_chunk 表读写（PostgreSQL 向量库）。"""
 
 import asyncpg
 from loguru import logger
@@ -11,7 +11,7 @@ from app.core.config import settings
 class VectorStore:
     """paper_chunk 表操作：批量写入向量、检索、删除。
 
-    约束：只操作 paper_chunk 表（ai-service 唯一可写的业务表）。
+    约束：只操作 paper_chunk 表（ai-service 唯一可写的表，位于 PostgreSQL 向量库）。
     """
 
     def __init__(self, pool: asyncpg.Pool):
@@ -158,3 +158,4 @@ class VectorStore:
     def _vec_to_str(vec: list[float]) -> str:
         """将向量列表转为 pgvector 字符串格式 '[1,2,3]'。"""
         return "[" + ",".join(str(v) for v in vec) + "]"
+

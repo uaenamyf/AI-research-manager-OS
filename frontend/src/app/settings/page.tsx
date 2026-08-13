@@ -340,7 +340,7 @@ export default function SettingsPage() {
                 </label>
                 <select
                   className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
-                  value={settings.translation.machineProvider || "google"}
+                  value={settings.translation.machineProvider || "mymemory"}
                   onChange={(e) =>
                     setSettings({
                       ...settings,
@@ -364,7 +364,7 @@ export default function SettingsPage() {
                 </label>
                 <Input
                   type="password"
-                  placeholder="DeepL / 百度 / 有道 Key"
+                  placeholder="百度填 appid:密钥；DeepL 填 Auth Key"
                   value={settings.translation.machineApiKey || ""}
                   onChange={(e) =>
                     setSettings({

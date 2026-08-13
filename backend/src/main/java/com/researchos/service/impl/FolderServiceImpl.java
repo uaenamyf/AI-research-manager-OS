@@ -13,7 +13,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,8 +45,8 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
         folder.setParentId(parentId);
         folder.setName(name);
         folder.setSortOrder(0);
-        folder.setCreatedAt(OffsetDateTime.now());
-        folder.setUpdatedAt(OffsetDateTime.now());
+        folder.setCreatedAt(LocalDateTime.now());
+        folder.setUpdatedAt(LocalDateTime.now());
 
         try {
             save(folder);
@@ -120,7 +120,7 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
     public Folder renameFolder(Long userId, Long folderId, String newName) {
         Folder folder = checkOwnership(userId, folderId);
         folder.setName(newName);
-        folder.setUpdatedAt(OffsetDateTime.now());
+        folder.setUpdatedAt(LocalDateTime.now());
         updateById(folder);
         return folder;
     }
@@ -149,7 +149,7 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
         }
 
         folder.setParentId(newParentId);
-        folder.setUpdatedAt(OffsetDateTime.now());
+        folder.setUpdatedAt(LocalDateTime.now());
         updateById(folder);
         return folder;
     }
@@ -183,7 +183,7 @@ public class FolderServiceImpl extends ServiceImpl<FolderMapper, Folder> impleme
     public void updateSortOrder(Long userId, Long folderId, Integer sortOrder) {
         Folder folder = checkOwnership(userId, folderId);
         folder.setSortOrder(sortOrder);
-        folder.setUpdatedAt(OffsetDateTime.now());
+        folder.setUpdatedAt(LocalDateTime.now());
         updateById(folder);
     }
 

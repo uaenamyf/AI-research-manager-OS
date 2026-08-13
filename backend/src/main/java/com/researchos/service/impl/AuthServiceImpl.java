@@ -19,7 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 认证服务实现：注册、登录、登出。
@@ -47,7 +47,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(req.getEmail());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setPlan("FREE");
-        user.setCreatedTime(OffsetDateTime.now());
+        user.setCreatedTime(LocalDateTime.now());
         userService.save(user);
 
         setTokenCookie(response, user);

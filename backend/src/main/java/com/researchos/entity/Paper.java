@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.researchos.common.handler.JsonbTypeHandler;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -31,7 +31,7 @@ public class Paper {
     private String doi;
     private String pdfUrl;
     private String status;
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 
     /** Paper Intelligence Card，存 JSONB */
     @TableField(typeHandler = JsonbTypeHandler.class)

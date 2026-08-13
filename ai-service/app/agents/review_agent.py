@@ -6,6 +6,7 @@ import asyncpg
 from loguru import logger
 
 from app.agents.prompts.review import REVIEW_SYSTEM, REVIEW_USER
+from app.core.db import get_meta_pool
 from app.llm.client import llm_client
 from app.rag.embedding import embedding_service
 from app.rag.vector_store import VectorStore
@@ -88,16 +89,24 @@ async def _fetch_paper_metadata(
     pool: asyncpg.Pool,
     paper_ids: list[int],
 ) -> list[dict]:
-    """只读 paper 表 metadata，按传入顺序返回。"""
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, title, authors, year, summary
-            FROM paper
-            WHERE id = ANY($1::bigint[])
-            """,
-            paper_ids,
-        )
+    """只读 MySQL 业务库 paper 表 metadata，按传入顺序返回。
+
+    paper 主表在 MySQL（backend 维护），ai-service 只读元数据，
+    向量检索在 PostgreSQL 向量库（paper_chunk）。
+    """
+    meta_pool = await get_meta_pool()
+    placeholders = ",".join(["%s"] * len(paper_ids))
+    async with meta_pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f"""
+                SELECT id, title, authors, year, summary
+                FROM paper
+                WHERE id IN ({placeholders})
+                """,
+                tuple(paper_ids),
+            )
+            rows = await cur.fetchall()
 
     by_id = {row["id"]: row for row in rows}
     ordered: list[dict] = []
@@ -138,7 +147,7 @@ def _format_summary(summary) -> str:
     if not summary:
         return ""
 
-    # asyncpg 对 JSONB 默认返回字符串，需要解析
+    # aiomysql 对 JSON 列默认返回字符串（DictCursor），需要解析
     data = summary
     if isinstance(summary, str):
         import json

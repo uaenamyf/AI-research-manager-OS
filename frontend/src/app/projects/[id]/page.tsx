@@ -338,21 +338,21 @@ export default function ProjectDetailPage() {
         <Card className="w-80 flex-shrink-0 p-3 flex flex-col">
           <div className="flex items-center justify-between mb-2 gap-2">
             <h3 className="font-semibold text-gray-900 text-sm">Folders</h3>
-            <div className="flex items-center gap-2">
-              <PaperUploader
-                compact
-                projectId={projectId}
-                folderId={selectedFolderId}
-                onUploaded={handleUploaded}
-              />
-              <button
-                onClick={() => setShowNewFolder(true)}
-                className="whitespace-nowrap text-blue-600 hover:text-blue-800 text-xs"
-              >
-                New Folder
-              </button>
-            </div>
+            <button
+              onClick={() => setShowNewFolder(true)}
+              className="whitespace-nowrap text-blue-600 hover:text-blue-800 text-xs"
+            >
+              New Folder
+            </button>
           </div>
+
+          {/* 上传：按钮 + 进度条（独立一行，上传/解析进度可见） */}
+          <PaperUploader
+            compact
+            projectId={projectId}
+            folderId={selectedFolderId}
+            onUploaded={handleUploaded}
+          />
 
           {/* 新建文件夹输入 */}
           {showNewFolder && (

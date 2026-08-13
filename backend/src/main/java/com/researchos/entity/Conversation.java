@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 聊天历史实体。
@@ -23,5 +23,5 @@ public class Conversation {
     private Long paperId;
     private String question;
     private String answer;
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 }

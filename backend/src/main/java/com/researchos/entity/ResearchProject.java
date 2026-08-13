@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 研究项目实体。
@@ -23,5 +23,5 @@ public class ResearchProject {
     private String name;
     private String description;
     private String domain;
-    private OffsetDateTime createdTime;
+    private LocalDateTime createdTime;
 }

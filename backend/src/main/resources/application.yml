@@ -2,13 +2,14 @@ spring:
   application:
     name: researchos-backend
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:researchos}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:researchos}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
     username: ${DB_USER:researchos}
     password: ${DB_PASS:researchos}
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
   flyway:
-    enabled: true
-    locations: classpath:db/migration
+    # MySQL schema 已通过 db/migration-mysql/V1__init.sql 手动初始化，
+    # 数据迁移同样手动执行，故关闭 Flyway 自动迁移
+    enabled: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}
