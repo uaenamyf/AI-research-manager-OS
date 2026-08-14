@@ -80,6 +80,33 @@ services:
   #   docker compose --profile app up -d
   # ────────────────────────────────────────────────────────────
 
+  # 业务元数据库（MySQL）：backend 主库，ai-service 只读 paper 元数据
+  mysql:
+    image: mysql:8.0
+    container_name: researchos-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB:-researchos}
+      MYSQL_USER: ${MYSQL_USER:-researchos}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-researchos}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-researchos-root}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+      # 首次初始化时执行建表脚本（仅空数据卷时执行一次）
+      - ../backend/src/main/resources/db/migration-mysql/V1__init.sql:/docker-entrypoint-initdb.d/V1__init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-researchos-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
+
   backend:
     profiles: ["app"]
     build:
@@ -87,11 +114,11 @@ services:
       dockerfile: Dockerfile
     container_name: researchos-backend
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:-researchos}
-      DB_USER: ${POSTGRES_USER:-researchos}
-      DB_PASS: ${POSTGRES_PASSWORD:-researchos}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DB:-researchos}
+      DB_USER: ${MYSQL_USER:-researchos}
+      DB_PASS: ${MYSQL_PASSWORD:-researchos}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       RABBIT_HOST: rabbitmq
@@ -113,7 +140,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -129,6 +156,7 @@ services:
     container_name: researchos-ai-service
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-researchos}:${POSTGRES_PASSWORD:-researchos}@postgres:5432/${POSTGRES_DB:-researchos}
+      MYSQL_URL: mysql://${MYSQL_USER:-researchos}:${MYSQL_PASSWORD:-researchos}@mysql:3306/${MYSQL_DB:-researchos}
       REDIS_URL: redis://redis:6379/0
       RABBITMQ_URL: amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
@@ -143,6 +171,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mysql:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
@@ -154,6 +184,8 @@ services:
       dockerfile: Dockerfile
     container_name: researchos-frontend
     environment:
+      # Next.js standalone 默认绑定 HOSTNAME（Docker 注入的容器 ID 地址），强制监听所有接口
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
     ports:
@@ -161,8 +193,8 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
 volumes:
   pgdata:
+  mysqldata:
   redisdata:
   rabbitdata:

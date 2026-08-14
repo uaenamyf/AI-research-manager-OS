@@ -11,6 +11,7 @@
 .vscode/
 *.swp
 *.swo
+.DS_Store
 
 # Python
 __pycache__/
