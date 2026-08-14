@@ -8,6 +8,7 @@ import {
   getUserSettings,
   patchUserSettings,
 } from "@/lib/api/settings";
+import { createCheckout } from "@/lib/api/subscription";
 import { useAuthStore } from "@/stores/auth";
 import { Card, Badge, Button, Input, Spinner } from "@/components/ui";
 import {
@@ -43,6 +44,32 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+  const [upgradeMsg, setUpgradeMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  // 从 Stripe Checkout 跳回时的状态提示（?upgrade=success | cancelled）
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("upgrade");
+    if (q === "success") {
+      setUpgradeMsg({ type: "ok", text: "Upgrade successful! Your plan has been updated." });
+      window.history.replaceState({}, "", "/settings");
+    } else if (q === "cancelled") {
+      setUpgradeMsg({ type: "err", text: "Upgrade cancelled. You can try again anytime." });
+      window.history.replaceState({}, "", "/settings");
+    }
+  }, []);
+
+  const handleUpgrade = async (plan: Plan) => {
+    setUpgradingPlan(plan);
+    setUpgradeMsg(null);
+    try {
+      const { checkoutUrl } = await createCheckout(plan);
+      window.location.assign(checkoutUrl);
+    } catch (e: any) {
+      setUpgradeMsg({ type: "err", text: e.message || "Checkout failed" });
+      setUpgradingPlan(null);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -148,6 +175,17 @@ export default function SettingsPage() {
       {/* ===== Subscription ===== */}
       <Card className="p-5">
         <h2 className="mb-4 font-semibold text-gray-900">Subscription</h2>
+        {upgradeMsg && (
+          <div
+            className={`mb-4 rounded-md px-4 py-2 text-sm ${
+              upgradeMsg.type === "ok"
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : "bg-red-50 text-red-700 border border-red-200"
+            }`}
+          >
+            {upgradeMsg.text}
+          </div>
+        )}
         <div className="space-y-3">
           {(Object.keys(PLAN_META) as Plan[]).map((plan) => (
             <div
@@ -164,8 +202,23 @@ export default function SettingsPage() {
                 </p>
                 <p className="text-xs text-gray-500">{PLAN_META[plan].desc}</p>
               </div>
-              {user.plan === plan && (
+              {user.plan === plan ? (
                 <Badge className="bg-green-100 text-green-700">Current</Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={upgradingPlan !== null}
+                  onClick={() => handleUpgrade(plan)}
+                >
+                  {upgradingPlan === plan ? (
+                    <>
+                      <Spinner className="mr-1" /> Redirecting…
+                    </>
+                  ) : (
+                    "Upgrade"
+                  )}
+                </Button>
               )}
             </div>
           ))}

@@ -54,15 +54,23 @@ export function Header() {
             </button>
           </>
         ) : (
-          // date: 2026-08-07
+          // date: 2026-08-14
           // dev: myf
-          // changelog: 未登录时显示可点击的 Sign in 按钮，直达登录页
-          <Link
-            href="/login"
-            className="rounded-md bg-gray-900 px-4 py-1.5 text-sm text-white hover:bg-gray-700"
-          >
-            Sign in
-          </Link>
+          // changelog: 未登录时同时显示 Register / Sign in 两个入口，避免新用户找不到注册入口
+          <div className="flex items-center gap-3">
+            <Link
+              href="/register"
+              className="rounded-md border border-gray-300 px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            >
+              Register
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-md bg-gray-900 px-4 py-1.5 text-sm text-white hover:bg-gray-700"
+            >
+              Sign in
+            </Link>
+          </div>
         )}
       </div>
     </header>

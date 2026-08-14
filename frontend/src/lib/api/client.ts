@@ -33,7 +33,18 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, await res.text());
+    // 后端统一响应 { code, message, data }，即使 HTTP 非 2xx 也优先解析 message；
+    // 解析失败（如网关错误、纯文本）时退化为响应原文。
+    const raw = await res.text();
+    try {
+      const body: ApiResponse<unknown> = JSON.parse(raw);
+      if (typeof body.message === "string" && body.message) {
+        throw new ApiError(body.code ?? res.status, body.message);
+      }
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+    }
+    throw new ApiError(res.status, raw || `Request failed (${res.status})`);
   }
 
   const body: ApiResponse<T> = await res.json();
