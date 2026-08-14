@@ -41,6 +41,16 @@
 | POST | `/api/review/generate` | body: `{paperIds:[], topic:""}`，返回 taskId |
 | GET | `/api/review/{taskId}` | 轮询结果（返回 Markdown） |
 
+### Subscription（Stripe）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/subscription/plans` | 套餐列表（静态元数据：id/label/limit/desc），需登录 |
+| POST | `/api/subscription/checkout` | body: `{plan:"PRO|RESEARCHER"}`，创建 Stripe Checkout 会话，返回 `{checkoutUrl, sessionId}`，需登录 |
+| POST | `/api/subscription/webhook` | Stripe webhook（`Stripe-Signature` 头），`permitAll`；`checkout.session.completed` → 升级用户套餐（只升不降，幂等） |
+
+> 依赖环境变量：`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_RESEARCHER`。未配置时 `createCheckout` 返回 500「Stripe is not configured」，前端优雅降级提示。成功/取消回跳 `{frontend}/settings?upgrade=success|cancelled`。
+
 ### Knowledge（F6 知识库）
 
 | 方法 | 路径 | 说明 |

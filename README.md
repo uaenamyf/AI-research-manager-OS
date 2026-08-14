@@ -58,7 +58,7 @@ npm run dev
 | 🐳 Docker 部署 | ✅ | 生产级容器化部署 |
 | ✅ 单元测试 | ✅ | 后端/AI 服务/前端测试覆盖 |
 | 🔄 CI/CD | ✅ | GitHub Actions 自动化流水线 |
-| 💳 Stripe 支付 | 🔄 | 待实现 |
+| 💳 Stripe 支付 | ✅ | Checkout 订阅 + webhook 回调（需配置密钥） |
 | 🔗 Google OAuth | 🔄 | 待实现 |
 
 ## 🏗️ 技术架构

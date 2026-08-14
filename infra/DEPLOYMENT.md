@@ -168,14 +168,44 @@ docker compose logs -f --tail=100 backend
 
 ### 4.1 GitHub Actions 工作流
 
-项目已配置 `.github/workflows/ci.yml`，包含：
+项目已配置两个工作流：
 
-- ✅ **后端测试**：Maven 单元测试（H2 内存数据库）
-- ✅ **AI Service 测试**：pytest + 覆盖率报告
+**`.github/workflows/ci.yml`（每次 push / PR）**
+
+- ✅ **后端测试**：Maven 单元测试（68 个用例）
+- ✅ **AI Service 测试**：pytest + 覆盖率报告（72 个用例）
 - ✅ **前端测试**：TypeScript 类型检查 + ESLint + Vitest
 - ✅ **Docker 构建验证**：三个服务镜像构建验证
+- ✅ **E2E 测试**：启动 MySQL/Redis/RabbitMQ/Postgres + 真实后端 + 前端，
+  用 Playwright（Chromium）跑认证全流程（注册 → 登录 → 登出 → 未登录重定向）
 
-### 4.2 本地执行测试
+**`.github/workflows/cd.yml`（push 到 main / 手动触发）**
+
+- 构建三个服务镜像并推送至 GitHub Container Registry：
+  `ghcr.io/uaenamyf/ai-research-manager-os/{backend,ai-service,frontend}`（tag = SHA 前 8 位 + latest）
+- 可选自动部署：在 GitHub Repo Settings → Secrets and variables 配置后，push 到 main 会自动 SSH 部署：
+  - **Variables**：`DEPLOY_ENABLED=true`、`DEPLOY_PATH=/opt/researchos`
+  - **Secrets**：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`
+
+### 4.2 生产服务器部署（拉取 CD 镜像）
+
+```bash
+# 服务器上克隆仓库（只需 infra/ 与配置文件，用于 compose 编排）
+git clone https://github.com/uaenamyf/AI-research-manager-OS.git /opt/researchos
+cd /opt/researchos
+
+# 配置 .env（含 STRIPE_* / GOOGLE_* / LLM key 等）
+cp .env.example .env
+vi .env
+
+# 登录 GHCR（私有镜像时需要）
+echo $GITHUB_TOKEN | docker login ghcr.io -u <your-username> --password-stdin
+
+# 拉取 CD 构建好的镜像并启动（docker-compose.prod.yml 把 build 替换为 image）
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --profile app up -d
+```
+
+### 4.3 本地执行测试
 
 ```bash
 # 后端测试
