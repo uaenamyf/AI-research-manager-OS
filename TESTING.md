@@ -60,20 +60,23 @@ mvn surefire-report:report
 # 报告位置: target/site/surefire-report.html
 ```
 
-### 测试状态（2026-07-23）
+### 测试状态（2026-08-15 更新，依据最近一次 surefire 报告）
 
 | 测试文件 | 状态 | 说明 |
 |----------|------|------|
-| **所有测试编译** | ✅ 通过 | 9 个测试文件全部编译无错误 |
-| `ResearchOsApplicationTests` | ⏳ 待验证 | Spring 上下文加载 |
-| `HealthControllerTest` | 🔧 配置中 | 健康检查 API（Spring Security 配置） |
-| `AuthControllerTest` | ⏳ 待验证 | 注册/登录 API |
-| `UserServiceTest` | 🔧 配置中 | MyBatis-Plus baseMapper 注入问题 |
-| `ProjectServiceTest` | 🔧 配置中 | MyBatis-Plus baseMapper 注入问题 |
-| `PaperServiceTest` | ✅ 部分通过 | 所有权校验测试运行，需调整 Mock 严格模式 |
-| `SubscriptionServiceTest` | 🔧 配置中 | 需调整 Mockito 严格模式 |
-| `KnowledgeServiceTest` | ⚠️ 2失败 | ListTags 和 Search Limit 断言值需更新 |
-| `PostgresIntegrationTest` | 🐳 Docker | Testcontainers 需 Docker 运行 |
+| **全部 15 个测试类** | ✅ 通过 | 68 用例，0 失败（`target/surefire-reports/`） |
+| `ResearchOsApplicationTests` | ✅ | Spring 上下文加载 |
+| `HealthControllerTest` | ✅ | 2 用例 |
+| `AuthControllerTest` | ✅ | 9 用例（注册/登录/me） |
+| `UserServiceTest` | ✅ | 6 用例 |
+| `ProjectServiceTest` | ✅ | 5 用例 |
+| `PaperServiceTest` | ✅ | 6 用例（所有权校验 + 发 MQ） |
+| `SubscriptionServiceTest` | ✅ | 5 用例 |
+| `KnowledgeServiceTest` | ✅ | 11 用例 |
+| `ChatServiceTest` / `WritingServiceTest` 等 | ✅ | 均通过 |
+| `PostgresIntegrationTest` | ⏸ 跳过 | Testcontainers 需 Docker，本地无 Docker 时 `mvn test -Dtest='!PostgresIntegrationTest'` |
+
+> 历史状态（2026-07-23）中 baseMapper 注入、Mockito 严格模式、Security 上下文加载等问题均已解决。
 
 ### 关键里程碑
 1. **编译阶段**：✅ 全部通过 - 9 个测试文件无编译错误
@@ -143,15 +146,17 @@ pytest tests/ -v --cov=app --cov-report=html
 pytest tests/ -v -k "not integration"
 ```
 
-### 测试状态（2026-07-23）
+### 测试状态（2026-08-15 更新，容器内真实运行）
 
 | 测试文件 | 状态 | 说明 |
 |----------|------|------|
-| `test_health_api.py` | ✅ **8/8 通过** | FastAPI TestClient 修复，响应断言对齐 |
-| `test_pdf_parser_edge.py` | ✅ **8/8 通过** | 边界测试全部通过，函数调用对齐 |
-| `test_pdf_parser.py` | ⏳ 待验证 | PDF 解析（真实文件） |
-| `test_embedding.py` | ⚠️ 3失败 | API 签名与实际实现不匹配 |
-| `test_rag_retrieval.py` | ⚠️ 4失败 | asyncpg 异步连接池 Mock 配置 |
+| **全部 12 个测试文件** | ✅ **72/72 通过** | 2.81s（`docker exec` 于 ai-service 容器内运行，2026-08-15） |
+| `test_health_api.py` / `test_health.py` | ✅ | 健康检查 + TestClient |
+| `test_pdf_parser.py` / `test_pdf_parser_edge.py` | ✅ | 真实 PDF + 边界条件 |
+| `test_embedding.py` | ✅ | API 签名已对齐 |
+| `test_rag_retrieval.py` | ✅ | asyncpg 连接池 Mock 已修复 |
+| `test_paper_agent.py` / `test_review_agent.py` / `test_writing_agent.py` | ✅ | Agent 生成 |
+| `test_literature_api.py` / `test_search_api.py` / `test_graph_api.py` | ✅ | API 路由 |
 
 ### 关键里程碑
 1. **测试框架迁移**：✅ 完成 - httpx.AsyncClient → FastAPI TestClient

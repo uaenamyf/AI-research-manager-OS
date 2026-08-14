@@ -147,6 +147,7 @@
 | --- | --- | --- | --- |
 | POST | `/paper/analyze` | PDF 分析（少用，主要调试） | 同步 |
 | POST | `/rag/chat/stream` | RAG 问答流式 | SSE |
+| POST | `/rag/chat` | RAG 问答非流式（返回 `{answer, citations}`，backend ChatService.ask 调用） | 同步 |
 | POST | `/review/generate` | 综述生成 | 同步 |
 | POST | `/search` | Knowledge 跨论文语义搜索（接口保留，当前 backend 未调用） | 同步 |
 | POST | `/graph/similarities` | Knowledge 图谱论文两两相似度（接口保留，当前仅 tags 为空时降级用） | 同步 |

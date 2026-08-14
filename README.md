@@ -13,9 +13,16 @@ cp .env.example .env
 
 # 2. 启动全部服务
 make up
-# 或
-cd infra && docker compose --profile app up -d
+# 或（等价，手动指定根目录 .env）
+cd infra && docker compose --env-file ../.env --profile app up -d
 ```
+
+> **环境变量说明**：compose 通过 `--env-file ../.env` 读取**仓库根目录**的 `.env`（Makefile 已内置该参数），
+> 不要创建 `infra/.env`，否则两处配置会漂移。
+>
+> **LLM 配置**：`LLM_PROVIDER` 支持 `openai` / `anthropic`；国内网络无法直连 OpenAI 时，
+> 可设 `OPENAI_BASE_URL`（火山引擎/DeepSeek 等 OpenAI 兼容端点）+ `OPENAI_DEFAULT_MODEL`（接入点 ID），
+> `OPENAI_API_KEY` 填对应平台的 key（compose 已透传这三个变量）。
 
 ### 方式 2：本地开发启动
 
@@ -59,7 +66,7 @@ npm run dev
 | ✅ 单元测试 | ✅ | 后端/AI 服务/前端测试覆盖 |
 | 🔄 CI/CD | ✅ | GitHub Actions 自动化流水线 |
 | 💳 Stripe 支付 | ✅ | Checkout 订阅 + webhook 回调（需配置密钥） |
-| 🔗 Google OAuth | 🔄 | 待实现 |
+| 🔗 Google OAuth | ✅ | 登录/注册页 + backend 授权码流程（需配置 `GOOGLE_CLIENT_ID/SECRET`） |
 
 ## 🏗️ 技术架构
 
