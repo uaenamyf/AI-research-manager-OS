@@ -7,6 +7,7 @@ import com.researchos.dto.AuthResponse;
 import com.researchos.dto.LoginRequest;
 import com.researchos.dto.RegisterRequest;
 import com.researchos.dto.UserDto;
+import com.researchos.dto.UserSettings;
 import com.researchos.entity.User;
 import com.researchos.security.JwtTokenProvider;
 import com.researchos.service.AuthService;
@@ -47,6 +48,8 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(req.getEmail());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setPlan("FREE");
+        // 2026-08-14 myf: 注册时初始化 settings（DB 列 NOT NULL 无默认值，否则插入报错）
+        user.setSettings(new UserSettings());
         user.setCreatedTime(LocalDateTime.now());
         userService.save(user);
 

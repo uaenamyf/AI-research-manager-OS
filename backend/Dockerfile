@@ -10,6 +10,8 @@ WORKDIR /app
 
 # 先拷贝 pom.xml，利用 Docker 缓存依赖
 COPY pom.xml ./
+# 使用阿里云 Maven 镜像加速（国内网络环境）
+COPY settings.xml /root/.m2/settings.xml
 RUN mvn dependency:go-offline -B
 
 # 拷贝源码并构建
