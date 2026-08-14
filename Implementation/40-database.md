@@ -6,7 +6,7 @@
 
 ```
 MySQL (researchos)                    PostgreSQL (researchos)
-├── app_user          业务数据        ├── paper_chunk      AI 向量（pgvector vector(2048)）
+├── app_user          业务数据        ├── paper_chunk      AI 向量（pgvector vector(1536)）
 ├── research_project  backend 维护    └── (旧业务表已迁移后清理，2026-08-13)
 ├── folder            只被 backend
 ├── paper             读写
@@ -132,6 +132,9 @@ CREATE INDEX idx_task_user ON ai_task(user_id);
 
 ## PostgreSQL 向量表（pgvector）
 
+> 建表脚本：`backend/src/main/resources/db/migration/V4__paper_chunk_only.sql`（Flyway 已禁用，手动执行）。
+> 业务表已迁 MySQL，PG 侧只保留本表；`paper_id` 是跨库逻辑外键（无物理约束，无 CASCADE）。
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -140,23 +143,23 @@ CREATE TABLE paper_chunk (
     paper_id  BIGINT NOT NULL,      -- 逻辑外键 → MySQL paper.id（无物理约束）
     section   VARCHAR(64),          -- abstract/intro/methods/results/discussion/references
     content   TEXT,
-    embedding vector(2048)          -- 对应 embedding 模型输出维度
+    embedding vector(1536)          -- 对应 embedding 模型输出维度
 );
 CREATE INDEX idx_chunk_paper ON paper_chunk(paper_id);
 CREATE INDEX idx_chunk_section ON paper_chunk(section);
-CREATE INDEX idx_chunk_embedding ON paper_chunk
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 ```
 
-> 注意：embedding 维度为 **2048**（当前 `.env` 中 `EMBEDDING_DIM=2048`，模型 doubao-embedding-vision）。代码默认值 1536（text-embedding-3-small）仅为兜底，两者不一致会写入失败，需与表定义对齐。
+> 注意：embedding 维度须与 `EMBEDDING_DIM` 对齐。当前 `.env` 为 **1536**（`text-embedding-3-small`）；
+> 若换 doubao-embedding-vision（2048 维），需同步修改本表定义。MVP 不做向量索引
+> （1536 维可建 ivfflat/hnsw，但数据量小时全表扫描 + `paper_id` 过滤即可）。
 
 ## 关键设计点
 
 - **summary 存 JSON**：Paper Intelligence Card 的结构化字段（method/finding/limitation...）存 JSON，便于灵活扩展，前端直接渲染。
 - **paper_chunk.section**：RAG 按论文结构切分的关键，检索时可按 section 过滤。
 - **所有业务表带 user_id**：多租户隔离的物理基础（即使能从 project 推导，也冗余存 user_id 加速鉴权查询）。
-- **跨库一致性**：`paper_chunk.paper_id` 无物理外键。删除论文流程 = backend 删 MySQL `paper` 行 + 发 MQ 通知 ai-service 清理 PG `paper_chunk`（见 `70-async-mq.md`）。
-- **ivfflat lists=100**：小数据集可调，需在插入足够数据后建索引才有效。
+- **跨库一致性**：`paper_chunk.paper_id` 无物理外键。删除论文流程 = backend 删 MySQL `paper` 行 + 发 MQ `paper.delete` 通知 ai-service 清理 PG `paper_chunk`（见 `70-async-mq.md`，2026-08-15 已实现）。
+- **ivfflat**：MVP 不建向量索引（数据量小，`paper_id` 过滤 + 全表扫描即可）。
 
 ## 数据迁移（PG → MySQL）
 

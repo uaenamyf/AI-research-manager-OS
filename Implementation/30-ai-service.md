@@ -9,7 +9,7 @@ ai-service/
 │   ├── api/
 │   │   ├── routes/
 │   │   │   ├── paper.py     # POST /paper/analyze
-│   │   │   ├── chat.py      # POST /rag/chat/stream (SSE)
+│   │   │   ├── chat.py      # POST /rag/chat/stream (SSE) + POST /rag/chat (非流式)
 │   │   │   └── review.py    # POST /review/generate
 │   ├── agents/
 │   │   ├── paper_agent.py
@@ -25,7 +25,8 @@ ai-service/
 │   ├── llm/
 │   │   └── client.py         # 统一 LLM 客户端
 │   ├── worker/
-│   │   └── consumer.py       # RabbitMQ 消费者（异步任务）
+│   │   └── consumer.py       # RabbitMQ 消费者（paper.analyze / review.generate / paper.delete）
+│   │                          # 队列未就绪时后台重试（backend 未启动不丢消费）
 │   ├── core/
 │   │   ├── config.py         # Settings（pydantic-settings）
 │   │   ├── deps.py           # 依赖注入

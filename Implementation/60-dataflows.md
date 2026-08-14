@@ -61,13 +61,13 @@
   `tags: [{name, category}]`（见 30-ai-service.md §paper_agent），
   随 `summary` 回调入库（JSONB）。
 
-## 6.3 Paper Chat（同步 SSE）
+## 6.3 Paper Chat（同步 SSE + 非流式）
 
 ```
-[Frontend] GET /papers/{id}/chat/stream?q=Why+CNN
+[Frontend] GET /papers/{id}/chat/stream?q=Why+CNN        （流式）
     ↓
 [Backend] chat 模块
-    ├── 鉴权 + 额度
+    ├── 鉴权 + 校验论文归属/READY
     └── 转发 ai-service POST /rag/chat/stream (SSE)
     ↓
 [ai-service] chat_agent
@@ -76,6 +76,15 @@
     └── LLM stream -> 逐 token SSE 返回
     ↓
 [Backend] 透传 SSE -> [Frontend]
+
+非流式（2026-08-15 补齐）：
+[Frontend] POST /api/papers/{id}/chat {question}
+    ↓
+[Backend] ChatService.ask -> POST ai-service /rag/chat
+    ↓
+[ai-service] 同流式逻辑，LLM 一次性补全
+    ↓ 返回 {answer, citations}
+[Backend] 落库 conversation 历史 -> 返回 {question, answer}
 ```
 
 ## 6.4 Literature Review 生成（异步）
@@ -98,6 +107,22 @@
     ↓
 [Frontend] 轮询 /review/{taskId}
 ```
+
+## 6.5 删除论文（跨库向量清理，2026-08-15 实现）
+
+```
+[Frontend] DELETE /api/papers/{id}
+    ↓
+[Backend] PaperServiceImpl.deletePaper
+    ├── 1. requirePaperOwnedBy 校验归属
+    ├── 2. 删 MySQL paper 行（事务内）
+    └── 3. 发 MQ {taskId, type:PAPER_DELETE, payload:{paperId}} → q.paper.cleanup
+    ↓
+[ai-service] consumer._on_paper_delete_message
+    └── DELETE FROM paper_chunk WHERE paper_id = $1（幂等，无需回调）
+```
+
+> 双库无物理外键，必须靠 MQ 保证最终一致；删除失败时 chunk 残留，重发消息可幂等清理。
 
 ## 状态机（单一数据源在 backend）
 

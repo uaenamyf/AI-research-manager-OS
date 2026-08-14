@@ -8,9 +8,12 @@ Exchange: researchos.ai.task (direct)
   ├─ queue: q.review.generate  routing: review.generate
   └─ queue: q.paper.cleanup    routing: paper.delete   (跨库清理 PG paper_chunk)
 
-Exchange: researchos.ai.callback (direct)
-  └─ queue: q.backend.callback  routing: task.callback
+Exchange: researchos.ai.dlx (direct)
+  └─ queue: q.ai.dlq           routing: q.ai.dlq       (三个队列共用的死信队列)
 ```
+
+> 队列全部由 backend 创建（RabbitConfig），ai-service 消费者 `passive=True` 只检查不创建；
+> 若 backend 尚未启动导致声明失败，消费者在后台每 10s 重试直到成功（2026-08-15 修复，避免启动顺序导致永久不消费）。
 
 ## 消息格式（JSON）
 
@@ -22,15 +25,16 @@ Exchange: researchos.ai.callback (direct)
 }
 ```
 
-- `type` 取值：`PAPER_ANALYSIS` / `REVIEW_GENERATION`。
+- `type` 取值：`PAPER_ANALYSIS` / `REVIEW_GENERATION` / `PAPER_DELETE`。
 - `payload` 由 backend 在发消息时填充（如 paperId、paperIds、topic）。
 - ai-service 消费时如需 paper 的 `pdf_url`，**由 backend 在 payload 中传入，不自行查库**。
 
 ## 重试与死信
 
 - 消费失败重试 3 次（指数退避）。
-- 超过重试次数进 DLQ `q.paper.analyze.dlq`，backend 监听 DLQ 更新 task.status=FAILED。
+- 超过重试次数进 DLQ `q.ai.dlq`（`researchos.ai.dlx`），backend 监听 DLQ 更新 task.status=FAILED。
 - 用户可从前端触发「重新分析」，backend 重发 MQ。
+- 结果回传**不走 MQ 回调队列**：ai-service 处理完成后直接 HTTP 回调 backend（见下）。
 
 ## 回调
 
