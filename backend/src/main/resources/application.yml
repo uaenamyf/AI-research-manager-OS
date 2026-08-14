@@ -53,6 +53,11 @@ app:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    price-pro: ${STRIPE_PRICE_PRO:}
+    price-researcher: ${STRIPE_PRICE_RESEARCHER:}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
 

@@ -25,4 +25,9 @@ public interface UserService extends IService<User> {
      * 获取用户，不存在抛异常。
      */
     User requireUser(Long userId);
+
+    /**
+     * 升级用户订阅档位（仅允许升级，不允许降级）。
+     */
+    void upgradePlan(Long userId, String plan);
 }

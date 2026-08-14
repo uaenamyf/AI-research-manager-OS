@@ -22,6 +22,7 @@
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
         <aws-sdk.version>2.26.0</aws-sdk.version>
+        <stripe.version>24.21.0</stripe.version>
         <testcontainers.version>1.19.7</testcontainers.version>
     </properties>
 
@@ -102,6 +103,13 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
             <version>${aws-sdk.version}</version>
+        </dependency>
+
+        <!-- Stripe 支付 -->
+        <dependency>
+            <groupId>com.stripe</groupId>
+            <artifactId>stripe-java</artifactId>
+            <version>${stripe.version}</version>
         </dependency>
 
         <!-- Lombok -->

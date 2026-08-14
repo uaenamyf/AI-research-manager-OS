@@ -46,6 +46,8 @@ public class SecurityConfig {
                 // 认证相关放行
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/auth/oauth/**").permitAll()
+                // Stripe Webhook 回调（签名头校验，不走 JWT）
+                .requestMatchers("/api/subscription/webhook").permitAll()
                 // OAuth2 回调端点（浏览器从 Google 跳回）
                 .requestMatchers("/login/oauth2/code/*").permitAll()
                 // 内部回调端点（用 X-Internal-Token 校验，不走 JWT）

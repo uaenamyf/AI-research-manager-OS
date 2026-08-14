@@ -22,6 +22,7 @@ public class AppProperties {
     private Storage storage = new Storage();
     private AiService aiService = new AiService();
     private OAuth oauth = new OAuth();
+    private Stripe stripe = new Stripe();
     private Cors cors = new Cors();
 
     @Data
@@ -57,6 +58,19 @@ public class AppProperties {
     public static class Google {
         private String clientId;
         private String clientSecret;
+    }
+
+    @Data
+    public static class Stripe {
+        private String secretKey;
+        private String webhookSecret;
+        private String pricePro;
+        private String priceResearcher;
+
+        /** 是否已配置 Stripe（无 key 时订阅功能优雅降级）。 */
+        public boolean isConfigured() {
+            return secretKey != null && !secretKey.isBlank();
+        }
     }
 
     @Data
