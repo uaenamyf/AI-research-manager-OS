@@ -42,7 +42,7 @@ public class ChatController {
     }
 
     /**
-     * 非流式问答。
+     * 非流式问答（调用 ai-service 非流式接口，返回完整回答）。
      */
     @PostMapping
     public ApiResponse<Conversation> ask(
@@ -53,14 +53,7 @@ public class ChatController {
         if (question == null || question.isBlank()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
-        // 简化：非流式直接调用流式并聚合（生产环境应调用 ai-service 非流式接口）
-        // 此处返回占位，实际由 ai-service 提供非流式端点
-        Conversation conv = new Conversation();
-        conv.setPaperId(paperId);
-        conv.setUserId(userId);
-        conv.setQuestion(question);
-        conv.setAnswer("(Non-streaming endpoint not implemented yet)");
-        chatService.saveHistory(userId, paperId, question, conv.getAnswer());
+        Conversation conv = chatService.ask(paperId, userId, question);
         return ApiResponse.ok(conv);
     }
 

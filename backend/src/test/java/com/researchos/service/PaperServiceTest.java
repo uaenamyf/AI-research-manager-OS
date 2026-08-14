@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -186,5 +187,40 @@ class PaperServiceTest {
         assertThrows(RuntimeException.class, () ->
                 paperService.requirePaperOwnedBy(100L, TEST_USER_ID)
         );
+    }
+
+    @Test
+    void testDeletePaper_SendsCleanupMessage() {
+        // 归属校验通过
+        when(paperMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(testPaper);
+        when(paperMapper.deleteById(100L)).thenReturn(1);
+
+        paperService.deletePaper(TEST_USER_ID, 100L);
+
+        // 删除 MySQL 记录
+        verify(paperMapper, times(1)).deleteById(100L);
+        // 发 paper.delete MQ，让 ai-service 清理 PG paper_chunk
+        verify(rabbitTemplate, times(1)).convertAndSend(
+                eq(com.researchos.config.RabbitConfig.EXCHANGE_AI_TASK),
+                eq(com.researchos.config.RabbitConfig.ROUTING_PAPER_DELETE),
+                any(Object.class)
+        );
+    }
+
+    @Test
+    void testDeletePaper_NotOwned_ShouldNotSendCleanup() {
+        // 归属校验失败（其他用户的论文查不到）
+        when(paperMapper.selectOne(any(LambdaQueryWrapper.class), anyBoolean()))
+                .thenReturn(null);
+
+        assertThrows(RuntimeException.class, () ->
+                paperService.deletePaper(TEST_USER_ID, 999L)
+        );
+
+        // 不删记录、不发 MQ
+        verify(paperMapper, never()).deleteById(anyLong());
+        verify(rabbitTemplate, never())
+                .convertAndSend(anyString(), anyString(), any(Object.class));
     }
 }

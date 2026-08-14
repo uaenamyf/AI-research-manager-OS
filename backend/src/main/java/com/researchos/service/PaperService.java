@@ -39,6 +39,11 @@ public interface PaperService extends IService<Paper> {
     void movePaper(Long userId, Long paperId, Long folderId);
 
     /**
+     * 删除论文（校验归属 + 删 MySQL 记录 + 发 paper.delete MQ 清理 PG 向量）。
+     */
+    void deletePaper(Long userId, Long paperId);
+
+    /**
      * 更新分析结果（ai-service 回调调用）。
      */
     void updateAnalysisResult(Long paperId, Map<String, Object> summary, String status);

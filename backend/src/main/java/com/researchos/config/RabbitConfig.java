@@ -22,8 +22,10 @@ public class RabbitConfig {
     public static final String EXCHANGE_AI_TASK = "researchos.ai.task";
     public static final String QUEUE_PAPER_ANALYZE = "q.paper.analyze";
     public static final String QUEUE_REVIEW_GENERATE = "q.review.generate";
+    public static final String QUEUE_PAPER_DELETE = "q.paper.cleanup";
     public static final String ROUTING_PAPER_ANALYZE = "paper.analyze";
     public static final String ROUTING_REVIEW_GENERATE = "review.generate";
+    public static final String ROUTING_PAPER_DELETE = "paper.delete";
 
     public static final String EXCHANGE_DLQ = "researchos.ai.dlx";
     public static final String QUEUE_DLQ = "q.ai.dlq";
@@ -61,6 +63,25 @@ public class RabbitConfig {
         return BindingBuilder.bind(reviewGenerateQueue())
                 .to(aiTaskExchange())
                 .with(ROUTING_REVIEW_GENERATE);
+    }
+
+    /**
+     * 论文删除队列：ai-service 消费后清理 PG paper_chunk（跨库最终一致）。
+     * 与 ai-service 消费者声明参数一致（durable，DLQ 由 x-dead-letter 兜底）。
+     */
+    @Bean
+    public Queue paperDeleteQueue() {
+        return QueueBuilder.durable(QUEUE_PAPER_DELETE)
+                .withArgument("x-dead-letter-exchange", EXCHANGE_DLQ)
+                .withArgument("x-dead-letter-routing-key", QUEUE_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Binding paperDeleteBinding() {
+        return BindingBuilder.bind(paperDeleteQueue())
+                .to(aiTaskExchange())
+                .with(ROUTING_PAPER_DELETE);
     }
 
     // ===== DLQ =====

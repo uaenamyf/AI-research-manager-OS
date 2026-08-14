@@ -133,6 +133,66 @@ public class ChatServiceImpl extends ServiceImpl<ConversationMapper, Conversatio
     }
 
     /**
+     * 非流式问答：调用 ai-service POST /rag/chat，返回完整回答并落库历史。
+     */
+    @Override
+    public Conversation ask(Long paperId, Long userId, String question) {
+        // 校验论文归属与状态（与流式一致）
+        Paper paper = paperService.requirePaperOwnedBy(paperId, userId);
+        if (!"READY".equals(paper.getStatus()) && !"ANALYZED".equals(paper.getStatus())) {
+            throw new BusinessException(ErrorCode.PAPER_NOT_READY);
+        }
+
+        try {
+            String aiUrl = appProperties.getAiService().getBaseUrl() + "/rag/chat";
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("paperId", paperId);
+            payload.put("question", question);
+            Map<String, Object> llmOverride = llmOverrideBuilder.build(userId);
+            if (llmOverride != null) {
+                payload.put("llmOverride", llmOverride);
+            }
+            Map<String, Object> knowledgeParams = llmOverrideBuilder.buildKnowledgeParams(userId);
+            if (knowledgeParams != null) {
+                payload.putAll(knowledgeParams);
+            }
+            String body = objectMapper.writeValueAsString(payload);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(aiUrl))
+                    .header("Content-Type", "application/json")
+                    .header("X-Internal-Token",
+                            appProperties.getAiService().getInternalToken())
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                log.error("非流式问答失败：ai-service status={}, body={}",
+                        response.statusCode(), response.body());
+                throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+            }
+
+            JsonNode node = objectMapper.readTree(response.body());
+            String answer = node.path("answer").asText("");
+
+            Conversation conv = new Conversation();
+            conv.setUserId(userId);
+            conv.setPaperId(paperId);
+            conv.setQuestion(question);
+            conv.setAnswer(answer);
+            save(conv);
+            return conv;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用 ai-service 非流式接口失败", e);
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+        }
+    }
+
+    /**
      * 保存聊天记录。
      */
     @Override

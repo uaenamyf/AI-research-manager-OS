@@ -92,12 +92,11 @@ public class PaperController {
         return ApiResponse.ok();
     }
 
-    /** 删除论文 */
+    /** 删除论文（含向量清理：发 MQ 通知 ai-service 删 paper_chunk） */
     @DeleteMapping("/api/papers/{id}")
     public ApiResponse<Void> deletePaper(@PathVariable Long id) {
         Long userId = currentUserResolver.requireUserId();
-        paperService.requirePaperOwnedBy(id, userId);
-        paperService.removeById(id);
+        paperService.deletePaper(userId, id);
         return ApiResponse.ok();
     }
 }

@@ -20,6 +20,11 @@ public interface ChatService extends IService<Conversation> {
     void forwardStream(Long paperId, Long userId, String question, SseEmitter emitter);
 
     /**
+     * 非流式问答：调用 ai-service 非流式接口，返回完整回答并落库历史。
+     */
+    Conversation ask(Long paperId, Long userId, String question);
+
+    /**
      * 保存聊天记录。
      */
     void saveHistory(Long userId, Long paperId, String question, String answer);

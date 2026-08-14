@@ -2,6 +2,7 @@
 # dev: myf
 """RabbitMQ 消费者：消费 paper.analyze / review.generate 队列，处理异步任务。"""
 
+import asyncio
 import json
 import traceback
 
@@ -18,15 +19,21 @@ class TaskConsumer:
     消费队列：
     - q.paper.analyze   -> PDF 解析 + embedding + paper_agent
     - q.review.generate -> review_agent（Sprint 3.1 实现）
+    - q.paper.cleanup   -> paper.delete 消息清理 PG paper_chunk
     """
+
+    # 队列由 backend 创建（passive=True 只检查不创建），
+    # 若 backend 尚未启动，后台任务持续重试，避免启动顺序导致永久不消费
+    _QUEUE_RETRY_INTERVAL = 10
 
     def __init__(self):
         self._connection: aio_pika.RobustConnection | None = None
         self._channel: aio_pika.RobustChannel | None = None
         self._consuming = False
+        self._retry_task: asyncio.Task | None = None
 
     async def connect(self):
-        """建立 RabbitMQ 连接并开始消费。"""
+        """建立 RabbitMQ 连接，并启动队列就绪重试任务。"""
         logger.info("连接 RabbitMQ...")
 
         self._connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
@@ -35,35 +42,86 @@ class TaskConsumer:
         # 设置 prefetch，避免一次拉太多
         await self._channel.set_qos(prefetch_count=1)
 
-        # 声明队列（与 backend RabbitConfig 参数一致，含 DLQ 配置）
-        # passive=True 表示只检查队列是否存在，不创建（由 backend 负责创建）
-        # 如果 backend 还没启动，队列不存在时消费会失败但不影响 ai-service 启动
-        try:
-            paper_queue = await self._channel.declare_queue(
-                "q.paper.analyze", durable=True, passive=True
-            )
-            review_queue = await self._channel.declare_queue(
-                "q.review.generate", durable=True, passive=True
-            )
-
-            # 开始消费
-            await paper_queue.consume(self._on_paper_message)
-            await review_queue.consume(self._on_review_message)
-            logger.info("MQ 消费者已启动：监听 q.paper.analyze, q.review.generate")
-        except Exception as e:
-            logger.warning(
-                f"队列未就绪（backend 可能未启动），消费暂缓：{e}"
-            )
-
         self._consuming = True
+        # 后台任务：声明队列（backend 创建）并开始消费；未就绪则持续重试
+        self._retry_task = asyncio.create_task(self._ensure_consumers())
+
+    async def _ensure_consumers(self):
+        """循环尝试声明队列并消费，直到成功（backend 就绪）或连接关闭。"""
+        while self._consuming:
+            try:
+                await self._declare_and_consume()
+                return
+            except Exception as e:
+                logger.warning(
+                    f"队列未就绪（backend 可能未启动），"
+                    f"{self._QUEUE_RETRY_INTERVAL}s 后重试：{e}"
+                )
+                await asyncio.sleep(self._QUEUE_RETRY_INTERVAL)
+
+    async def _declare_and_consume(self):
+        """声明队列（与 backend RabbitConfig 参数一致，含 DLQ 配置）。
+
+        passive=True 表示只检查队列是否存在，不创建（由 backend 负责创建）。
+        """
+        paper_queue = await self._channel.declare_queue(
+            "q.paper.analyze", durable=True, passive=True
+        )
+        review_queue = await self._channel.declare_queue(
+            "q.review.generate", durable=True, passive=True
+        )
+        paper_delete_queue = await self._channel.declare_queue(
+            "q.paper.cleanup", durable=True, passive=True
+        )
+
+        # 开始消费
+        await paper_queue.consume(self._on_paper_message)
+        await review_queue.consume(self._on_review_message)
+        await paper_delete_queue.consume(self._on_paper_delete_message)
+        logger.info(
+            "MQ 消费者已启动：监听 q.paper.analyze, q.review.generate, q.paper.cleanup"
+        )
 
     async def disconnect(self):
         """关闭连接。"""
         self._consuming = False
+        if self._retry_task:
+            self._retry_task.cancel()
+            self._retry_task = None
         if self._connection:
             await self._connection.close()
             self._connection = None
             logger.info("MQ 连接已关闭")
+
+    async def _on_paper_delete_message(
+        self, message: aio_pika.abc.AbstractIncomingMessage
+    ):
+        """处理 paper.delete 消息：清理 PG paper_chunk（跨库最终一致）。
+
+        消息体格式（与 backend PaperServiceImpl.deletePaper 对齐）：
+        { "taskId": 123, "type": "PAPER_DELETE", "payload": { "paperId": 1024 } }
+
+        幂等：chunk 不存在时删除无副作用；无需回调 backend（MySQL 记录已删）。
+        """
+        async with message.process(requeue=False):
+            try:
+                msg = json.loads(message.body.decode())
+                paper_id = msg["payload"]["paperId"]
+
+                from app.core.db import get_db_pool
+                from app.rag.vector_store import VectorStore
+
+                pool = await get_db_pool()
+                store = VectorStore(pool)
+                deleted = await store.delete_by_paper(paper_id)
+                logger.info(
+                    f"论文删除清理完成：paper_id={paper_id}, 删除 {deleted} 个 chunk"
+                )
+            except Exception as e:
+                logger.error(
+                    f"清理论文向量失败：{e}\n{traceback.format_exc()}"
+                )
+                # 不 requeue，避免无限重试；chunk 残留可通过重跑清理（幂等）
 
     async def _on_paper_message(self, message: aio_pika.abc.AbstractIncomingMessage):
         """处理 paper.analyze 消息。

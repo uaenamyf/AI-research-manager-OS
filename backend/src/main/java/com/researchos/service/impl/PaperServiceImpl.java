@@ -136,6 +136,26 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     }
 
     /**
+     * 删除论文：校验归属 -> 删除 MySQL 记录 -> 发 paper.delete MQ。
+     *
+     * <p>paper_chunk 在 PG 向量库（跨库无物理外键），删除后通过 MQ
+     * 通知 ai-service 清理对应 chunk，实现跨库最终一致（见 AGENTS.md §6.3）。
+     */
+    @Override
+    @Transactional
+    public void deletePaper(Long userId, Long paperId) {
+        requirePaperOwnedBy(paperId, userId);
+        removeById(paperId);
+        // 发 MQ 让 ai-service 清理 PG paper_chunk（幂等：chunk 不存在也安全）
+        rabbitTemplate.convertAndSend(
+                RabbitConfig.EXCHANGE_AI_TASK,
+                RabbitConfig.ROUTING_PAPER_DELETE,
+                new AiTaskMessage(paperId, "PAPER_DELETE",
+                        Map.of("paperId", paperId)));
+        log.info("已删除论文 paperId={} 并发 paper.delete 消息清理向量", paperId);
+    }
+
+    /**
      * 更新分析结果（ai-service 回调调用）。
      */
     @Override

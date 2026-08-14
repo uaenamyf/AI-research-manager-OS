@@ -107,3 +107,58 @@ async def chat_stream(req: ChatStreamRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.post(
+    "/chat",
+    dependencies=[Depends(verify_internal_token)],
+)
+async def chat_once(req: ChatStreamRequest):
+    """非流式问答（一次性返回完整回答 + 引用）。
+
+    backend ChatService.ask 调用此端点（对应前端 /api/papers/{id}/chat 非流式）。
+    与 /rag/chat/stream 共用检索与 prompt 逻辑，只是用非流式 LLM 补全。
+    """
+    from app.agents.chat_agent import build_context
+    from app.agents.prompts.chat import CHAT_SYSTEM, CHAT_USER
+    from app.core.db import get_db_pool
+    from app.llm.client import LLMOverride, llm_client
+
+    # 解析请求级 LLM 配置覆盖
+    llm_override = None
+    if req.llm_override:
+        llm_override = LLMOverride(
+            provider=req.llm_override.provider,
+            api_key=req.llm_override.api_key,
+            base_url=req.llm_override.base_url,
+            default_model=req.llm_override.default_model,
+            temperature=req.llm_override.temperature,
+        )
+
+    pool = await get_db_pool()
+    vector_store = VectorStore(pool)
+    retriever = Retriever(vector_store)
+
+    # 1. 检索 + 引用
+    chunks = await retriever.retrieve(
+        req.paper_id,
+        req.question,
+        top_k=req.retrieve_top_k or 0,
+        similarity_threshold=req.similarity_threshold,
+    )
+    citation_ids = [c.id for c in chunks]
+
+    # 2. 构造 context + 非流式 LLM 补全
+    context = build_context(chunks)
+    user_prompt = CHAT_USER.format(context=context, question=req.question)
+
+    logger.info(
+        f"Chat 非流式：paper_id={req.paper_id}, citations={citation_ids}"
+    )
+    answer = await llm_client.complete(
+        system=CHAT_SYSTEM,
+        user=user_prompt,
+        override=llm_override,
+    )
+
+    return {"answer": answer, "citations": citation_ids}
