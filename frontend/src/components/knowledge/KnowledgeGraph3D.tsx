@@ -224,9 +224,10 @@ export default function KnowledgeGraph3D({
           import("3d-force-graph"),
           import("three"),
         ]);
+        // 显式传入节点/边泛型，使 accessor 回调（nodeVal/nodeThreeObject 等）参数类型为 ViewNode/ViewLink
         const ForceGraph3D = ForceGraph3DDefault as unknown as (
           config?: unknown,
-        ) => (el: HTMLElement) => ForceGraph3DInstance;
+        ) => (el: HTMLElement) => ForceGraph3DInstance<ViewNode, ViewLink>;
 
         if (cancelled) return;
 

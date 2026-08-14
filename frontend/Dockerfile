@@ -32,7 +32,8 @@ COPY next.config.ts ./
 COPY tailwind.config.ts ./
 COPY postcss.config.js ./
 COPY tsconfig.json ./
-COPY .eslintrc.json ./
+# ESLint 9 flat config（Next.js 16 原生支持）
+COPY eslint.config.mjs ./
 
 # Next.js 构建时需要的环境变量（运行时注入的放 .env 或 compose 中）
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -65,8 +66,8 @@ EXPOSE 3000
 
 ENV PORT=3000
 
-# 健康检查
+# 健康检查（alpine 无 GNU wget，使用 node 内置 fetch）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+    CMD node -e "fetch('http://localhost:3000/').then(r=>{if(!r.ok)process.exit(1);process.exit(0)}).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]
