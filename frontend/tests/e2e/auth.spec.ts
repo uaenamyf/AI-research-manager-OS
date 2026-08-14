@@ -33,7 +33,7 @@ test.describe('认证流程', () => {
     // 填写登录表单
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', testPassword);
-    await page.getByRole('button', { name: /登录|login/i }).click();
+    await page.getByRole('button', { name: /sign in|登录|login/i }).click();
 
     // 登录成功后应该跳转到仪表板
     await expect(page).toHaveURL(/\/dashboard/);
@@ -47,7 +47,7 @@ test.describe('认证流程', () => {
 
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', 'wrong-password');
-    await page.getByRole('button', { name: /登录|login/i }).click();
+    await page.getByRole('button', { name: /sign in|登录|login/i }).click();
 
     // 应该显示错误消息
     await expect(page.getByText(/密码|password|错误|failed/i)).toBeVisible();

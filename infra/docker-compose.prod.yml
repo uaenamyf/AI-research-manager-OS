@@ -1,0 +1,21 @@
+# ============================================================
+# 生产环境覆盖（叠加在 docker-compose.yml 之上）
+# 用法：docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d
+#
+# 作用：把应用服务的本地 build 替换为 CD 推送到 GHCR 的镜像，
+#       服务器上不需要源码即可部署。
+# 注意：!reset 语法要求 Docker Compose v2.17+。
+# ============================================================
+
+services:
+  backend:
+    image: ghcr.io/uaenamyf/ai-research-manager-os/backend:latest
+    build: !reset null
+
+  ai-service:
+    image: ghcr.io/uaenamyf/ai-research-manager-os/ai-service:latest
+    build: !reset null
+
+  frontend:
+    image: ghcr.io/uaenamyf/ai-research-manager-os/frontend:latest
+    build: !reset null
