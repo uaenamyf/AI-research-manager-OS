@@ -14,6 +14,8 @@ dependencies = [
     "asyncpg>=0.29.0",
     "pgvector>=0.3.6",
     "aiomysql>=0.2.0",
+    # MySQL 8 默认 caching_sha2_password 认证需要
+    "cryptography>=42.0.0",
     # Redis
     "redis[hiredis]>=5.0.0",
     # RabbitMQ

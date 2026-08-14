@@ -5,6 +5,21 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class LlmOverride(BaseModel):
+    """请求级 LLM 配置覆盖（用户自定义 API Key / Base URL / 模型）。
+
+    所有字段均可选，None 表示使用系统全局配置。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    provider: str | None = None
+    api_key: str | None = Field(default=None, alias="apiKey")
+    base_url: str | None = Field(default=None, alias="baseUrl")
+    default_model: str | None = Field(default=None, alias="defaultModel")
+    temperature: float | None = None
+
+
 class PaperAnalyzeRequest(BaseModel):
     """POST /paper/analyze 请求体。"""
 
@@ -97,21 +112,6 @@ class KnowledgeSearchResponse(BaseModel):
     """语义搜索结果。"""
 
     results: list[KnowledgeSearchHit] = []
-
-
-class LlmOverride(BaseModel):
-    """请求级 LLM 配置覆盖（用户自定义 API Key / Base URL / 模型）。
-
-    所有字段均可选，None 表示使用系统全局配置。
-    """
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    provider: str | None = None
-    api_key: str | None = Field(default=None, alias="apiKey")
-    base_url: str | None = Field(default=None, alias="baseUrl")
-    default_model: str | None = Field(default=None, alias="defaultModel")
-    temperature: float | None = None
 
 
 class WritingRewriteRequest(BaseModel):
