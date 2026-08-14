@@ -42,31 +42,31 @@ help:
 # 基础设施
 # ────────────────────────────────────────────────────────────
 infra-up:
-	cd infra && docker compose up -d
+	cd infra && docker compose --env-file ../.env up -d
 
 infra-down:
-	cd infra && docker compose down
+	cd infra && docker compose --env-file ../.env down
 
 # ────────────────────────────────────────────────────────────
 # 应用服务
 # ────────────────────────────────────────────────────────────
 up:
-	cd infra && docker compose --profile app up -d
+	cd infra && docker compose --env-file ../.env --profile app up -d
 
 down:
-	cd infra && docker compose --profile app down
+	cd infra && docker compose --env-file ../.env --profile app down
 
 build:
-	cd infra && docker compose --profile app build
+	cd infra && docker compose --env-file ../.env --profile app build
 
 build-backend:
-	cd infra && docker compose build backend
+	cd infra && docker compose --env-file ../.env build backend
 
 build-ai:
-	cd infra && docker compose build ai-service
+	cd infra && docker compose --env-file ../.env build ai-service
 
 build-frontend:
-	cd infra && docker compose build frontend
+	cd infra && docker compose --env-file ../.env build frontend
 
 # ────────────────────────────────────────────────────────────
 # 测试
@@ -86,29 +86,29 @@ test-frontend:
 # 日志
 # ────────────────────────────────────────────────────────────
 logs:
-	cd infra && docker compose logs -f
+	cd infra && docker compose --env-file ../.env logs -f
 
 logs-backend:
-	cd infra && docker compose logs -f backend
+	cd infra && docker compose --env-file ../.env logs -f backend
 
 logs-ai:
-	cd infra && docker compose logs -f ai-service
+	cd infra && docker compose --env-file ../.env logs -f ai-service
 
 logs-frontend:
-	cd infra && docker compose logs -f frontend
+	cd infra && docker compose --env-file ../.env logs -f frontend
 
 logs-infra:
-	cd infra && docker compose logs -f postgres redis rabbitmq
+	cd infra && docker compose --env-file ../.env logs -f postgres redis rabbitmq
 
 # ────────────────────────────────────────────────────────────
 # 清理与重置
 # ────────────────────────────────────────────────────────────
 clean:
-	cd infra && docker compose down --remove-orphans
+	cd infra && docker compose --env-file ../.env down --remove-orphans
 
 reset:
 	@echo "⚠️  警告：这将删除所有数据（数据库、向量、消息队列）"
 	@echo "5 秒后继续，按 Ctrl+C 取消..."
 	@sleep 5
-	cd infra && docker compose down -v --remove-orphans
+	cd infra && docker compose --env-file ../.env down -v --remove-orphans
 	docker system prune -f
