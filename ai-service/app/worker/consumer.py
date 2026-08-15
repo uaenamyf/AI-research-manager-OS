@@ -322,7 +322,7 @@ class TaskConsumer:
         if pdf_url.startswith("http"):
             import httpx
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
                 resp = await client.get(pdf_url, timeout=60.0)
                 if resp.status_code == 200:
                     return resp.content
