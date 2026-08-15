@@ -2,20 +2,27 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# 系统依赖（PyMuPDF 等 manylinux wheel 通常无需额外系统库，保留 apt 以备不时之需）
+# 系统依赖（PyMuPDF + Node.js 22 用于 MCP 文献检索运行时）
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        # PyMuPDF 渲染依赖（如需原生字体/图像支持）
         libglib2.0-0 \
         libgomp1 \
+        curl \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# 先拷贝依赖文件，利用 Docker 缓存层
-COPY pyproject.toml ./
+# Python 依赖
+COPY ai-service/pyproject.toml ./
 RUN pip install --no-cache-dir .
 
-# 拷贝应用代码
-COPY app/ ./app/
+# MCP 文献检索服务（预编译 dist，不需 Node.js 运行环境）
+COPY mcp/ ./mcp/
+
+# 应用代码
+COPY ai-service/app/ ./app/
 
 EXPOSE 8000
 

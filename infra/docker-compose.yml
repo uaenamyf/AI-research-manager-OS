@@ -156,8 +156,8 @@ services:
   ai-service:
     profiles: ["app"]
     build:
-      context: ../ai-service
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: ai-service/Dockerfile
     container_name: researchos-ai-service
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-researchos}:${POSTGRES_PASSWORD:-researchos}@postgres:5432/${POSTGRES_DB:-researchos}

@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # ── 文献检索 MCP（literature-search-mcp 的 dist/server.js 绝对路径）──
     LITERATURE_MCP_SERVER: str = str(
-        _BASE_DIR.parent / "mcp" / "literature-search-mcp" / "dist" / "server.js"
+        _BASE_DIR / "mcp" / "literature-search-mcp" / "dist" / "server.js"
     )
 
     # ── LLM 配置 ──
