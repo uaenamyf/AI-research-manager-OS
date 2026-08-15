@@ -1,18 +1,55 @@
 /** PDF 浏览组件（基于 react-pdf）。 */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import { apiFetchRaw } from "@/lib/api/client";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export function PdfViewer({ pdfUrl }: { pdfUrl: string }) {
+/**
+ * PDF 浏览组件。
+ *
+ * 接收存储 key（非 URL）：通过 API 客户端（带 httpOnly cookie）直接向后端
+ * 拉取 PDF Blob 再渲染，绕开 Next.js rewrite 代理——容器内 localhost:8080
+ * 指向容器自身，服务端代理必然失败（ECONNREFUSED）。
+ */
+export function PdfViewer({ pdfKey }: { pdfKey: string }) {
+  const [docUrl, setDocUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1.0);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    (async () => {
+      try {
+        const res = await apiFetchRaw(`/api/files/${encodeURI(pdfKey)}`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setDocUrl(objectUrl);
+        setError(null);
+      } catch (e) {
+        console.error("PDF fetch error:", e);
+        if (!cancelled) {
+          setError("Failed to load PDF file.");
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [pdfKey]);
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -69,29 +106,36 @@ export function PdfViewer({ pdfUrl }: { pdfUrl: string }) {
 
       {/* PDF 内容 */}
       <div className="flex-1 overflow-auto bg-gray-100 p-4">
-        {loading && (
+        {loading && !error && (
           <div className="text-center py-8">
             <p className="text-sm text-gray-500">Loading PDF...</p>
           </div>
         )}
-        <Document
-          file={pdfUrl}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={(error) => {
-            console.error("PDF load error:", error);
-            setLoading(false);
-          }}
-          loading={null}
-        >
-          <div className="flex justify-center">
-            <Page
-              pageNumber={pageNum}
-              scale={scale}
-              renderTextLayer={true}
-              renderAnnotationLayer={true}
-            />
+        {error && (
+          <div className="text-center py-8">
+            <p className="text-sm text-red-500">{error}</p>
           </div>
-        </Document>
+        )}
+        {docUrl && !error && (
+          <Document
+            file={docUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={(loadError) => {
+              console.error("PDF load error:", loadError);
+              setLoading(false);
+            }}
+            loading={null}
+          >
+            <div className="flex justify-center">
+              <Page
+                pageNumber={pageNum}
+                scale={scale}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </div>
+          </Document>
+        )}
       </div>
     </div>
   );

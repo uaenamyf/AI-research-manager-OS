@@ -129,7 +129,8 @@ services:
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
       AI_SERVICE_URL: http://ai-service:8000
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      STORAGE_TYPE: ${STORAGE_TYPE:-s3}
+      # 默认 local（本地目录开发）；生产显式设 STORAGE_TYPE=s3 并填下方凭据
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-researchos-pdfs}
       STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
       STORAGE_KEY: ${STORAGE_KEY:-}
@@ -197,6 +198,8 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
+      # 服务端 rewrite 代理目标（容器网络内地址；浏览器端仍用 NEXT_PUBLIC_API_URL 直连）
+      BACKEND_INTERNAL_URL: http://backend:8080
     ports:
       - "3000:3000"
     depends_on:

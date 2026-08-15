@@ -321,12 +321,6 @@ export default function ProjectDetailPage() {
 
   const rootPapers = papersByNode["all"] ?? [];
 
-  // PDF 代理 URL
-  const getPdfProxyUrl = (pdfUrl: string) => {
-    if (!pdfUrl) return "";
-    return `/api/files/${encodeURI(pdfUrl)}`;
-  };
-
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col gap-4">
       {/* Header：横排 */}
@@ -464,7 +458,7 @@ export default function ProjectDetailPage() {
               {/* 内容：PDF 预览（详细请打开完整页面） */}
               <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-200">
                 {selectedPaper.pdfUrl ? (
-                  <PdfViewer pdfUrl={getPdfProxyUrl(selectedPaper.pdfUrl)} />
+                  <PdfViewer pdfKey={selectedPaper.pdfUrl} />
                 ) : (
                   <div className="flex h-full items-center justify-center text-gray-400">
                     No PDF available
