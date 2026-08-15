@@ -6,10 +6,16 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { searchLiterature } from "@/lib/api/literature";
+import { importPaper } from "@/lib/api/papers";
+import { listProjects } from "@/lib/api/projects";
 import { Card, Button, Spinner } from "@/components/ui";
-import type { LiteratureResult, LiteratureSearchResponse } from "@/types";
+import type {
+  LiteratureResult,
+  LiteratureSearchResponse,
+  ResearchProject,
+} from "@/types";
 
 const LITERATURE_SOURCES: { id: string; label: string }[] = [
   { id: "pubmed", label: "PubMed" },
@@ -40,11 +46,54 @@ export default function LiteratureSearchPage() {
   const [result, setResult] = useState<LiteratureSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // 导入相关：项目列表 + 选中项目 + 导入状态
+  const [projects, setProjects] = useState<ResearchProject[]>([]);
+  const [targetProjectId, setTargetProjectId] = useState<number | string>("");
+  const [importingKey, setImportingKey] = useState<number | null>(null);
+  const [importMsg, setImportMsg] = useState<{ rank: number; ok: boolean; text: string } | null>(null);
+
+  // 加载项目列表供导入选择
+  useEffect(() => {
+    listProjects(0, 50)
+      .then((page) => setProjects(page.items))
+      .catch((err) => console.error("Failed to load projects for import:", err));
+  }, []);
+
   const toggleSource = (id: string) => {
     setSources((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
   };
+
+  // 2026-08-15 myf: 检索结果一键入库（Phase 1）：DOI/标题 + 可选 PDF 直链 → backend Crossref 补全
+  const handleImport = useCallback(async (item: LiteratureResult) => {
+    if (!targetProjectId) {
+      setImportMsg({ rank: item.rank, ok: false, text: "Select a project first" });
+      return;
+    }
+    setImportingKey(item.rank);
+    setImportMsg(null);
+    try {
+      const paper = await importPaper(Number(targetProjectId), {
+        doi: item.identifiers?.doi,
+        title: item.title,
+        authors: item.authors,
+        year: item.year,
+        pdfUrl: item.pdf_url,
+      });
+      setImportMsg({
+        rank: item.rank,
+        ok: true,
+        text: paper.pdfUrl
+          ? `Imported → analyzing (id=${paper.id})`
+          : `Imported metadata only (id=${paper.id})`,
+      });
+    } catch (err) {
+      setImportMsg({ rank: item.rank, ok: false, text: (err as Error).message });
+    } finally {
+      setImportingKey(null);
+    }
+  }, [targetProjectId]);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -162,6 +211,25 @@ export default function LiteratureSearchPage() {
             </button>
           )}
         </div>
+
+        {/* 一键导入目标项目选择 */}
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+          <span className="text-xs text-gray-500">
+            Import results into project:
+          </span>
+          <select
+            value={targetProjectId}
+            onChange={(e) => setTargetProjectId(e.target.value)}
+            className="h-9 max-w-64 rounded-md border border-gray-300 px-2 text-sm"
+          >
+            <option value="">Select a project...</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </Card>
 
       {searching && (
@@ -199,7 +267,13 @@ export default function LiteratureSearchPage() {
               </Card>
             ) : (
               result.results.map((r) => (
-                <LiteratureResultCard key={r.rank} item={r} />
+                <LiteratureResultCard
+                  key={r.rank}
+                  item={r}
+                  importing={importingKey === r.rank}
+                  importMsg={importMsg?.rank === r.rank ? importMsg : null}
+                  onImport={() => handleImport(r)}
+                />
               ))
             )}
           </div>
@@ -209,7 +283,17 @@ export default function LiteratureSearchPage() {
   );
 }
 
-function LiteratureResultCard({ item }: { item: LiteratureResult }) {
+function LiteratureResultCard({
+  item,
+  importing,
+  importMsg,
+  onImport,
+}: {
+  item: LiteratureResult;
+  importing?: boolean;
+  importMsg?: { rank: number; ok: boolean; text: string } | null;
+  onImport: () => void;
+}) {
   const authors = item.authors?.slice(0, 5).join(", ");
   const moreAuthors = (item.authors?.length ?? 0) > 5;
   return (
@@ -278,6 +362,22 @@ function LiteratureResultCard({ item }: { item: LiteratureResult }) {
             >
               Open
             </a>
+          )}
+          <Button
+            onClick={onImport}
+            disabled={importing}
+            className="h-8 px-3 text-xs"
+          >
+            {importing ? <Spinner /> : "Import"}
+          </Button>
+          {importMsg && (
+            <span
+              className={`text-[10px] leading-tight ${
+                importMsg.ok ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {importMsg.text}
+            </span>
           )}
         </div>
       </div>

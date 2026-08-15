@@ -3,6 +3,7 @@ package com.researchos.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.researchos.common.response.PageResponse;
 import com.researchos.dto.PaperCreateRequest;
+import com.researchos.dto.PaperImportRequest;
 import com.researchos.dto.PaperListItem;
 import com.researchos.dto.PaperUploadResponse;
 import com.researchos.entity.Paper;
@@ -22,6 +23,12 @@ public interface PaperService extends IService<Paper> {
      * 创建论文记录 + 发 MQ 触发 AI 分析。
      */
     PaperUploadResponse createPaper(Long userId, Long projectId, PaperCreateRequest req);
+
+    /**
+     * 文献导入（检索一键入库 / DOI 导入）：Crossref 补全元数据，
+     * 有 PDF 直链则发 MQ 触发分析，否则仅元数据入库。
+     */
+    Paper importPaper(Long userId, Long projectId, PaperImportRequest req);
 
     /**
      * 论文详情，校验归属。

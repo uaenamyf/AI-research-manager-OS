@@ -10,6 +10,7 @@ import com.researchos.common.response.PageResponse;
 import com.researchos.config.RabbitConfig;
 import com.researchos.dto.AiTaskMessage;
 import com.researchos.dto.PaperCreateRequest;
+import com.researchos.dto.PaperImportRequest;
 import com.researchos.dto.PaperListItem;
 import com.researchos.dto.PaperUploadResponse;
 import com.researchos.entity.Paper;
@@ -19,6 +20,8 @@ import com.researchos.service.PaperService;
 import com.researchos.service.ProjectService;
 import com.researchos.service.SubscriptionService;
 import com.researchos.service.UserService;
+import com.researchos.service.support.CrossrefService;
+import com.researchos.service.support.CrossrefService.CrossrefMeta;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -44,6 +47,7 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     private final RabbitTemplate rabbitTemplate;
     private final SubscriptionService subscriptionService;
     private final UserService userService;
+    private final CrossrefService crossrefService;
 
     /**
      * 创建论文记录 + 发 MQ 触发 AI 分析。
@@ -76,6 +80,57 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
                         Map.of("paperId", paper.getId(), "pdfUrl", req.getS3Key())));
 
         return new PaperUploadResponse(paper.getId(), paper.getStatus());
+    }
+
+    // 2026-08-15 myf: 文献一键导入：DOI 存在时经 Crossref 补全权威元数据；
+    // 有 PDF 直链则发 MQ 触发分析，否则仅元数据入库（状态 UPLOADED）
+    @Override
+    @Transactional
+    public Paper importPaper(Long userId, Long projectId, PaperImportRequest req) {
+        // 校验项目归属
+        projectService.requireProjectOwnedBy(projectId, userId);
+        // 校验导入额度
+        User user = userService.requireUser(userId);
+        subscriptionService.checkQuota(userId, user.getPlan());
+
+        // DOI 存在时用 Crossref 补全权威元数据（失败优雅降级到请求参数）
+        CrossrefMeta meta = null;
+        String doi = req.getDoi() == null ? "" : req.getDoi().trim();
+        if (!doi.isBlank()) {
+            meta = crossrefService.resolve(doi).orElse(null);
+        }
+
+        String title = firstNonBlank(meta != null ? meta.title() : null, req.getTitle());
+        if (title == null || title.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+        String authors = firstNonBlank(meta != null ? meta.authors() : null, joinAuthors(req.getAuthors()));
+        Integer year = meta != null && meta.year() != null ? meta.year() : req.getYear();
+        String pdfUrl = req.getPdfUrl() == null ? "" : req.getPdfUrl().trim();
+
+        Paper paper = new Paper();
+        paper.setProjectId(projectId);
+        paper.setUserId(userId);
+        paper.setFolderId(req.getFolderId());
+        paper.setTitle(title.trim());
+        paper.setAuthors(authors);
+        paper.setYear(year);
+        paper.setDoi(doi.isBlank() ? null : doi);
+        paper.setPdfUrl(pdfUrl);
+        // 有 PDF 直链 → PROCESSING 触发分析；纯元数据 → UPLOADED（等后续补 PDF）
+        paper.setStatus(pdfUrl.isBlank() ? "UPLOADED" : "PROCESSING");
+        paper.setCreatedTime(LocalDateTime.now());
+        save(paper);
+
+        if (!pdfUrl.isBlank()) {
+            rabbitTemplate.convertAndSend(
+                    RabbitConfig.EXCHANGE_AI_TASK,
+                    RabbitConfig.ROUTING_PAPER_ANALYZE,
+                    new AiTaskMessage(paper.getId(), "PAPER_ANALYSIS",
+                            Map.of("paperId", paper.getId(), "pdfUrl", pdfUrl)));
+        }
+        log.info("导入论文：paperId={}, title={}, hasPdf={}", paper.getId(), title, !pdfUrl.isBlank());
+        return paper;
     }
 
     /**
@@ -181,5 +236,21 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
         dto.setFolderId(paper.getFolderId());
         dto.setCreatedTime(paper.getCreatedTime());
         return dto;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isBlank()) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private String joinAuthors(java.util.List<String> authors) {
+        if (authors == null || authors.isEmpty()) {
+            return null;
+        }
+        return String.join(", ", authors);
     }
 }

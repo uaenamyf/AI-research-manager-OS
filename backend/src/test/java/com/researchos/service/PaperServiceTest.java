@@ -2,12 +2,15 @@ package com.researchos.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.researchos.dto.PaperCreateRequest;
+import com.researchos.dto.PaperImportRequest;
 import com.researchos.dto.PaperUploadResponse;
 import com.researchos.entity.Paper;
 import com.researchos.entity.ResearchProject;
 import com.researchos.entity.User;
 import com.researchos.mapper.PaperMapper;
 import com.researchos.service.impl.PaperServiceImpl;
+import com.researchos.service.support.CrossrefService;
+import com.researchos.service.support.CrossrefService.CrossrefMeta;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +21,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,6 +49,9 @@ class PaperServiceTest {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private CrossrefService crossrefService;
 
     @Mock
     private PaperMapper paperMapper;
@@ -222,5 +229,108 @@ class PaperServiceTest {
         verify(paperMapper, never()).deleteById(anyLong());
         verify(rabbitTemplate, never())
                 .convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    // 2026-08-15 myf: 文献一键导入测试（Crossref 元数据补全 + PDF 直链触发分析）
+    @Test
+    void testImportPaper_WithDoi_EnrichedAndSendsAnalysis() {
+        when(projectService.requireProjectOwnedBy(TEST_PROJECT_ID, TEST_USER_ID))
+                .thenReturn(testProject);
+        when(userService.requireUser(TEST_USER_ID)).thenReturn(testUser);
+        doNothing().when(subscriptionService).checkQuota(TEST_USER_ID, "FREE");
+        when(crossrefService.resolve("10.1234/example"))
+                .thenReturn(Optional.of(new CrossrefMeta("Enriched Title", "Alice, Bob", 2024, "J. Test")));
+        when(paperMapper.insert(any(Paper.class))).thenAnswer(invocation -> {
+            Paper paper = invocation.getArgument(0);
+            paper.setId(200L);
+            return 1;
+        });
+
+        PaperImportRequest req = new PaperImportRequest();
+        req.setDoi("10.1234/example");
+        req.setPdfUrl("https://example.com/paper.pdf");
+
+        Paper result = paperService.importPaper(TEST_USER_ID, TEST_PROJECT_ID, req);
+
+        assertNotNull(result);
+        assertEquals("Enriched Title", result.getTitle());
+        assertEquals("Alice, Bob", result.getAuthors());
+        assertEquals(2024, result.getYear());
+        assertEquals("PROCESSING", result.getStatus());
+        // 有 PDF 直链 → 发 MQ 触发分析
+        verify(rabbitTemplate, times(1)).convertAndSend(
+                eq(com.researchos.config.RabbitConfig.EXCHANGE_AI_TASK),
+                eq(com.researchos.config.RabbitConfig.ROUTING_PAPER_ANALYZE),
+                any(Object.class));
+    }
+
+    @Test
+    void testImportPaper_WithoutPdf_MetadataOnlyUploaded() {
+        when(projectService.requireProjectOwnedBy(TEST_PROJECT_ID, TEST_USER_ID))
+                .thenReturn(testProject);
+        when(userService.requireUser(TEST_USER_ID)).thenReturn(testUser);
+        doNothing().when(subscriptionService).checkQuota(TEST_USER_ID, "FREE");
+        // 无 DOI → 不查 Crossref
+        when(paperMapper.insert(any(Paper.class))).thenAnswer(invocation -> {
+            Paper paper = invocation.getArgument(0);
+            paper.setId(201L);
+            return 1;
+        });
+
+        PaperImportRequest req = new PaperImportRequest();
+        req.setTitle("Metadata Only Paper");
+        req.setAuthors(java.util.List.of("Alice", "Bob"));
+        req.setYear(2023);
+
+        Paper result = paperService.importPaper(TEST_USER_ID, TEST_PROJECT_ID, req);
+
+        assertNotNull(result);
+        assertEquals("Metadata Only Paper", result.getTitle());
+        assertEquals("Alice, Bob", result.getAuthors());
+        assertEquals(2023, result.getYear());
+        assertEquals("UPLOADED", result.getStatus());
+        // 无 PDF → 不发分析 MQ
+        verify(crossrefService, never()).resolve(anyString());
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    @Test
+    void testImportPaper_CrossrefFallback_UseRequestTitle() {
+        when(projectService.requireProjectOwnedBy(TEST_PROJECT_ID, TEST_USER_ID))
+                .thenReturn(testProject);
+        when(userService.requireUser(TEST_USER_ID)).thenReturn(testUser);
+        doNothing().when(subscriptionService).checkQuota(TEST_USER_ID, "FREE");
+        // Crossref 失败 → empty，回退到请求参数
+        when(crossrefService.resolve("10.1234/missing")).thenReturn(Optional.empty());
+        when(paperMapper.insert(any(Paper.class))).thenAnswer(invocation -> {
+            Paper paper = invocation.getArgument(0);
+            paper.setId(202L);
+            return 1;
+        });
+
+        PaperImportRequest req = new PaperImportRequest();
+        req.setDoi("10.1234/missing");
+        req.setTitle("Fallback Title");
+
+        Paper result = paperService.importPaper(TEST_USER_ID, TEST_PROJECT_ID, req);
+
+        assertNotNull(result);
+        assertEquals("Fallback Title", result.getTitle());
+        assertEquals("UPLOADED", result.getStatus());
+    }
+
+    @Test
+    void testImportPaper_NoTitle_ShouldThrow() {
+        when(projectService.requireProjectOwnedBy(TEST_PROJECT_ID, TEST_USER_ID))
+                .thenReturn(testProject);
+        when(userService.requireUser(TEST_USER_ID)).thenReturn(testUser);
+        doNothing().when(subscriptionService).checkQuota(TEST_USER_ID, "FREE");
+
+        PaperImportRequest req = new PaperImportRequest();
+        // 无 DOI、无标题 → BAD_REQUEST
+        assertThrows(RuntimeException.class, () ->
+                paperService.importPaper(TEST_USER_ID, TEST_PROJECT_ID, req)
+        );
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 }

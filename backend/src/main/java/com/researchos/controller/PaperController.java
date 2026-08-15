@@ -47,6 +47,17 @@ public class PaperController {
         return ApiResponse.ok(paperService.createPaper(userId, projectId, req));
     }
 
+    // 2026-08-15 myf: 文献一键导入（检索入库/DOI 导入）：Crossref 补全元数据，
+    // 有 PDF 直链触发 AI 分析，否则仅元数据入库（状态 UPLOADED）
+    /** 文献导入：DOI/标题 + 可选 PDF 直链入库 */
+    @PostMapping("/api/projects/{projectId}/papers/import")
+    public ApiResponse<Paper> importPaper(
+            @PathVariable Long projectId,
+            @Valid @RequestBody PaperImportRequest req) {
+        Long userId = currentUserResolver.requireUserId();
+        return ApiResponse.ok(paperService.importPaper(userId, projectId, req));
+    }
+
     /** 论文详情 */
     @GetMapping("/api/papers/{id}")
     public ApiResponse<Paper> getPaper(@PathVariable Long id) {

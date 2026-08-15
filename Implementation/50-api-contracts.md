@@ -23,9 +23,28 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/api/projects/{id}/papers` | 上传 PDF（multipart），返回 paperId |
+| POST | `/api/projects/{id}/papers/import` | 文献一键导入（DOI/标题 + 可选 PDF 直链），Crossref 补全元数据 |
 | GET | `/api/papers/{id}` | 详情（含 Paper Card） |
 | GET | `/api/projects/{id}/papers` | 项目下论文列表 |
 | GET | `/api/papers/{id}/status` | 轮询分析状态（或 SSE） |
+
+`POST /api/projects/{id}/papers/import` 请求体：
+
+```json
+{
+  "doi": "10.1038/s41586-023-06136-6",
+  "title": "回退标题（Crossref 不可用时）",
+  "authors": ["Alice", "Bob"],
+  "year": 2023,
+  "pdfUrl": "https://.../paper.pdf",
+  "folderId": null
+}
+```
+
+- `doi` 存在时：经 Crossref 拉取权威 title/authors/year，覆盖请求参数。
+- `pdfUrl` 有值：入库即发 `paper.analyze` MQ 触发 AI 分析（状态 `PROCESSING`）。
+- `pdfUrl` 为空：仅元数据入库，状态 `UPLOADED`（等后续补 PDF）。
+- 响应：`Paper` 实体（含新生成的 `id`）。
 
 ### Chat
 

@@ -1,4 +1,4 @@
-﻿/** Paper 相关 API（F3/F4）。 */
+/** Paper 相关 API（F3/F4）。 */
 import { apiFetch, apiFetchRaw } from "./client";
 import type {
   ID,
@@ -66,6 +66,25 @@ export function uploadToStorage(
 
 /** 兼容：旧方法名 */
 export const uploadToS3 = uploadToStorage;
+
+// 2026-08-15 myf: 文献一键导入（检索入库/DOI 导入）——Crossref 元数据补全 + 可选 PDF 直链触发分析
+/** 文献一键导入：从检索结果/DOI 建论文记录（Phase 1） */
+export function importPaper(
+  projectId: ID,
+  payload: {
+    doi?: string;
+    title?: string;
+    authors?: string[];
+    year?: number;
+    pdfUrl?: string;
+    folderId?: ID | null;
+  },
+): Promise<Paper> {
+  return apiFetch<Paper>(`/api/projects/${projectId}/papers/import`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
 
 /**
  * 步骤 3：通知 backend 文件已上传，创建 paper 记录并触发 AI 分析。
