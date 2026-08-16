@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { listProjects } from "@/lib/api/projects";
-import { listPapers, getPaper, updateReadingStatus } from "@/lib/api/papers";
+import { listPapers, getPaper, movePaper, updateReadingStatus } from "@/lib/api/papers";
 import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
 import { PaperCard } from "@/components/paper/PaperCard";
@@ -40,8 +40,10 @@ function LibraryContent() {
   const [selectedFolderId, setSelectedFolderId] = useState<ID | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [moveFolderId, setMoveFolderId] = useState<string>("");
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const folderInputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,11 +101,15 @@ function LibraryContent() {
     getFolderTree(selectedProject).then(setFolders);
   };
 
-  const handleStar = async (paperId: number, star: number | null) => {
-    await updateReadingStatus(paperId, { starRating: star });
-    setPapers((prev) =>
-      prev.map((p) => (p.id === paperId ? { ...p, starRating: star } : p)),
-    );
+  const handleMoveSelected = async () => {
+    if (!moveFolderId) return;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      await movePaper(id, moveFolderId === "root" ? null : Number(moveFolderId));
+    }
+    setSelectedIds(new Set());
+    setMoveFolderId("");
+    loadPapers(selectedProject!, selectedFolderId);
   };
 
   const handleStatus = async (paperId: number, status: string) => {
@@ -115,11 +121,15 @@ function LibraryContent() {
     );
   };
 
-  const filteredPapers = searchQuery
+  const filteredPapers = (searchQuery
     ? papers.filter((p) =>
         p.title.toLowerCase().includes(searchQuery.toLowerCase()),
       )
-    : papers;
+    : papers
+  ).filter((p) => {
+    if (statusFilter === "all") return true;
+    return (p.readingStatus || "unread") === statusFilter;
+  });
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -161,7 +171,30 @@ function LibraryContent() {
           className="h-9 w-full rounded border border-gray-300 px-3 text-sm"
         />
 
+        <div className="flex items-center gap-1 text-sm">
+          <span className="text-xs text-gray-400 mr-1">Status:</span>
+          {[
+            { value: "all", label: "All" },
+            { value: "unread", label: "Unread" },
+            { value: "reading", label: "Reading" },
+            { value: "done", label: "Done" },
+          ].map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-2 py-1 rounded ${
+                statusFilter === f.value
+                  ? "bg-gray-900 text-white"
+                  : "text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
+          <span className="text-xs text-gray-400">Folder:</span>
           <button
             onClick={() => handleFolderClick(null)}
             className={`px-2 py-1 rounded ${
@@ -232,35 +265,7 @@ function LibraryContent() {
                   className="shrink-0"
                 />
                 <span className="truncate flex-1">{paper.title}</span>
-                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100">
-                  <select
-                    value={paper.readingStatus || "unread"}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleStatus(paper.id, e.target.value);
-                    }}
-                    className="text-[10px] border rounded px-0.5 py-0.5 bg-white"
-                  >
-                    <option value="unread">Unread</option>
-                    <option value="reading">Reading</option>
-                    <option value="done">Done</option>
-                  </select>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <button
-                      key={s}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStar(paper.id, (paper.starRating ?? 0) >= s ? null : s);
-                      }}
-                      className={`text-xs ${
-                        (paper.starRating ?? 0) >= s ? "text-yellow-400" : "text-gray-300"
-                      }`}
-                    >
-                      ★
-                    </button>
-                  ))}
                 </div>
-              </div>
             ))
           )}
         </div>
@@ -268,6 +273,24 @@ function LibraryContent() {
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-2 text-xs border-t border-gray-200 pt-2">
             <span className="text-gray-500">{selectedIds.size} selected</span>
+            <select
+              value={moveFolderId}
+              onChange={(e) => setMoveFolderId(e.target.value)}
+              className="text-xs border rounded px-1 py-0.5"
+            >
+              <option value="">Move to...</option>
+              <option value="root">Root</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            {moveFolderId && (
+              <button onClick={handleMoveSelected} className="text-blue-600 hover:underline">
+                Go
+              </button>
+            )}
             <button
               onClick={() => {
                 exportBibtexBatch(Array.from(selectedIds)).then((r) =>
@@ -325,23 +348,7 @@ function LibraryContent() {
                   <option value="reading">Reading</option>
                   <option value="done">Done</option>
                 </select>
-                <div className="flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        const v = (selectedPaper.starRating ?? 0) >= s ? null : s;
-                        handleStar(selectedPaper.id, v);
-                        setSelectedPaper((p) => (p ? { ...p, starRating: v } : null));
-                      }}
-                      className={`text-lg ${
-                        (selectedPaper.starRating ?? 0) >= s ? "text-yellow-400" : "text-gray-300"
-                      }`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
+
               </div>
             </div>
 
