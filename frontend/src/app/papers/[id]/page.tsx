@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { getPaper, updateReadingStatus } from "@/lib/api/papers";
@@ -20,6 +20,7 @@ import type { Paper } from "@/types";
 
 export default function PaperWorkspacePage() {
   const params = useParams();
+  const router = useRouter();
   const paperId = Number(params.id);
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,8 +62,8 @@ export default function PaperWorkspacePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link
-            href={`/projects/${paper.projectId}`}
+          <button
+            onClick={() => router.back()}
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-md px-2 py-1 -ml-2"
           >
             <svg
@@ -76,8 +77,8 @@ export default function PaperWorkspacePage() {
             >
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-            <span className="whitespace-nowrap">Back to project</span>
-          </Link>
+            <span className="whitespace-nowrap">Back</span>
+          </button>
           <span className="text-gray-300">|</span>
           <div>
             <h1 className="text-xl font-bold text-gray-900">
