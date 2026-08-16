@@ -175,7 +175,7 @@ function LibraryContent() {
   return (
     <div className="flex h-[calc(100vh-3rem)] gap-4">
       {/* 左侧：项目 + 文件夹 + 论文列表 */}
-      <div className="w-80 flex-shrink-0 flex flex-col gap-3">
+      <div className="w-80 flex-shrink-0 flex flex-col gap-3 h-full">
         <div className="flex items-center gap-2">
           <select
             value={selectedProject ?? ""}
@@ -289,7 +289,7 @@ function LibraryContent() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto space-y-0.5">
+        <div className="flex-1 overflow-y-auto space-y-0.5 min-h-0">
           {filteredPapers.length === 0 ? (
             <p className="text-sm text-gray-400 pt-4 text-center">No papers</p>
           ) : (
@@ -313,61 +313,66 @@ function LibraryContent() {
                   className="shrink-0"
                 />
                 <span className="truncate flex-1">{paper.title}</span>
-                </div>
+              </div>
             ))
           )}
         </div>
-
         {selectedIds.size > 0 && (
-          <div className="flex items-center gap-2 text-xs border-t border-gray-200 pt-2">
-            <span className="text-gray-500">{selectedIds.size} selected</span>
-            <select
-              value={moveFolderId}
-              onChange={(e) => setMoveFolderId(e.target.value)}
-              className="text-xs border rounded px-1 py-0.5"
-            >
-              <option value="">Move to...</option>
-              <option value="root">Root</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            {moveFolderId && (
-              <button onClick={handleMoveSelected} className="text-blue-600 hover:underline">
-                Go
+          <div className="flex items-center gap-2 text-xs border-t border-gray-200 pt-2 pb-1 shrink-0 flex-wrap">
+              <span className="text-gray-500">{selectedIds.size} selected</span>
+              <select
+                value={moveFolderId}
+                onChange={(e) => setMoveFolderId(e.target.value)}
+                className="text-xs border rounded px-1 py-0.5"
+              >
+                <option value="">Move to...</option>
+                <option value="root">Root</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+              {moveFolderId && (
+                <button onClick={handleMoveSelected} className="text-blue-600 hover:underline">
+                  Go
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  exportBibtexBatch(Array.from(selectedIds)).then((r) =>
+                    navigator.clipboard.writeText(r.bibtex),
+                  );
+                }}
+                className="text-blue-600 hover:underline"
+              >
+                Copy BibTeX
               </button>
-            )}
-            <button
-              onClick={() => {
-                exportBibtexBatch(Array.from(selectedIds)).then((r) =>
-                  navigator.clipboard.writeText(r.bibtex),
-                );
-              }}
-              className="text-blue-600 hover:underline"
-            >
-              Copy BibTeX
-            </button>
-            <button
-              onClick={() => {
-                exportRisBatch(Array.from(selectedIds)).then((r) =>
-                  navigator.clipboard.writeText(r.ris),
-                );
-              }}
-              className="text-blue-600 hover:underline"
-            >
-              Copy RIS
-            </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="text-gray-400 hover:underline"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-      </div>
+              <button
+                onClick={() => {
+                  exportRisBatch(Array.from(selectedIds)).then((r) =>
+                    navigator.clipboard.writeText(r.ris),
+                  );
+                }}
+                className="text-blue-600 hover:underline"
+              >
+                Copy RIS
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-gray-400 hover:underline"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setReviewMode(true)}
+                className="text-blue-600 hover:underline"
+              >
+                Generate Review
+              </button>
+            </div>
+          )}
+        </div>
 
       {/* 右侧：PDF 预览 + 信息 + Review 生成 */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
