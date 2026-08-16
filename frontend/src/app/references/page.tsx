@@ -24,7 +24,7 @@ const WRITING_ACTIONS: { value: WritingAction; label: string; needsInstruction?:
   { value: "cover_letter", label: "Cover Letter" },
 ];
 
-export default function ExportPage() {
+export default function WritingPage() {
   const [projects, setProjects] = useState<ResearchProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<ID | null>(null);
   const [papers, setPapers] = useState<PaperListItem[]>([]);
@@ -65,7 +65,7 @@ export default function ExportPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Export & References</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Writing Assistant</h1>
 
 <WritingAssistantTab />
     </div>
