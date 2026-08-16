@@ -101,9 +101,9 @@
 ## 6. 里程碑跟踪
 
 - [x] 2026-08-15 修复：paper.delete 向量清理、Chat 非流式、compose env、PDF Blob 加载
-- [ ] Phase 1 文献导入闭环（进行中）
-- [ ] Phase 2 写作引用与参考文献
-- [ ] Phase 3 批注/高亮/笔记
-- [ ] Phase 4 BibTeX/RIS
-- [ ] Phase 5 阅读与管理增强
-- [ ] Phase 6 平台能力
+- [x] Phase 1 文献导入闭环（Crossref 元数据补全 + 一键入库）
+- [x] Phase 2 写作引用与参考文献（APA/MLA/GB-T 7714 + 段落级推荐）
+- [x] Phase 3 批注/高亮/笔记（annotation CRUD API + 前端交互）
+- [x] Phase 4 BibTeX/RIS 导出（LaTeX/Overleaf/Zotero 互操作）
+- [x] Phase 5 阅读与管理增强（状态机/星级/全文搜索）
+- [x] Phase 6 平台能力（BibTeX/RIS 导出 + 搜索增强）
