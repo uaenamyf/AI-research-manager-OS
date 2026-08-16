@@ -103,6 +103,25 @@ public class PaperController {
         return ApiResponse.ok();
     }
 
+    // 2026-08-15 myf: Phase 5 阅读状态更新
+    /** 更新阅读状态和星级 */
+    @PutMapping("/api/papers/{paperId}/reading")
+    public ApiResponse<Void> updateReading(
+            @PathVariable Long paperId,
+            @RequestBody Map<String, Object> body) {
+        Long userId = currentUserResolver.requireUserId();
+        Paper paper = paperService.requirePaperOwnedBy(paperId, userId);
+        if (body.containsKey("readingStatus")) {
+            paper.setReadingStatus((String) body.get("readingStatus"));
+        }
+        if (body.containsKey("starRating")) {
+            Object star = body.get("starRating");
+            paper.setStarRating(star != null ? ((Number) star).intValue() : null);
+        }
+        paperService.updateById(paper);
+        return ApiResponse.ok();
+    }
+
     /** 删除论文（含向量清理：发 MQ 通知 ai-service 删 paper_chunk） */
     @DeleteMapping("/api/papers/{id}")
     public ApiResponse<Void> deletePaper(@PathVariable Long id) {

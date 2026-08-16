@@ -203,3 +203,25 @@ export interface RecommendResult {
   score: number;
   stance: "supporting" | "contrasting" | "related";
 }
+
+// 2026-08-15 myf: Phase 5 阅读状态更新
+/** 更新阅读状态和星级 */
+export function updateReadingStatus(
+  paperId: ID,
+  body: { readingStatus?: string; starRating?: number | null },
+): Promise<void> {
+  return apiFetch<void>(`/api/papers/${paperId}/reading`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+/** 全文搜索 */
+export function searchPapers(
+  projectId: ID,
+  q: string,
+): Promise<{ results: PaperListItem[]; count: number }> {
+  return apiFetch<{ results: PaperListItem[]; count: number }>(
+    `/api/projects/${projectId}/papers/search?q=${encodeURIComponent(q)}`,
+  );
+}

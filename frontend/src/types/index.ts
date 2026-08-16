@@ -1,4 +1,4 @@
-﻿/** 后端 API 契约的 TypeScript 类型定义，与后端 DTO 对齐。 */
+/** 后端 API 契约的 TypeScript 类型定义，与后端 DTO 对齐。 */
 // ===== 统一响应 =====
 export interface ApiResponse<T> {
   code: number;
@@ -101,6 +101,8 @@ export interface PaperListItem {
   year: number;
   status: PaperStatus;
   folderId: ID | null;
+  readingStatus?: "unread" | "reading" | "done";
+  starRating?: number | null;
   createdTime: string;
 }
 

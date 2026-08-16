@@ -18,5 +18,7 @@ public class PaperListItem {
     private Integer year;
     private String status;
     private Long folderId;
+    private String readingStatus;
+    private Integer starRating;
     private LocalDateTime createdTime;
 }

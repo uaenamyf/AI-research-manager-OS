@@ -31,6 +31,8 @@ public class Paper {
     private String doi;
     private String pdfUrl;
     private String status;
+    private String readingStatus;
+    private Integer starRating;
     private LocalDateTime createdTime;
 
     /** Paper Intelligence Card，存 JSONB */

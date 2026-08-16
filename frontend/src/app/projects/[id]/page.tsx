@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { getProject } from "@/lib/api/projects";
-import { getPaper, listPapers, movePaper, deletePaper } from "@/lib/api/papers";
+import { getPaper, listPapers, movePaper, deletePaper, searchPapers, updateReadingStatus } from "@/lib/api/papers";
 import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { PaperUploader } from "@/components/paper/PaperUploader";
 import { Card } from "@/components/ui";
@@ -32,6 +32,8 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<ResearchProject | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [papersByNode, setPapersByNode] = useState<Record<string, PaperListItem[]>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<PaperListItem[] | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedFolderId, setSelectedFolderId] = useState<ID | null>(null); // null = 根目录（上传目标）
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
@@ -278,6 +280,21 @@ export default function ProjectDetailPage() {
             <span className="w-4" />
             <span>📄</span>
             <span className="truncate flex-1">{paper.title}</span>
+            {/* Phase 5: 阅读状态 */}
+            <select
+              value={paper.readingStatus || "unread"}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation();
+                updateReadingStatus(paper.id, { readingStatus: e.target.value });
+                paper.readingStatus = e.target.value as "unread" | "reading" | "done";
+              }}
+              className="text-[10px] border rounded px-1 py-0.5 opacity-0 group-hover:opacity-100"
+            >
+              <option value="unread">📖</option>
+              <option value="reading">📘</option>
+              <option value="done">✅</option>
+            </select>
             {/* 删除按钮：hover 行时显示，stopPropagation 避免触发论文选中/拖拽 */}
             <button
               type="button"
@@ -351,6 +368,24 @@ export default function ProjectDetailPage() {
               New Folder
             </button>
           </div>
+
+          {/* Phase 5: 全文搜索 */}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value.trim()) {
+                searchPapers(projectId, e.target.value.trim()).then((r) =>
+                  setSearchResults(r.results),
+                );
+              } else {
+                setSearchResults(null);
+              }
+            }}
+            placeholder="Search papers..."
+            className="mb-2 w-full px-2 py-1 text-sm border rounded"
+          />
 
           {/* 上传：按钮 + 进度条（独立一行，上传/解析进度可见） */}
           <PaperUploader

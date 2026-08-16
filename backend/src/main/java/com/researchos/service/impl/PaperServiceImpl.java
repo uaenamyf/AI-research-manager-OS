@@ -253,6 +253,8 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
         dto.setYear(paper.getYear());
         dto.setStatus(paper.getStatus());
         dto.setFolderId(paper.getFolderId());
+        dto.setReadingStatus(paper.getReadingStatus());
+        dto.setStarRating(paper.getStarRating());
         dto.setCreatedTime(paper.getCreatedTime());
         return dto;
     }
