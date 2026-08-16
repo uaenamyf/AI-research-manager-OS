@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { listProjects } from "@/lib/api/projects";
 import { listPapers, getPaper, updateReadingStatus } from "@/lib/api/papers";
-import { getFolderTree } from "@/lib/api/folders";
+import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
 import { PaperCard } from "@/components/paper/PaperCard";
 import { PaperUploader } from "@/components/paper/PaperUploader";
@@ -40,6 +40,8 @@ function LibraryContent() {
   const [selectedFolderId, setSelectedFolderId] = useState<ID | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
 
   useEffect(() => {
     listProjects(0, 50).then((p) => {
@@ -75,6 +77,14 @@ function LibraryContent() {
 
   const handleUploaded = () => {
     if (selectedProject) loadPapers(selectedProject, selectedFolderId);
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || !selectedProject) return;
+    await createFolder(selectedProject, selectedFolderId ?? undefined, newFolderName.trim());
+    setNewFolderName("");
+    setShowNewFolder(false);
+    getFolderTree(selectedProject).then(setFolders);
   };
 
   const handleStar = async (paperId: number, star: number | null) => {
@@ -139,7 +149,7 @@ function LibraryContent() {
           className="h-9 w-full rounded border border-gray-300 px-3 text-sm"
         />
 
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
           <button
             onClick={() => handleFolderClick(null)}
             className={`px-2 py-1 rounded ${
@@ -159,7 +169,32 @@ function LibraryContent() {
               {f.name}
             </button>
           ))}
+          <button
+            onClick={() => setShowNewFolder(!showNewFolder)}
+            className="text-gray-400 hover:text-gray-600 px-1 text-lg leading-none"
+            title="New folder"
+          >
+            +
+          </button>
         </div>
+        {showNewFolder && (
+          <div className="flex gap-1">
+            <input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+              placeholder="Folder name"
+              className="flex-1 px-2 py-1 text-sm border rounded"
+              autoFocus
+            />
+            <button
+              onClick={handleCreateFolder}
+              className="px-2 py-1 text-sm bg-gray-900 text-white rounded"
+            >
+              Add
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto space-y-0.5">
           {filteredPapers.length === 0 ? (
