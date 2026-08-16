@@ -99,9 +99,9 @@ export default function PaperWorkspacePage() {
           }}
           className="text-xs border rounded px-1 py-0.5"
         >
-          <option value="unread">📖 Unread</option>
-          <option value="reading">📘 Reading</option>
-          <option value="done">✅ Done</option>
+          <option value="unread">Unread</option>
+          <option value="reading">Reading</option>
+          <option value="done">Done</option>
         </select>
         <div className="flex gap-0.5">
           {[1, 2, 3, 4, 5].map((s) => (

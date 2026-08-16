@@ -241,9 +241,9 @@ function LibraryContent() {
                     }}
                     className="text-[10px] border rounded px-0.5 py-0.5 bg-white"
                   >
-                    <option value="unread">📖</option>
-                    <option value="reading">📘</option>
-                    <option value="done">✅</option>
+                    <option value="unread">Unread</option>
+                    <option value="reading">Reading</option>
+                    <option value="done">Done</option>
                   </select>
                   {[1, 2, 3, 4, 5].map((s) => (
                     <button
@@ -321,9 +321,9 @@ function LibraryContent() {
                   }}
                   className="text-xs border rounded px-1 py-0.5"
                 >
-                  <option value="unread">📖 Unread</option>
-                  <option value="reading">📘 Reading</option>
-                  <option value="done">✅ Done</option>
+                  <option value="unread">Unread</option>
+                  <option value="reading">Reading</option>
+                  <option value="done">Done</option>
                 </select>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) => (
