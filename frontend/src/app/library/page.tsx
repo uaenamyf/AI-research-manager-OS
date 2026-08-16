@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { listProjects } from "@/lib/api/projects";
 import { listPapers, getPaper, updateReadingStatus } from "@/lib/api/papers";
@@ -42,6 +42,18 @@ function LibraryContent() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const folderInputRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showNewFolder) return;
+    const handleClick = (e: MouseEvent) => {
+      if (folderInputRef.current && !folderInputRef.current.contains(e.target as Node)) {
+        setShowNewFolder(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showNewFolder]);
 
   useEffect(() => {
     listProjects(0, 50).then((p) => {
@@ -178,7 +190,7 @@ function LibraryContent() {
           </button>
         </div>
         {showNewFolder && (
-          <div className="flex gap-1">
+          <div ref={folderInputRef} className="flex gap-1">
             <input
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
