@@ -1,70 +1,105 @@
 /**
- * Library 页面：全局文献库（跨项目）。
- *
- * 功能：
- * - 查看所有论文（跨项目）
- * - 搜索/筛选
- * - 阅读状态/星级操作
- * - 批量导出
+ * Library 主工作区：合并 project 功能，简洁美观。
  */
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { listProjects } from "@/lib/api/projects";
-import { listPapers, searchPapers, updateReadingStatus } from "@/lib/api/papers";
+import { listPapers, getPaper, updateReadingStatus } from "@/lib/api/papers";
+import { getFolderTree } from "@/lib/api/folders";
 import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
-import type { PaperListItem, ResearchProject, ID } from "@/types";
-import { Card, Button, Spinner } from "@/components/ui";
+import { PaperCard } from "@/components/paper/PaperCard";
+import { PaperUploader } from "@/components/paper/PaperUploader";
+import { PaperStatusBadge } from "@/components/paper/PaperStatusBadge";
+import { Card } from "@/components/ui";
+import dynamic from "next/dynamic";
+import type { Paper, PaperListItem, ResearchProject, Folder, ID } from "@/types";
+
+const PdfViewer = dynamic(
+  () => import("@/components/paper/PdfViewer").then((m) => m.PdfViewer),
+  { ssr: false },
+);
 
 export default function LibraryPage() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center text-gray-400">Loading...</div>}>
+      <LibraryContent />
+    </Suspense>
+  );
+}
+
+function LibraryContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<ResearchProject[]>([]);
-  const [allPapers, setAllPapers] = useState<PaperListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<ID | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [papers, setPapers] = useState<PaperListItem[]>([]);
+  const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<ID | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterProject, setFilterProject] = useState<ID | "all">("all");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    Promise.all([
-      listProjects(0, 50),
-      ...Array.from({ length: 10 }, (_, i) => listPapers(0, -1, i, 100).catch(() => null)),
-    ]).then(([proj, ...paperPages]) => {
-      setProjects(proj.items);
-      const all = paperPages
-        .filter((p): p is NonNullable<typeof p> => p !== null)
-        .flatMap((p) => p.items);
-      setAllPapers(all);
-      setLoading(false);
+    listProjects(0, 50).then((p) => {
+      setProjects(p.items);
+      const paramId = searchParams.get("projectId");
+      setSelectedProject(paramId ? Number(paramId) : p.items[0]?.id ?? null);
     });
-  }, []);
+  }, [searchParams]);
 
-  // Actually fetch papers per project
   useEffect(() => {
-    if (projects.length === 0) return;
-    setLoading(true);
-    Promise.all(
-      projects.map((p) => listPapers(p.id, -1, 0, 200).catch(() => null)),
-    ).then((results) => {
-      const all = results
-        .filter((r): r is NonNullable<typeof r> => r !== null)
-        .flatMap((r) => r.items);
-      setAllPapers(all);
-      setLoading(false);
-    });
-  }, [projects]);
+    if (!selectedProject) return;
+    getFolderTree(selectedProject).then(setFolders);
+    loadPapers(selectedProject, null);
+    setSelectedPaper(null);
+    setSelectedFolderId(null);
+  }, [selectedProject]);
 
-  const filtered = allPapers.filter((p) => {
-    if (filterProject !== "all" && p.folderId !== null && projects.find((pr) => pr.id === filterProject)) {
-      // simple filter by project - we don't have projectId on PaperListItem, skip
-    }
-    if (filterStatus !== "all" && (p.readingStatus || "unread") !== filterStatus) return false;
-    if (searchQuery && !p.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  const loadPapers = (projectId: ID, folderId: ID | null) => {
+    listPapers(projectId, folderId ?? undefined, 0, 200).then((p) =>
+      setPapers(p.items),
+    );
+  };
 
-  const togglePaper = (id: number) => {
+  const handleFolderClick = (folderId: ID | null) => {
+    setSelectedFolderId(folderId);
+    if (selectedProject) loadPapers(selectedProject, folderId);
+  };
+
+  const handlePaperClick = async (paperId: number) => {
+    const paper = await getPaper(paperId);
+    setSelectedPaper(paper);
+  };
+
+  const handleUploaded = () => {
+    if (selectedProject) loadPapers(selectedProject, selectedFolderId);
+  };
+
+  const handleStar = async (paperId: number, star: number | null) => {
+    await updateReadingStatus(paperId, { starRating: star });
+    setPapers((prev) =>
+      prev.map((p) => (p.id === paperId ? { ...p, starRating: star } : p)),
+    );
+  };
+
+  const handleStatus = async (paperId: number, status: string) => {
+    await updateReadingStatus(paperId, { readingStatus: status });
+    setPapers((prev) =>
+      prev.map((p) =>
+        p.id === paperId ? { ...p, readingStatus: status as any } : p,
+      ),
+    );
+  };
+
+  const filteredPapers = searchQuery
+    ? papers.filter((p) =>
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : papers;
+
+  const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -73,185 +108,217 @@ export default function LibraryPage() {
     });
   };
 
-  const handleStatusChange = async (id: number, status: string) => {
-    await updateReadingStatus(id, { readingStatus: status });
-    setAllPapers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, readingStatus: status as any } : p)),
-    );
-  };
-
-  const handleStarChange = async (id: number, star: number | null) => {
-    await updateReadingStatus(id, { starRating: star });
-    setAllPapers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, starRating: star } : p)),
-    );
-  };
-
-  const [exportText, setExportText] = useState<string | null>(null);
-
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Library</h1>
-
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search papers..."
-            className="h-10 flex-1 min-w-[200px] rounded-md border border-gray-300 px-3 text-sm"
-          />
+    <div className="flex h-[calc(100vh-3rem)] gap-4">
+      {/* 左侧：项目 + 文件夹 + 论文列表 */}
+      <div className="w-80 flex-shrink-0 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
           <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="h-10 rounded-md border border-gray-300 px-3 text-sm"
+            value={selectedProject ?? ""}
+            onChange={(e) => setSelectedProject(Number(e.target.value))}
+            className="h-9 flex-1 rounded border border-gray-300 px-2 text-sm bg-white"
           >
-            <option value="all">All Status</option>
-            <option value="unread">📖 Unread</option>
-            <option value="reading">📘 Reading</option>
-            <option value="done">✅ Done</option>
-          </select>
-          <select
-            value={typeof filterProject === "number" ? filterProject : "all"}
-            onChange={(e) => setFilterProject(e.target.value === "all" ? "all" : Number(e.target.value))}
-            className="h-10 rounded-md border border-gray-300 px-3 text-sm"
-          >
-            <option value="all">All Projects</option>
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
+          <PaperUploader
+            compact
+            projectId={selectedProject ?? 0}
+            folderId={selectedFolderId}
+            onUploaded={handleUploaded}
+          />
         </div>
-      </Card>
 
-      {loading ? (
-        <Card className="flex items-center gap-2 p-4 text-sm text-blue-600">
-          <Spinner /> Loading papers...
-        </Card>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              {filtered.length} papers
-              {selectedIds.size > 0 && ` (${selectedIds.size} selected)`}
-            </p>
-            <div className="flex gap-2">
-              {selectedIds.size > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      const res = await exportBibtexBatch(Array.from(selectedIds));
-                      setExportText(res.bibtex);
-                      await navigator.clipboard.writeText(res.bibtex);
-                    }}
-                  >
-                    Copy BibTeX ({selectedIds.size})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      const res = await exportRisBatch(Array.from(selectedIds));
-                      setExportText(res.ris);
-                      await navigator.clipboard.writeText(res.ris);
-                    }}
-                  >
-                    Copy RIS ({selectedIds.size})
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setSelectedIds(new Set(filtered.map((p) => p.id)))
-                }
-              >
-                Select All
-              </Button>
-            </div>
-          </div>
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search papers..."
+          className="h-9 w-full rounded border border-gray-300 px-3 text-sm"
+        />
 
-          {filtered.length === 0 ? (
-            <Card className="p-6 text-center text-sm text-gray-500">
-              No papers found.
-            </Card>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <button
+            onClick={() => handleFolderClick(null)}
+            className={`px-2 py-1 rounded ${
+              selectedFolderId === null ? "bg-gray-900 text-white" : "hover:bg-gray-100"
+            }`}
+          >
+            All
+          </button>
+          {folders.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => handleFolderClick(f.id)}
+              className={`px-2 py-1 rounded ${
+                selectedFolderId === f.id ? "bg-gray-900 text-white" : "hover:bg-gray-100"
+              }`}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-0.5">
+          {filteredPapers.length === 0 ? (
+            <p className="text-sm text-gray-400 pt-4 text-center">No papers</p>
           ) : (
-            <div className="space-y-2">
-              {filtered.map((paper) => (
-                <Card key={paper.id} className="p-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(paper.id)}
-                      onChange={() => togglePaper(paper.id)}
-                      className="shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/papers/${paper.id}`}
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                      >
-                        {paper.title}
-                      </Link>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {paper.authors && (
-                          <span className="text-xs text-gray-500 truncate">
-                            {paper.authors}
-                          </span>
-                        )}
-                        {paper.year && (
-                          <span className="text-xs text-gray-400">({paper.year})</span>
-                        )}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          paper.status === "READY" ? "bg-green-100 text-green-700" :
-                          paper.status === "FAILED" ? "bg-red-100 text-red-700" :
-                          "bg-yellow-100 text-yellow-700"
-                        }`}>
-                          {paper.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <select
-                        value={paper.readingStatus || "unread"}
-                        onChange={(e) => handleStatusChange(paper.id, e.target.value)}
-                        className="text-xs border rounded px-1 py-0.5"
-                      >
-                        <option value="unread">📖 Unread</option>
-                        <option value="reading">📘 Reading</option>
-                        <option value="done">✅ Done</option>
-                      </select>
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <button
-                            key={s}
-                            onClick={() =>
-                              handleStarChange(
-                                paper.id,
-                                paper.starRating === s ? null : s,
-                              )
-                            }
-                            className={`text-sm ${
-                              (paper.starRating ?? 0) >= s
-                                ? "text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          >
-                            ★
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            filteredPapers.map((paper) => (
+              <div
+                key={paper.id}
+                onClick={() => handlePaperClick(paper.id)}
+                className={`group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm ${
+                  selectedPaper?.id === paper.id
+                    ? "bg-gray-100"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(paper.id)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleSelect(paper.id);
+                  }}
+                  className="shrink-0"
+                />
+                <span className="truncate flex-1">{paper.title}</span>
+                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100">
+                  <select
+                    value={paper.readingStatus || "unread"}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleStatus(paper.id, e.target.value);
+                    }}
+                    className="text-[10px] border rounded px-0.5 py-0.5 bg-white"
+                  >
+                    <option value="unread">📖</option>
+                    <option value="reading">📘</option>
+                    <option value="done">✅</option>
+                  </select>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStar(paper.id, (paper.starRating ?? 0) >= s ? null : s);
+                      }}
+                      className={`text-xs ${
+                        (paper.starRating ?? 0) >= s ? "text-yellow-400" : "text-gray-300"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))
           )}
-        </>
-      )}
+        </div>
+
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 text-xs border-t border-gray-200 pt-2">
+            <span className="text-gray-500">{selectedIds.size} selected</span>
+            <button
+              onClick={() => {
+                exportBibtexBatch(Array.from(selectedIds)).then((r) =>
+                  navigator.clipboard.writeText(r.bibtex),
+                );
+              }}
+              className="text-blue-600 hover:underline"
+            >
+              Copy BibTeX
+            </button>
+            <button
+              onClick={() => {
+                exportRisBatch(Array.from(selectedIds)).then((r) =>
+                  navigator.clipboard.writeText(r.ris),
+                );
+              }}
+              className="text-blue-600 hover:underline"
+            >
+              Copy RIS
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-gray-400 hover:underline"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 右侧：PDF 预览 + 信息 */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0">
+        {selectedPaper ? (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {selectedPaper.title || "Untitled"}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {[selectedPaper.authors, selectedPaper.year].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <PaperStatusBadge status={selectedPaper.status} />
+                <select
+                  value={selectedPaper.readingStatus || "unread"}
+                  onChange={(e) => {
+                    handleStatus(selectedPaper.id, e.target.value);
+                    setSelectedPaper((p) => (p ? { ...p, readingStatus: e.target.value as any } : null));
+                  }}
+                  className="text-xs border rounded px-1 py-0.5"
+                >
+                  <option value="unread">📖 Unread</option>
+                  <option value="reading">📘 Reading</option>
+                  <option value="done">✅ Done</option>
+                </select>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        const v = (selectedPaper.starRating ?? 0) >= s ? null : s;
+                        handleStar(selectedPaper.id, v);
+                        setSelectedPaper((p) => (p ? { ...p, starRating: v } : null));
+                      }}
+                      className={`text-lg ${
+                        (selectedPaper.starRating ?? 0) >= s ? "text-yellow-400" : "text-gray-300"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+              <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+                {selectedPaper.pdfUrl ? (
+                  <PdfViewer pdfKey={selectedPaper.pdfUrl} />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-gray-400 text-sm">
+                    No PDF
+                  </div>
+                )}
+              </div>
+              <div className="overflow-y-auto">
+                {selectedPaper.summary && <PaperCard card={selectedPaper.summary} />}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center text-gray-400">
+            Select a paper to view
+          </div>
+        )}
+      </div>
     </div>
   );
 }
