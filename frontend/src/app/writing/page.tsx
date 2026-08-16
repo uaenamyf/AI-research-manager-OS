@@ -19,6 +19,7 @@ import { getCitation, getBibliography } from "@/lib/api/citation";
 import type { CitationFormat } from "@/lib/api/citation";
 import { recommendPapers } from "@/lib/api/papers";
 import type { RecommendResult } from "@/lib/api/papers";
+import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
 import { Card, Button, Input, Textarea, Spinner } from "@/components/ui";
 import type {
   ID,
@@ -420,6 +421,28 @@ function WriteWithCitations() {
   const [recommendResults, setRecommendResults] = useState<RecommendResult[] | null>(null);
   const [recommendError, setRecommendError] = useState<string | null>(null);
 
+  // Phase 4: BibTeX/RIS 导出
+  const [exporting, setExporting] = useState(false);
+  const [exportText, setExportText] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<"bibtex" | "ris" | null>(null);
+  const handleExport = async (format: "bibtex" | "ris") => {
+    if (insertedIds.size === 0) return;
+    setExporting(true);
+    setExportText(null);
+    try {
+      const ids = Array.from(insertedIds);
+      const res = format === "bibtex"
+        ? await exportBibtexBatch(ids)
+        : await exportRisBatch(ids);
+      setExportText(format === "bibtex" ? (res as any).bibtex : (res as any).ris);
+      setExportFormat(format);
+    } catch (err) {
+      setRecommendError((err as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleRecommend = async () => {
     const ta = textareaRef.current;
     const selectedText = ta ? ta.value.substring(ta.selectionStart, ta.selectionEnd).trim() : "";
@@ -651,6 +674,47 @@ function WriteWithCitations() {
       {recommendResults && recommendResults.length === 0 && !recommendError && (
         <Card className="p-4 text-sm text-gray-500">
           No related papers found. Try writing more content or selecting a longer passage.
+        </Card>
+      )}
+
+      {/* Phase 4: BibTeX/RIS 导出 */}
+      {insertedIds.size > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-3 font-semibold text-gray-900">
+            4. Export to LaTeX / Word
+          </h2>
+          <p className="mb-2 text-xs text-gray-500">
+            Export {insertedIds.size} cited paper(s) as BibTeX (for LaTeX/Overleaf) or RIS (for Zotero/EndNote/Word).
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleExport("bibtex")}
+              disabled={exporting}
+            >
+              {exporting && exportFormat !== "bibtex" ? "..." : "Copy BibTeX"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleExport("ris")}
+              disabled={exporting}
+            >
+              {exporting && exportFormat !== "ris" ? "..." : "Copy RIS"}
+            </Button>
+            {exportText && (
+              <Button
+                variant="outline"
+                onClick={() => navigator.clipboard.writeText(exportText!)}
+              >
+                Copy to Clipboard
+              </Button>
+            )}
+          </div>
+          {exportText && (
+            <pre className="mt-3 max-h-48 overflow-auto rounded border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+              {exportText}
+            </pre>
+          )}
         </Card>
       )}
     </div>
