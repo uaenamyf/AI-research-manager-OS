@@ -17,6 +17,8 @@ import { generateReview, pollReviewTask } from "@/lib/api/reviews";
 import { rewriteText } from "@/lib/api/writing";
 import { getCitation, getBibliography } from "@/lib/api/citation";
 import type { CitationFormat } from "@/lib/api/citation";
+import { recommendPapers } from "@/lib/api/papers";
+import type { RecommendResult } from "@/lib/api/papers";
 import { Card, Button, Input, Textarea, Spinner } from "@/components/ui";
 import type {
   ID,
@@ -413,6 +415,32 @@ function WriteWithCitations() {
     setPreview(replaceInlineCitations(text, bibliography));
   };
 
+  // Phase 2.4: 段落级文献推荐
+  const [recommending, setRecommending] = useState(false);
+  const [recommendResults, setRecommendResults] = useState<RecommendResult[] | null>(null);
+  const [recommendError, setRecommendError] = useState<string | null>(null);
+
+  const handleRecommend = async () => {
+    const ta = textareaRef.current;
+    const selectedText = ta ? ta.value.substring(ta.selectionStart, ta.selectionEnd).trim() : "";
+    const queryText = selectedText || text.slice(0, 500).trim();
+    if (!queryText || queryText.length < 10) {
+      setRecommendError("Select at least 10 characters of text, or write enough content first.");
+      return;
+    }
+    setRecommending(true);
+    setRecommendError(null);
+    setRecommendResults(null);
+    try {
+      const res = await recommendPapers(Number(selectedProject), queryText);
+      setRecommendResults(res.results);
+    } catch (err) {
+      setRecommendError((err as Error).message);
+    } finally {
+      setRecommending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-4">
@@ -475,8 +503,8 @@ function WriteWithCitations() {
         </h2>
         <p className="mb-2 text-xs text-gray-500">
           Click <strong>+ Cite</strong> on a paper to insert{' '}
-          <code>[@paperId]</code> at cursor position. Then generate
-          bibliography below.
+          <code>[@paperId]</code> at cursor position. Select text and click{' '}
+          <strong>Find Related Literature</strong> to search relevant papers.
         </p>
         <textarea
           ref={textareaRef}
@@ -486,6 +514,15 @@ function WriteWithCitations() {
           className="w-full rounded-md border border-gray-300 p-3 text-sm focus:border-gray-900 focus:outline-none"
           placeholder="Start writing your manuscript here... Click +Cite to insert citations."
         />
+        <div className="mt-2 flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRecommend}
+            disabled={recommending || !selectedProject}
+          >
+            {recommending ? "Searching..." : "Find Related Literature"}
+          </Button>
+        </div>
       </Card>
 
       <Card className="p-4">
@@ -569,6 +606,51 @@ function WriteWithCitations() {
               <li key={i}>{c}</li>
             ))}
           </ol>
+        </Card>
+      )}
+
+      {/* Phase 2.4: 段落级文献推荐结果 */}
+      {recommendError && (
+        <Card className="p-4 text-sm text-red-600">{recommendError}</Card>
+      )}
+      {recommendResults && recommendResults.length > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-3 font-semibold text-gray-900">
+            Related Literature ({recommendResults.length} results)
+          </h2>
+          <div className="space-y-3">
+            {recommendResults.map((r, i) => (
+              <div key={i} className="rounded border border-gray-200 p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                    r.stance === 'supporting' ? 'bg-green-100 text-green-700' :
+                    r.stance === 'contrasting' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {r.stance}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {r.paper_title || `Paper #${r.paper_id}`}
+                  </span>
+                  {r.paper_year && (
+                    <span className="text-xs text-gray-500">({r.paper_year})</span>
+                  )}
+                  <span className="text-xs text-gray-400 ml-auto">
+                    score: {r.score.toFixed(3)}
+                  </span>
+                </div>
+                {r.paper_authors && (
+                  <p className="text-xs text-gray-500 mb-1">{r.paper_authors}</p>
+                )}
+                <p className="text-xs text-gray-700 line-clamp-3">{r.content}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+      {recommendResults && recommendResults.length === 0 && !recommendError && (
+        <Card className="p-4 text-sm text-gray-500">
+          No related papers found. Try writing more content or selecting a longer passage.
         </Card>
       )}
     </div>

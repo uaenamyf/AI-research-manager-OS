@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from loguru import logger
 
 from app.api.routes import chat, graph, literature, paper, review, search, writing
+from app.api.routes.recommend import router as recommend_router
 from app.core.backend_client import backend_client
 from app.core.config import settings
 from app.core.db import set_db_pool, set_meta_pool
@@ -95,3 +96,4 @@ app.include_router(search.router, tags=["search"])
 app.include_router(writing.router, prefix="/writing", tags=["writing"])
 app.include_router(graph.router, prefix="/graph", tags=["graph"])
 app.include_router(literature.router, prefix="/literature", tags=["literature"])
+app.include_router(recommend_router, prefix="/rag", tags=["rag"])

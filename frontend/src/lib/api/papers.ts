@@ -177,3 +177,29 @@ export function uploadPaperDirect(
     { method: "POST", body: form },
   ).then((res) => res.json());
 }
+
+// 2026-08-15 myf: Phase 2.4 段落级文献推荐
+/** 段落级文献推荐 */
+export function recommendPapers(
+  projectId: ID,
+  text: string,
+): Promise<{ results: RecommendResult[] }> {
+  return apiFetch<{ results: RecommendResult[] }>(
+    "/api/papers/recommendations",
+    {
+      method: "POST",
+      body: JSON.stringify({ projectId, text }),
+    },
+  );
+}
+
+export interface RecommendResult {
+  paper_id: number;
+  paper_title?: string;
+  paper_authors?: string;
+  paper_year?: number;
+  section: string | null;
+  content: string;
+  score: number;
+  stance: "supporting" | "contrasting" | "related";
+}

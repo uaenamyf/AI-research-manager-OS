@@ -212,6 +212,7 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
 
     /**
      * 更新分析结果（ai-service 回调调用）。
+     * 同时将 summary 中的 authors/year 同步到 paper 实体字段，用于引用渲染。
      */
     @Override
     @Transactional
@@ -220,6 +221,24 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
         Paper paper = getById(paperId);
         if (paper == null) {
             throw new BusinessException(ErrorCode.PAPER_NOT_FOUND);
+        }
+        // 从 summary 中提取 authors/year 同步到实体字段（供引用服务使用）
+        if (summary != null) {
+            Object authorsObj = summary.get("authors");
+            if (authorsObj instanceof String authorStr && !authorStr.isBlank()) {
+                paper.setAuthors(authorStr);
+            }
+            Object yearObj = summary.get("year");
+            if (yearObj instanceof Number yearNum) {
+                paper.setYear(yearNum.intValue());
+            }
+            Object titleObj = summary.get("title");
+            if (titleObj instanceof String titleStr && !titleStr.isBlank()) {
+                // 仅当原标题是文件名时覆盖；否则保留原标题
+                if (paper.getTitle() == null || paper.getTitle().isBlank() || paper.getTitle().endsWith(".pdf")) {
+                    paper.setTitle(titleStr);
+                }
+            }
         }
         paper.setSummary(summary);
         paper.setStatus(status);
