@@ -46,6 +46,30 @@
 - `pdfUrl` 为空：仅元数据入库，状态 `UPLOADED`（等后续补 PDF）。
 - 响应：`Paper` 实体（含新生成的 `id`）。
 
+### Citation
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/papers/{id}/citation?format=APA` | 单篇论文引用（格式：APA/MLA/GB_7714） |
+| POST | `/api/citation/bibliography?format=APA` | 批量生成参考文献列表 |
+
+`POST /api/citation/bibliography` 请求体：
+
+```json
+{ "paperIds": [12, 15, 18] }
+```
+
+响应：
+
+```json
+{
+  "citations": ["Vaswani, A., ... (2017). Attention is all you need.",
+                "Devlin, J., ... (2019). BERT: Pre-training of deep bidirectional transformers."],
+  "format": "APA",
+  "count": 2
+}
+```
+
 ### Chat
 
 | 方法 | 路径 | 说明 |
