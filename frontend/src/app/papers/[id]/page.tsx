@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { getPaper } from "@/lib/api/papers";
+import { getPaper, updateReadingStatus } from "@/lib/api/papers";
 import { PaperCard } from "@/components/paper/PaperCard";
 
 /** react-pdf 10.x 依赖浏览器 API（DOMMatrix），SSR 会 500，须禁用服务端渲染 */
@@ -23,6 +23,8 @@ export default function PaperWorkspacePage() {
   const paperId = Number(params.id);
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
+  const [readingStatus, setReadingStatus] = useState<string>("unread");
+  const [starRating, setStarRating] = useState<number | null>(null);
 
   const { status } = usePaperStatus(
     paper?.status === "PROCESSING" ? paperId : null,
@@ -30,7 +32,11 @@ export default function PaperWorkspacePage() {
 
   useEffect(() => {
     getPaper(paperId)
-      .then(setPaper)
+      .then((p) => {
+        setPaper(p);
+        setReadingStatus(p.readingStatus || "unread");
+        setStarRating(p.starRating ?? null);
+      })
       .finally(() => setLoading(false));
   }, [paperId]);
 
@@ -83,6 +89,34 @@ export default function PaperWorkspacePage() {
           </div>
         </div>
         <PaperStatusBadge status={currentStatus} />
+        <select
+          value={readingStatus}
+          onChange={(e) => {
+            const v = e.target.value;
+            setReadingStatus(v);
+            updateReadingStatus(paper.id, { readingStatus: v });
+          }}
+          className="text-xs border rounded px-1 py-0.5"
+        >
+          <option value="unread">📖 Unread</option>
+          <option value="reading">📘 Reading</option>
+          <option value="done">✅ Done</option>
+        </select>
+        <div className="flex gap-0.5">
+          {[1, 2, 3, 4, 5].map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                const v = starRating === s ? null : s;
+                setStarRating(v);
+                updateReadingStatus(paper.id, { starRating: v });
+              }}
+              className={`text-lg ${(starRating ?? 0) >= s ? "text-yellow-400" : "text-gray-300"}`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

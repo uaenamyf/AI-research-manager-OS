@@ -91,6 +91,8 @@ export interface Paper {
   pdfUrl: string;
   status: PaperStatus;
   summary: PaperIntelligenceCard | null;
+  readingStatus?: "unread" | "reading" | "done";
+  starRating?: number | null;
   createdTime: string;
 }
 
