@@ -140,6 +140,8 @@ export default function WritingPage() {
         insertAtCursor(keys.map((k) => `[@${k}]`).join(" "));
       }
       setCiteMsg(`Inserted ${keys.length} citation(s)`);
+      // 引用完成后自动取消勾选，方便继续选下一篇
+      setSelectedPaperIds([]);
     } catch (err) {
       setCiteMsg((err as Error).message);
     }
