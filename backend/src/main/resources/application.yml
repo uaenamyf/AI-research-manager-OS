@@ -58,6 +58,9 @@ app:
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     price-pro: ${STRIPE_PRICE_PRO:}
     price-researcher: ${STRIPE_PRICE_RESEARCHER:}
+  subscription:
+    # 开发阶段默认不限额（PDF 解析不限）；生产用 ENFORCE_QUOTA=true 打开
+    enforce-quota: ${ENFORCE_QUOTA:false}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
 

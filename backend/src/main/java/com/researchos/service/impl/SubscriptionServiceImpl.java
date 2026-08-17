@@ -28,7 +28,8 @@ import java.util.Map;
 
 /**
  * 订阅服务实现：额度校验 + Stripe 订阅（Checkout / Webhook 升级）。
- * Stripe 未配置（无 secret key）时，checkout 会返回明确提示，额度校验仍按本地档位表生效。
+ * Stripe 未配置（无 secret key）时，checkout 会返回明确提示，额度校验按配置开关执行
+ * （app.subscription.enforce-quota，开发阶段默认关闭，生产用 ENFORCE_QUOTA=true 打开）。
  *
  * @author myf
  * @since 2026-07-08
@@ -61,15 +62,17 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             log.info("Stripe 已配置（webhook secret 就绪：{}）",
                     appProperties.getStripe().getWebhookSecret() != null);
         } else {
-            log.warn("STRIPE_SECRET_KEY 未配置，订阅升级功能不可用（额度拦截仍生效）");
+            log.warn("STRIPE_SECRET_KEY 未配置，订阅升级功能不可用（额度校验默认关闭，ENFORCE_QUOTA=true 可启用）");
         }
     }
 
     /**
      * 校验上传额度。
+     * 开发阶段默认关闭（app.subscription.enforce-quota=false），生产用 ENFORCE_QUOTA=true 打开。
      */
     @Override
     public void checkQuota(Long userId, String plan) {
+        if (!appProperties.getSubscription().isEnforceQuota()) return;
         int limit = PLAN_LIMITS.getOrDefault(plan, 10);
         if (limit == Integer.MAX_VALUE) return;
 

@@ -23,6 +23,7 @@ public class AppProperties {
     private AiService aiService = new AiService();
     private OAuth oauth = new OAuth();
     private Stripe stripe = new Stripe();
+    private Subscription subscription = new Subscription();
     private Cors cors = new Cors();
 
     @Data
@@ -71,6 +72,12 @@ public class AppProperties {
         public boolean isConfigured() {
             return secretKey != null && !secretKey.isBlank();
         }
+    }
+
+    @Data
+    public static class Subscription {
+        /** 是否启用上传/解析额度校验（开发阶段默认关闭，生产用 ENFORCE_QUOTA=true 打开）。 */
+        private boolean enforceQuota = false;
     }
 
     @Data
