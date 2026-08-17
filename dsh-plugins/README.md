@@ -11,6 +11,7 @@
 | 包 | 状态 | 说明 |
 | --- | --- | --- |
 | `research-hello` | ✅ Phase 0 已验证 | 最小 bundle：可拔插闭环证明（插件 + HTTP 路由） |
+| `research-mcp` | ✅ Phase 0 已验证 | 最小 stdio MCP server：`literature_search` 工具（暂为静态桩数据，真实 MySQL 查询在数据层 spike） |
 
 ## 已验证结论（Phase 0）
 
@@ -29,6 +30,27 @@ curl http://127.0.0.1:3081/research-hello/ping
 node apps/cli/lib/bin.js plugin --profile web remove @researchos/dsh-research-hello
 # 验证拔掉：插件行消失，同一 URL 回落为 SPA fallback（HTML），DSH 原生功能不受影响
 ```
+
+**MCP 接入闭环**（需求 2，最小版）：
+
+在 profile 用户层 `~/.dsh/profiles/web/cordis.patch.yml` 追加：
+
+```yaml
+- insert:
+    - id: mcp-client
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        transport: stdio
+        serverName: research
+        command: node
+        args:
+          - /abs/path/to/dsh-plugins/research-mcp/server.js
+        toolCallTimeoutMs: 30000
+        failOnStartupError: false
+```
+
+验证：`dsh --profile web` 启动后，`research-mcp/server.js` 作为子进程被 mcp-client 拉起并稳定存活；
+server 独立自测 `tools/list` 返回 `literature_search` 工具（schema 完整）。删掉该 insert 即卸载文献工具。
 
 > 默认端口 3080 被正式 GUI 占用时，用 `--patch <overlay.yml>` 把 webserver 端口覆盖到空闲端口
 > （overlay 内容：`- id: webserver` + `config: {host: '127.0.0.1', port: 3081}`）。
