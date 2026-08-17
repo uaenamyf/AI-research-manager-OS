@@ -52,3 +52,11 @@ tools/
 .claude/cache/
 .claude/data/
 *.log
+
+# ── DeepSeek Harness 集成（Phase 0+）──
+# DSH 完整 checkout 拷贝（含日志/构建产物/依赖，第三方源码，绝不入库）
+deepseek-harness-master/
+# 自研 dsh 插件包的依赖与临时文件
+dsh-plugins/**/node_modules/
+dsh-plugins/**/.dsh/
+dsh-plugins/**/*.log
