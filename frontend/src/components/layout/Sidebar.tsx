@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: "/library", label: "Library", icon: "📚" },
   { href: "/writing", label: "Write", icon: "✍️" },
   { href: "/literature", label: "Literature Search", icon: "🔍" },
-  { href: "/references", label: "Writing", icon: "✏️" },
+  { href: "/assistant", label: "Assistant", icon: "✏️" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

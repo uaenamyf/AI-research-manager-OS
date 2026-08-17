@@ -1,17 +1,15 @@
 /**
- * Tools 页面：文献推荐 + Writing Assistant。
+ * Assistant 页面：Writing Assistant（Agent 4）。
+ *
+ * 文本改写/润色/扩写/缩写/翻译/回复审稿人/Cover letter 工具。
+ * 2026-08-14: 原 /references 路由的文献推荐与 Export 功能已移除，页面只剩
+ * Writing Assistant，路由与目录由 /references 改为 /assistant，避免与
+ * /writing（Write 手稿编辑器）在侧边栏产生 Write/Writing 重复。
  */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { listProjects } from "@/lib/api/projects";
-import { listPapers } from "@/lib/api/papers";
-import type { PaperListItem, ResearchProject, ID, WritingAction } from "@/types";
-import { getCitation, getBibliography } from "@/lib/api/citation";
-import type { CitationFormat } from "@/lib/api/citation";
-import { recommendPapers } from "@/lib/api/papers";
-import type { RecommendResult } from "@/lib/api/papers";
-import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
+import { useState } from "react";
+import type { WritingAction } from "@/types";
 import { rewriteText } from "@/lib/api/writing";
 import { Card, Button, Spinner } from "@/components/ui";
 
@@ -24,55 +22,16 @@ const WRITING_ACTIONS: { value: WritingAction; label: string; needsInstruction?:
   { value: "cover_letter", label: "Cover Letter" },
 ];
 
-export default function WritingPage() {
-  const [projects, setProjects] = useState<ResearchProject[]>([]);
-  const [selectedProject, setSelectedProject] = useState<ID | null>(null);
-  const [papers, setPapers] = useState<PaperListItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  // Writing Assistant only
-
-  useEffect(() => {
-    listProjects(0, 50).then((p) => {
-      setProjects(p.items);
-      if (p.items[0]) setSelectedProject(p.items[0].id);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!selectedProject) return;
-    listPapers(selectedProject, -1, 0, 200).then((p) => setPapers(p.items));
-    setSelectedIds(new Set());
-  }, [selectedProject]);
-
-  const togglePaper = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const filteredPapers = papers.filter(
-    (p) =>
-      !searchQuery ||
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const selectAll = () => setSelectedIds(new Set(filteredPapers.map((p) => p.id)));
-  const clearAll = () => setSelectedIds(new Set());
-
+export default function AssistantPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Writing Assistant</h1>
-
-<WritingAssistantTab />
+      <WritingAssistantPanel />
     </div>
   );
 }
 
-function WritingAssistantTab() {
+function WritingAssistantPanel() {
   const [action, setAction] = useState<WritingAction>("polish");
   const [text, setText] = useState("");
   const [instruction, setInstruction] = useState("");
