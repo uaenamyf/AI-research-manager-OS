@@ -2,13 +2,16 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# 系统依赖（PyMuPDF + Node.js 22 用于 MCP 文献检索运行时）
+# 系统依赖（PyMuPDF + Node.js 22 用于 MCP 文献检索运行时 + TeX Live 用于 LaTeX 编译）
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libglib2.0-0 \
         libgomp1 \
         curl \
         ca-certificates \
+        texlive-latex-base \
+        texlive-latex-recommended \
+        texlive-fonts-recommended \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
