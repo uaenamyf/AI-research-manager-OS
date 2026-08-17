@@ -453,11 +453,7 @@ export default function WritingPage() {
               ))
             )}
           </div>
-        </Card>
-
-        <Card className="p-3">
-          <h2 className="mb-2 font-semibold text-gray-900 text-sm">Insert</h2>
-          <div className="flex gap-2">
+          <div className="mt-2 flex gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -477,13 +473,10 @@ export default function WritingPage() {
               Bibliography
             </Button>
           </div>
-          {citeMsg && <p className="mt-2 text-xs text-blue-600">{citeMsg}</p>}
-        </Card>
-
-        <Card className="p-3">
+          {citeMsg && <p className="mt-1 text-xs text-blue-600">{citeMsg}</p>}
           <button
             onClick={() => setShowReview(!showReview)}
-            className="flex w-full items-center justify-between text-sm font-semibold text-gray-900"
+            className="mt-2 flex w-full items-center justify-between text-sm font-semibold text-gray-900"
           >
             <span>Generate Review</span>
             <span className="text-gray-400">{showReview ? "−" : "+"}</span>
@@ -503,7 +496,7 @@ export default function WritingPage() {
               >
                 {generating ? <Spinner /> : "Generate & Insert"}
               </Button>
-              {status && <p className="mt-2 text-xs text-blue-600">{status}</p>}
+              {status && <p className="mt-1 text-xs text-blue-600">{status}</p>}
             </div>
           )}
         </Card>
