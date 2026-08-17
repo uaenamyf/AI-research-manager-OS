@@ -152,6 +152,9 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
+    # 本地存储模式下 PDF 落 /app/uploads；命名卷持久化，重建容器不丢文件
+    volumes:
+      - uploadsdata:/app/uploads
 
   ai-service:
     profiles: ["app"]
@@ -210,3 +213,4 @@ volumes:
   mysqldata:
   redisdata:
   rabbitdata:
+  uploadsdata:
