@@ -15,6 +15,7 @@
 | `research-llm-gateway` | ✅ Phase 0-1 已验证 | 统一 LLM/Embedding 网关（OpenAI 兼容直连代理，chat+embeddings 真实上游）；ResearchOS AI 已正式切到本网关 |
 | `research-auth` | ✅ Phase 3 首域起步 | 认证 bundle：register/login/logout/me 直连 MySQL app_user；与旧 Spring Boot 共享 JWT_SECRET 双认证（token 双向互通已验）；响应沿用 `{code,message,data}` 契约 |
 | `research-project` | ✅ Phase 3 文献域 | 项目 CRUD bundle：create/list(分页)/detail/delete 直连 MySQL research_project，严格 user_id 过滤（越权 404 已验），认证复用共享 JWT |
+| `research-folder` | ✅ Phase 3 文献域 | 文件夹树 CRUD bundle：create/tree/children/rename/move/delete/sort 直连 MySQL folder，user+project 归属校验，递归删除，move 防循环/跨项目 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -231,6 +232,32 @@ DELETE /research-project/:id                                       -> 删除（�
 - 分页契约对齐后端 `{ items, page, size, total, totalPages }`
 - 认证：bundle 内联 JWT 验签（同 `JWT_SECRET`）+ 校验 subject 对应 app_user 仍存在（同 JwtAuthFilter）
 - 负例：无 token/坏 token 401、非数字 id 404、method 405
+
+## Phase 3：research-folder bundle（文件夹树 CRUD，防循环/递归删除）✅ 2026-08-17
+
+文献域第二个业务 bundle。直连 MySQL `folder`（parent_id 树），经 `ctx.webServer` 前缀路由
+`/research-folder` 暴露，复用共享 JWT 认证：
+
+```
+POST   /research-folder/folders                            { projectId, parentId?, name }
+GET    /research-folder/projects/:projectId/folders/tree   -> 嵌套树（children 递归，sort_order DESC + name ASC）
+GET    /research-folder/projects/:projectId/folders?parentId=  -> 根/子列表
+PUT    /research-folder/folders/:folderId/rename   { name }
+PUT    /research-folder/folders/:folderId/move     { parentId }
+PUT    /research-folder/folders/:folderId/sort     { sortOrder }
+DELETE /research-folder/folders/:folderId                 -> 递归删除该文件夹及全部子孙
+```
+
+**关键验证**：
+- 树构建：A→A1→A1a 嵌套正确、排序正确；根/子列表分派正确
+- 防呆：子级重名 400；move 进自身 400、move 进自身子孙 400（循环引用）、跨项目 400
+- 递归删除：删 A1 连带 A1a；删 A 连带全部子孙
+- 归属：user1 读 user4 树返回空（user 作用域）；user1 改 user4 文件夹 404（跨用户不泄露）
+- 创建时校验项目归属 + 父文件夹归属/同项目（比旧后端多一层 project 归属校验，防越权插行）
+
+> 行为对齐说明：① 根级同名允许（MySQL UNIQUE 对 NULL parent_id 判等绕过，旧后端同依赖 DB
+> 约束，行为一致）；② 跨用户文件夹访问本 bundle 返回 404（旧后端 403）——统一为 404 更安全
+> （不泄露资源存在性），与 research-project 一致。
 
 ## 下一步（Phase 1-2 遗留）
 
