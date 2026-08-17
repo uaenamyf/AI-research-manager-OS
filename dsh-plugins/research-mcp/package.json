@@ -1,7 +1,7 @@
 {
   "name": "@researchos/dsh-research-mcp",
-  "description": "Phase 0 MCP server: exposes ResearchOS literature tools to dsh (stdio child process)",
-  "version": "0.1.0",
+  "description": "ResearchOS literature MCP server: literature_search/literature_get over the MySQL paper table (stdio child process spawned by dsh)",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "server.js",
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "mysql2": "^3.11.0",
     "zod": "^4.4.3"
   }
 }
