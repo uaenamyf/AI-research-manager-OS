@@ -52,6 +52,8 @@ export default function WritingPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [reviewResult, setReviewResult] = useState<string>("");
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   // 编辑器状态
   const [mode, setMode] = useState<"markdown" | "latex">("markdown");
@@ -208,18 +210,9 @@ export default function WritingPage() {
       setStatus("Generating...");
       const task = await pollReviewTask(taskId, 2000, (t) => setStatus(t.status));
       const review = task.result?.markdown ?? "";
-      if (mode === "latex") {
-        setTexDoc((prev) =>
-          prev.replace(
-            /\\end\{document\}/,
-            "\\section{Literature Review: " + topic.replace(/[^a-zA-Z0-9 ]/g, "") +
-              "}\n\n" + review + "\n\n\\end{document}",
-          ),
-        );
-      } else {
-        setMdDoc((prev) => prev + "\n\n## Literature Review: " + topic + "\n\n" + review + "\n");
-      }
-      setStatus("Review inserted into editor");
+      setReviewResult(review);
+      setShowReviewModal(true);
+      setStatus("Review generated");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -622,5 +615,43 @@ export default function WritingPage() {
         </div>
       </div>
     </div>
+
+      {/* Review 生成结果弹窗 */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="mx-4 w-full max-w-2xl max-h-[80vh] flex flex-col rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <h2 className="font-semibold text-gray-900">Generated Review</h2>
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 text-sm text-gray-700 whitespace-pre-wrap">
+              {reviewResult}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-gray-200 px-4 py-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReviewModal(false)}
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(reviewResult);
+                  setShowReviewModal(false);
+                }}
+              >
+                Copy & Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }
