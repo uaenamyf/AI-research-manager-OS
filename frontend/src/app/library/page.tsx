@@ -321,12 +321,12 @@ function LibraryContent() {
           )}
         </div>
         {selectedIds.size > 0 && (
-          <div className="flex items-center gap-0 divide-x divide-gray-200 text-xs border-t border-gray-200 pt-2 pb-1 shrink-0 flex-wrap">
-              <span className="text-gray-500 px-2">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2 text-xs border-t border-gray-200 pt-2 pb-1 shrink-0 flex-wrap">
+              <span className="text-gray-500">{selectedIds.size} selected</span>
               <select
                 value={moveFolderId}
                 onChange={(e) => setMoveFolderId(e.target.value)}
-                className="text-xs border rounded px-1 py-0.5 mx-1"
+                className="text-xs border rounded px-1 py-0.5"
               >
                 <option value="">Move to...</option>
                 <option value="root">Root</option>
@@ -337,7 +337,7 @@ function LibraryContent() {
                 ))}
               </select>
               {moveFolderId && (
-                <button onClick={handleMoveSelected} className="text-blue-600 hover:underline px-2">
+                <button onClick={handleMoveSelected} className="text-blue-600 hover:underline">
                   Go
                 </button>
               )}
@@ -347,7 +347,7 @@ function LibraryContent() {
                     navigator.clipboard.writeText(r.bibtex),
                   );
                 }}
-                className="text-blue-600 hover:underline px-2"
+                className="text-blue-600 hover:underline"
               >
                 Copy BibTeX
               </button>
@@ -357,14 +357,14 @@ function LibraryContent() {
                     navigator.clipboard.writeText(r.ris),
                   );
                 }}
-                className="text-blue-600 hover:underline px-2"
+                className="text-blue-600 hover:underline"
               >
                 Copy RIS
               </button>
               <select
                 value={citeFormat}
                 onChange={(e) => setCiteFormat(e.target.value as CitationFormat)}
-                className="text-xs border rounded px-1 py-0.5 mx-1"
+                className="text-xs border rounded px-1 py-0.5"
               >
                 <option value="APA">APA</option>
                 <option value="MLA">MLA</option>
@@ -376,19 +376,19 @@ function LibraryContent() {
                     navigator.clipboard.writeText(r.citations.join("\n\n")),
                   );
                 }}
-                className="text-blue-600 hover:underline px-2"
+                className="text-blue-600 hover:underline"
               >
                 Copy Cite
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="text-blue-600 hover:underline px-2"
+                className="text-blue-600 hover:underline"
               >
                 Clear
               </button>
               <button
                 onClick={() => setReviewMode(true)}
-                className="text-blue-600 hover:underline px-2"
+                className="text-blue-600 hover:underline"
               >
                 Generate Review
               </button>
@@ -477,7 +477,7 @@ function LibraryContent() {
                     handleStatus(selectedPaper.id, e.target.value);
                     setSelectedPaper((p) => (p ? { ...p, readingStatus: e.target.value as any } : null));
                   }}
-                  className="text-xs border rounded px-1 py-0.5 mx-1"
+                  className="text-xs border rounded px-1 py-0.5"
                 >
                   <option value="unread">Unread</option>
                   <option value="reading">Reading</option>
