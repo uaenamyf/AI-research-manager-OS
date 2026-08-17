@@ -236,14 +236,9 @@ export default function WritingPage() {
           </div>
           <div className="flex gap-2">
             {mode === "markdown" && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => setMdCompiled(null)}>
-                  Edit
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleCompileMarkdown}>
-                  Compile
-                </Button>
-              </>
+              <Button variant="outline" size="sm" onClick={handleCompileMarkdown}>
+                Compile
+              </Button>
             )}
             {mode === "latex" && (
               <Button
@@ -261,40 +256,49 @@ export default function WritingPage() {
           </div>
         </div>
 
-        {mode === "markdown" &&
-          (mdCompiled === null ? (
+        {/* 编辑器 + 预览：左右分栏，编译后右侧显示预览，可对照写作 */}
+        <div className="flex-1 flex gap-3 min-h-0">
+          {/* 左：编辑器（始终显示） */}
+          <div className="flex-1 min-w-0 flex flex-col">
             <Card className="flex-1 p-0 min-h-0 flex flex-col">
-              <textarea
-                value={mdDoc}
-                onChange={(e) => setMdDoc(e.target.value)}
-                className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
-                placeholder="Write your manuscript in Markdown..."
-              />
+              {mode === "markdown" ? (
+                <textarea
+                  value={mdDoc}
+                  onChange={(e) => setMdDoc(e.target.value)}
+                  className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
+                  placeholder="Write your manuscript in Markdown..."
+                />
+              ) : (
+                <textarea
+                  value={texDoc}
+                  onChange={(e) => setTexDoc(e.target.value)}
+                  className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
+                  placeholder="Write your LaTeX document..."
+                />
+              )}
             </Card>
-          ) : (
-            <Card className="flex-1 p-6 min-h-0 overflow-y-auto">
-              <div
-                className="prose prose-sm max-w-none text-gray-800"
-                dangerouslySetInnerHTML={{ __html: mdCompiled }}
-              />
-            </Card>
-          ))}
+          </div>
 
-        {mode === "latex" &&
-          (pdfUrl ? (
-            <Card className="flex-1 p-0 min-h-0 overflow-hidden">
-              <iframe src={pdfUrl} className="h-full w-full border-0" title="Compiled PDF" />
-            </Card>
-          ) : (
-            <Card className="flex-1 p-0 min-h-0 flex flex-col">
-              <textarea
-                value={texDoc}
-                onChange={(e) => setTexDoc(e.target.value)}
-                className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
-                placeholder="Write your LaTeX document..."
-              />
-            </Card>
-          ))}
+          {/* 右：编译预览（编译后显示） */}
+          {(mode === "markdown" ? mdCompiled !== null : pdfUrl !== null) && (
+            <div className="flex-1 min-w-0 flex flex-col border-l border-gray-200 pl-3">
+              {mode === "markdown" ? (
+                <Card className="flex-1 p-4 min-h-0 overflow-y-auto">
+                  <div
+                    className="prose prose-sm max-w-none text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: mdCompiled || "" }}
+                  />
+                </Card>
+              ) : (
+                <Card className="flex-1 p-0 min-h-0 overflow-hidden">
+                  {pdfUrl && (
+                    <iframe src={pdfUrl} className="h-full w-full border-0" title="Compiled PDF" />
+                  )}
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
