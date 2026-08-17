@@ -71,6 +71,17 @@ curl -X POST http://127.0.0.1:3081/v1/embeddings -H 'content-type: application/j
 （provider/model/system/messages）；文本增量取 `text-delta` chunk，终态读 `finish` chunk。
 真实出字依赖有效的 LLM 凭据/网络（P0 验证时配置的上游 base URL 不可达，属环境问题非代码问题）。
 
+**数据层 spike**（已验证）：
+
+```sh
+# 宿主机 3306/5432 端口映射可达；bundle 用标准 TS 驱动直连现有数据资产
+mysql2 → MySQL researchos.paper     ✅（验证时 3 行）
+pg     → PG     researchos.paper_chunk ✅（验证时 522 行）
+```
+
+结论：MySQL（业务）+ PG（向量）保留现状，ResearchOS bundle 用 mysql2/pg 直连，无架构障碍。
+向量维度（`vector(2048)`）与共享网关 embedding 的对齐留待 Phase 1。
+
 > 默认端口 3080 被正式 GUI 占用时，用 `--patch <overlay.yml>` 把 webserver 端口覆盖到空闲端口
 > （overlay 内容：`- id: webserver` + `config: {host: '127.0.0.1', port: 3081}`）。
 
