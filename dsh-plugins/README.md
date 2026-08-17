@@ -11,8 +11,17 @@
 | 包 | 状态 | 说明 |
 | --- | --- | --- |
 | `research-hello` | ✅ Phase 0 已验证 | 最小 bundle：可拔插闭环证明（插件 + HTTP 路由） |
-| `research-mcp` | ✅ Phase 0 已验证 | 最小 stdio MCP server：`literature_search` 工具（暂为静态桩数据，真实 MySQL 查询在数据层 spike） |
-| `research-llm-gateway` | ✅ Phase 0 已验证 | OpenAI 兼容网关 spike：`/v1/chat/completions` 转 `ctx.llm.stream()`（需求 3 统一 API 最小闭环）；`/v1/embeddings` 暂为 501 stub（embedding 适配器 Phase 1 定） |
+| `research-mcp` | ✅ Phase 0-2 已验证 | 文献 MCP server：search/get/cite/vector_search（MySQL 真实文献 + 网关 embedding + PG 向量检索） |
+| `research-llm-gateway` | ✅ Phase 0-1 已验证 | 统一 LLM/Embedding 网关（OpenAI 兼容直连代理，chat+embeddings 真实上游） |
+| `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口） |
+
+**一键常驻启动**（Phase 1 正式切换的前置）：
+
+```sh
+./dsh-plugins/scripts/dsh-gateway.sh start   # 默认 3080，被占自动后移
+./dsh-plugins/scripts/dsh-gateway.sh status
+./dsh-plugins/scripts/dsh-gateway.sh stop
+```
 
 ## 已验证结论（Phase 0）
 
