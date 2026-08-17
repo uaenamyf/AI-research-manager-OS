@@ -56,6 +56,7 @@ export default function WritingPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [compiling, setCompiling] = useState(false);
   const [citeMsg, setCiteMsg] = useState<string | null>(null);
+  const [bibContent, setBibContent] = useState<string>("");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -124,6 +125,8 @@ export default function WritingPage() {
       }
       if (mode === "latex") {
         insertAtCursor(`\\cite{${keys.join(",")}}`);
+        // 积累 BibTeX 条目，供 \bibliography{references} 使用
+        setBibContent((prev) => prev + (prev ? "\n" : "") + res.bibtex);
       } else {
         insertAtCursor(keys.map((k) => `[@${k}]`).join(" "));
       }
@@ -142,22 +145,9 @@ export default function WritingPage() {
     try {
       const res = await exportBibtexBatch(selectedPaperIds);
       if (mode === "latex") {
-        const section =
-          "\n\\begin{thebibliography}{9}\n" +
-          res.bibtex
-            .split("\n\n")
-            .filter(Boolean)
-            .map((entry) => {
-              const keyMatch = /@\w+\{([^,]+),/.exec(entry);
-              const key = keyMatch ? keyMatch[1].trim() : "";
-              const titleMatch = /title\s*=\s*\{([^}]+)\}/.exec(entry);
-              const title = titleMatch ? titleMatch[1] : "Untitled";
-              const authorMatch = /author\s*=\s*\{([^}]+)\}/.exec(entry);
-              const author = authorMatch ? authorMatch[1] : "Anonymous";
-              return `\\bibitem{${key}} ${author}. ${title}.`;
-            })
-            .join("\n\n") +
-          "\n\\end{thebibliography}\n";
+        // 用 \bibliography{references} 引用 .bib 文件（编译时 bibtex 解析）
+        setBibContent((prev) => prev + (prev ? "\n" : "") + res.bibtex);
+        const section = "\n\\bibliographystyle{plain}\n\\bibliography{references}\n";
         insertAtCursor(section);
       } else {
         const section =
@@ -223,7 +213,7 @@ export default function WritingPage() {
       const res = await apiFetchRaw("/api/writing/compile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tex: texDoc }),
+        body: JSON.stringify({ tex: texDoc, bib: bibContent }),
       });
       if (!res.ok) {
         const errText = await res.text();

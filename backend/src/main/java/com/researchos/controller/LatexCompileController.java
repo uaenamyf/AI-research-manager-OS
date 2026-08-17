@@ -27,17 +27,21 @@ public class LatexCompileController {
     private final CurrentUserResolver currentUserResolver;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /** 编译 LaTeX 源码，返回 PDF 文件流 */
+    /** 编译 LaTeX 源码（含可选 BibTeX），返回 PDF 文件流 */
     @PostMapping("/api/writing/compile")
     public ResponseEntity<byte[]> compile(@RequestBody Map<String, String> body) {
         currentUserResolver.requireUserId();
         String tex = body.getOrDefault("tex", "");
+        String bib = body.getOrDefault("bib", "");
 
         String aiUrl = appProperties.getAiService().getBaseUrl() + "/latex/compile";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Internal-Token", appProperties.getAiService().getInternalToken());
-        HttpEntity<Map<String, String>> entity = new HttpEntity<>(Map.of("tex", tex), headers);
+        Map<String, String> payload = new java.util.LinkedHashMap<>();
+        payload.put("tex", tex);
+        payload.put("bib", bib);
+        HttpEntity<Map<String, String>> entity = new HttpEntity<>(payload, headers);
 
         try {
             ResponseEntity<byte[]> response = restTemplate.exchange(
