@@ -157,10 +157,11 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - **出口**：三项关键机制各有可运行 demo，设计决策（网关形态/数据层）定稿。打 tag `dsh-m0-verified`。
 
 ### Phase 1 — 共享 LLM 网关（需求 3 落地，1–2 周）
-- [ ] 实现 `dsh-llm-gateway`（chat completions + embeddings，凭据复用 ctx.credentials）。
-- [ ] ResearchOS ai-service 改造：`OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 指向网关（仍独立跑）。
-- [ ] 验证两端同 key/同模型/同限流，统一 API 生效。
-- **出口**：ResearchOS 与 DSH 通过同一 LLM API 入口调用，互不影响。打 tag `dsh-p1-gateway`。
+
+- [x] 实现 `dsh-llm-gateway`（chat completions + embeddings）。✅ 2026-08-17：改为**直连上游的 OpenAI 兼容代理**（不再依赖 ctx.llm/DSH provider 配置），环境变量配置（RESEARCH_LLM_* / RESEARCH_EMBEDDING_*，兼容 .env 兜底）；上游路径对齐 OpenAI SDK 语义 `{base}/chat/completions`
+- [x] ResearchOS ai-service 改造：`OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 指向网关。✅ **调用模式已验证**：ai-service 容器内用真实 OpenAI SDK（llm/client.py 同款）`base_url` 指向网关 → 真实回复；**零代码改动**，切换 = .env 两行配置（见 `dsh-plugins/README.md`）
+- [ ] 正式切换 + 两端同 key/同模型/限流验证 —— **待 dsh 常驻部署后执行**（当前 dsh 为手动测试进程，切换会使 ResearchOS AI 依赖 dsh 常驻；网关 key 收口到 DSH `ctx.credentials` 亦属此步）
+- **出口（部分达成）**：统一 API 链路验证通过，正式切换挂起于 dsh 常驻部署
 
 ### Phase 2 — 文献 MCP server（需求 2 数据侧落地，1–2 周）
 - [ ] 实现 `research-mcp-server`（检索/读取/引用工具），DSH mcp-client 接入。

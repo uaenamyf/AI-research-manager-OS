@@ -71,6 +71,43 @@ curl -X POST http://127.0.0.1:3081/v1/embeddings -H 'content-type: application/j
 （provider/model/system/messages）；文本增量取 `text-delta` chunk，终态读 `finish` chunk。
 真实出字依赖有效的 LLM 凭据/网络（P0 验证时配置的上游 base URL 不可达，属环境问题非代码问题）。
 
+## Phase 1：LLM 网关正式化（直连上游代理）✅ 已验证
+
+**形态**：OpenAI 兼容直连代理（不再依赖 ctx.llm / DSH 的 provider 配置）：
+- `POST /v1/chat/completions` → 上游 `{base}/chat/completions`（JSON / SSE 流式透传）
+- `POST /v1/embeddings` → 上游 `{base}/embeddings`
+- 配置走环境变量（dsh 启动环境）：`RESEARCH_LLM_BASE_URL/API_KEY/MODEL` + `RESEARCH_EMBEDDING_BASE_URL/API_KEY/MODEL`（兼容 `.env` 的 `OPENAI_*`/`EMBEDDING_*` 兜底）
+- 上游路径对齐 OpenAI SDK 语义：`{base}/chat/completions`（不带 `/v1`，实测 SDK 风格 200、`/v1` 风格 404）
+
+**验证（2026-08-17）**：
+```sh
+# 启动 dsh 时注入环境变量（从 ResearchOS .env 取真实 key/base）
+RESEARCH_LLM_API_KEY=$(grep ^OPENAI_API_KEY= .env | cut -d= -f2-) \
+RESEARCH_LLM_BASE_URL=$(grep ^OPENAI_BASE_URL= .env | cut -d= -f2-) \
+... node apps/cli/lib/bin.js --profile web
+
+# chat 经网关 → 火山引擎真实回复（如「收到」）
+curl -X POST http://127.0.0.1:3081/v1/chat/completions -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"hi"}]}'
+# embeddings 经网关 → doubao-embedding-vision 真实向量
+curl -X POST http://127.0.0.1:3081/v1/embeddings -H 'content-type: application/json' \
+  -d '{"input":"hello","model":"doubao-embedding-vision"}'
+```
+
+**ResearchOS 切换方法（零代码改动，仅改配置）**：
+把 `.env` 的 `OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` 指向网关：
+```
+OPENAI_BASE_URL=http://host.docker.internal:3081/v1
+EMBEDDING_BASE_URL=http://host.docker.internal:3081/v1
+```
+已在 ai-service 容器内用真实 OpenAI SDK（ResearchOS 的 `llm/client.py` 同款用法）验证：
+`base_url` 指向网关 → 真实回复「网关通」。
+
+> ⚠️ 前置条件：dsh 进程须常驻（当前是手动测试进程）。生产/常驻部署时，网关所在宿主机需与
+> ai-service 容器网络互通（macOS Docker Desktop 的 `host.docker.internal` 可用；Linux 服务器
+> 需 `--add-host=host.docker.internal:host-gateway` 或同网桥）。
+> 网关 key 目前来自 ResearchOS `.env`（启动时注入），正式化后应收口到 DSH `ctx.credentials`。
+
 **数据层 spike**（已验证）：
 
 ```sh
