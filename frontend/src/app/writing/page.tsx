@@ -386,15 +386,6 @@ export default function WritingPage() {
               ))
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2 w-full"
-            onClick={saveManuscript}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : currentManuscriptId ? "Save" : "Save As New"}
-          </Button>
         </Card>
 
         <Card className="p-3">
