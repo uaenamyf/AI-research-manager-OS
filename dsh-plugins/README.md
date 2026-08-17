@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | `research-hello` | ✅ Phase 0 已验证 | 最小 bundle：可拔插闭环证明（插件 + HTTP 路由） |
 | `research-mcp` | ✅ Phase 0 已验证 | 最小 stdio MCP server：`literature_search` 工具（暂为静态桩数据，真实 MySQL 查询在数据层 spike） |
+| `research-llm-gateway` | ✅ Phase 0 已验证 | OpenAI 兼容网关 spike：`/v1/chat/completions` 转 `ctx.llm.stream()`（需求 3 统一 API 最小闭环）；`/v1/embeddings` 暂为 501 stub（embedding 适配器 Phase 1 定） |
 
 ## 已验证结论（Phase 0）
 
@@ -51,6 +52,24 @@ node apps/cli/lib/bin.js plugin --profile web remove @researchos/dsh-research-he
 
 验证：`dsh --profile web` 启动后，`research-mcp/server.js` 作为子进程被 mcp-client 拉起并稳定存活；
 server 独立自测 `tools/list` 返回 `literature_search` 工具（schema 完整）。删掉该 insert 即卸载文献工具。
+
+**LLM 网关闭环**（需求 3，最小版）：
+
+```sh
+node apps/cli/lib/bin.js plugin --profile web add /abs/path/to/dsh-plugins/research-llm-gateway
+
+# 启动后（默认端口被占时用 --patch 覆盖端口）：
+curl -X POST http://127.0.0.1:3081/v1/chat/completions \
+  -H 'content-type: application/json' \
+  -d '{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"hi"}]}'
+# → OpenAI 格式 JSON（choices[].message.content）；上游不可达时结构化 error 透出
+curl -X POST http://127.0.0.1:3081/v1/embeddings -H 'content-type: application/json' -d '{"input":"hi"}'
+# → 501 stub（embedding 适配器 Phase 1 定）
+```
+
+要点：OpenAI 载荷的 `model`/`messages` 映射到 `ctx.llm.stream()` 的 `GenerateOptions`
+（provider/model/system/messages）；文本增量取 `text-delta` chunk，终态读 `finish` chunk。
+真实出字依赖有效的 LLM 凭据/网络（P0 验证时配置的上游 base URL 不可达，属环境问题非代码问题）。
 
 > 默认端口 3080 被正式 GUI 占用时，用 `--patch <overlay.yml>` 把 webserver 端口覆盖到空闲端口
 > （overlay 内容：`- id: webserver` + `config: {host: '127.0.0.1', port: 3081}`）。

@@ -226,7 +226,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 1. 在 DSH checkout 构建并跑通 `dsh web` + 自定义 profile（`dsh --profile web --dump-config` 验证插件树）。✅ 已验证（checkout 可直接运行）
 2. 最小 bundle `research-hello`：`dsh.bundle` 声明 → `dsh plugin` 挂进 profile → 卸载验证（需求 1 可拔插的最小闭环）。✅ **已验证**（2026-08-17，见 `dsh-plugins/README.md`：装→`/research-hello/ping` 响应 JSON；拔→路由消失回落 SPA fallback；DSH 原生功能不受影响）
 3. 最小 MCP server（stdio 子进程）→ `dsh-mcp-client` 配置连接 → 工具出现在 `ctx.tools`（需求 2 最小闭环）。✅ **已验证**（2026-08-17，见 `dsh-plugins/README.md`：profile patch 挂 `mcp-client` 行 → dsh 拉起 `research-mcp/server.js` 子进程稳定存活、`tools/list` 返回 `literature_search`、无报错；删 insert 即卸载）
-4. `dsh-llm-gateway` spike：`ctx.webServer` 注册 `/v1/chat/completions` + `/v1/embeddings`，转发 `ctx.llm.stream()`；与 LiteLLM 对比后定稿（需求 3 最小闭环）。
+4. `dsh-llm-gateway` spike：`ctx.webServer` 注册 `/v1/chat/completions` + `/v1/embeddings`，转发 `ctx.llm.stream()`；与 LiteLLM 对比后定稿（需求 3 最小闭环）。✅ **已验证**（2026-08-17，见 `dsh-plugins/README.md`：OpenAI 载荷 → `ctx.llm.stream()` 路由与格式转换正确，`text-delta`/`finish` chunk 处理正确；上游不可达时结构化 error 透出；`/v1/embeddings` 为 501 stub，embedding 适配器 Phase 1 定）
 5. 数据层 spike：bundle 用 mysql2/pg 连现有 MySQL/PG，验证读写与向量维度对齐。
 6. 产出验证报告，更新本方案细节，开始 Phase 1。
 
