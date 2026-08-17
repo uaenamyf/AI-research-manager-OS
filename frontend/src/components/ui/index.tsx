@@ -56,22 +56,6 @@ export function Input({
   );
 }
 
-// ===== Textarea =====
-export function Textarea({
-  className,
-  ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      className={cn(
-        "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 // ===== Card =====
 export function Card({
   className,

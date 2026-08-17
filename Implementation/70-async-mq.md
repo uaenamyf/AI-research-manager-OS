@@ -51,7 +51,7 @@ ai-service 处理完成后，通过 HTTP 回调 backend：
 
 **删除论文流程**（backend）：
 
-1. backend 删除 MySQL `paper` 行（事务内；同时删 annotation 批注、按 `pdf_url` 删存储中的 PDF 文件）。
+1. backend 删除 MySQL `paper` 行（事务内；按 `pdf_url` 删存储中的 PDF 文件）。
 2. backend 发 MQ `paper.delete` 到 `q.paper.cleanup`，payload `{ paperId }`。
 3. ai-service 消费后执行 `DELETE FROM paper_chunk WHERE paper_id = $1`，完成后确认消息。
 

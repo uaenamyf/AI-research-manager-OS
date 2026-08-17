@@ -73,20 +73,6 @@ CREATE TABLE paper (
     KEY idx_paper_folder (folder_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- 聊天历史
-CREATE TABLE conversation (
-    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id      BIGINT NOT NULL,
-    paper_id     BIGINT,
-    question     TEXT,
-    answer       TEXT,
-    created_time DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-    CONSTRAINT fk_conv_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE,
-    CONSTRAINT fk_conv_paper FOREIGN KEY (paper_id) REFERENCES paper (id) ON DELETE CASCADE,
-    KEY idx_conv_user (user_id),
-    KEY idx_conv_paper (paper_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
-
 -- AI 任务
 CREATE TABLE ai_task (
     task_id      BIGINT AUTO_INCREMENT PRIMARY KEY,

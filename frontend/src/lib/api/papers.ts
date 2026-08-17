@@ -1,10 +1,9 @@
 /** Paper 相关 API（F3/F4）。 */
-import { apiFetch, apiFetchRaw } from "./client";
+import { apiFetch } from "./client";
 import type {
   ID,
   Page,
   Paper,
-  PaperIntelligenceCard,
   PaperListItem,
   PaperStatus,
   PaperUploadResponse,
@@ -75,9 +74,6 @@ export function uploadToStorage(
     xhr.send(form);
   });
 }
-
-/** 兼容：旧方法名 */
-export const uploadToS3 = uploadToStorage;
 
 // 2026-08-15 myf: 文献一键导入（检索入库/DOI 导入）——Crossref 元数据补全 + 可选 PDF 直链触发分析
 /** 文献一键导入：从检索结果/DOI 建论文记录（Phase 1） */
@@ -163,57 +159,9 @@ export function getPaperStatus(paperId: ID): Promise<PaperStatus> {
   return apiFetch<PaperStatus>(`/api/papers/${paperId}/status`);
 }
 
-/** 获取 Paper Intelligence Card（summary 字段） */
-export function getPaperCard(
-  paperId: ID,
-): Promise<PaperIntelligenceCard | null> {
-  return apiFetch<PaperIntelligenceCard | null>(
-    `/api/papers/${paperId}/card`,
-  );
-}
-
 /** 删除论文 */
 export function deletePaper(paperId: ID): Promise<void> {
   return apiFetch<void>(`/api/papers/${paperId}`, { method: "DELETE" });
-}
-
-/** 兼容：直接上传（若 backend 未实现 presigned，可走 multipart 中转） */
-export function uploadPaperDirect(
-  projectId: ID,
-  file: File,
-): Promise<PaperUploadResponse> {
-  const form = new FormData();
-  form.append("file", file);
-  return apiFetchRaw(
-    `/api/projects/${projectId}/papers`,
-    { method: "POST", body: form },
-  ).then((res) => res.json());
-}
-
-// 2026-08-15 myf: Phase 2.4 段落级文献推荐
-/** 段落级文献推荐 */
-export function recommendPapers(
-  projectId: ID,
-  text: string,
-): Promise<{ results: RecommendResult[] }> {
-  return apiFetch<{ results: RecommendResult[] }>(
-    "/api/papers/recommendations",
-    {
-      method: "POST",
-      body: JSON.stringify({ projectId, text }),
-    },
-  );
-}
-
-export interface RecommendResult {
-  paper_id: number;
-  paper_title?: string;
-  paper_authors?: string;
-  paper_year?: number;
-  section: string | null;
-  content: string;
-  score: number;
-  stance: "supporting" | "contrasting" | "related";
 }
 
 // 2026-08-15 myf: Phase 5 阅读状态更新
@@ -226,14 +174,4 @@ export function updateReadingStatus(
     method: "PUT",
     body: JSON.stringify(body),
   });
-}
-
-/** 全文搜索 */
-export function searchPapers(
-  projectId: ID,
-  q: string,
-): Promise<{ results: PaperListItem[]; count: number }> {
-  return apiFetch<{ results: PaperListItem[]; count: number }>(
-    `/api/projects/${projectId}/papers/search?q=${encodeURIComponent(q)}`,
-  );
 }

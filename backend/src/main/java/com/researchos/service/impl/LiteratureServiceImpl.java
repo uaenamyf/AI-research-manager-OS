@@ -65,11 +65,6 @@ public class LiteratureServiceImpl implements LiteratureService {
         return forward("GET", url.toString(), null);
     }
 
-    @Override
-    public Map<String, Object> sources() {
-        return forward("GET", appProperties.getAiService().getBaseUrl() + "/literature/sources", null);
-    }
-
     /** 转发 GET 到 ai-service，解析 JSON 返回。 */
     @SuppressWarnings("unchecked")
     private Map<String, Object> forward(String method, String url, String body) {

@@ -13,10 +13,8 @@ import com.researchos.dto.PaperCreateRequest;
 import com.researchos.dto.PaperImportRequest;
 import com.researchos.dto.PaperListItem;
 import com.researchos.dto.PaperUploadResponse;
-import com.researchos.entity.Annotation;
 import com.researchos.entity.Paper;
 import com.researchos.entity.User;
-import com.researchos.mapper.AnnotationMapper;
 import com.researchos.mapper.PaperMapper;
 import com.researchos.service.PaperService;
 import com.researchos.service.ProjectService;
@@ -52,7 +50,6 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     private final UserService userService;
     private final CrossrefService crossrefService;
     private final StorageService storageService;
-    private final AnnotationMapper annotationMapper;
 
     /**
      * 创建论文记录 + 发 MQ 触发 AI 分析。
@@ -205,9 +202,6 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     @Transactional
     public void deletePaper(Long userId, Long paperId) {
         Paper paper = requirePaperOwnedBy(paperId, userId);
-        // 2026-08-17 myf: annotation 无外键，删论文需手动清理批注，避免孤儿行
-        annotationMapper.delete(new LambdaQueryWrapper<Annotation>()
-                .eq(Annotation::getPaperId, paperId));
         removeById(paperId);
         // 发 MQ 让 ai-service 清理 PG paper_chunk（幂等：chunk 不存在也安全）
         rabbitTemplate.convertAndSend(

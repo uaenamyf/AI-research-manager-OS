@@ -1,4 +1,4 @@
-﻿/** 前端通用工具函数。 */
+/** 前端通用工具函数。 */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { PaperStatus } from "@/types";
@@ -31,38 +31,8 @@ export const PAPER_STATUS_META: Record<
 };
 
 /** 截断文本 */
-export function truncate(text: string, max = 100): string {
-  if (text.length <= max) return text;
-  return text.slice(0, max).trimEnd() + "...";
-}
-
-/**
- * Tag 标题规范化：统一小写后每个词首字母大写（Title Case）。
- * 用于 AI 生成 tag 的展示（后端已小写去重聚合，这里统一展示格式）。
- * 全大写缩写（如 CNN、SVM）保持原样，避免 "Cnn" 这类误伤。
- */
-export function toTitleCase(text: string | null | undefined): string {
-  if (!text) return "";
-  return text
-    .trim()
-    .split(/\s+/)
-    .map((word) =>
-      // 全大写缩写（长度≥2 且全大写）保留；否则首字母大写
-      /^[A-Z]{2,}$/.test(word) || /^[A-Z0-9]+$/.test(word)
-        ? word
-        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-    )
-    .join(" ");
-}
-
-/** 格式化文件大小 */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** 延时 */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

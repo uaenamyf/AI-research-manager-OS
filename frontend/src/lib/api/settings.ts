@@ -7,14 +7,6 @@ export function getUserSettings(): Promise<UserSettings> {
   return apiFetch<UserSettings>("/api/settings");
 }
 
-/** 全量更新用户设置 */
-export function updateUserSettings(settings: UserSettings): Promise<UserSettings> {
-  return apiFetch<UserSettings>("/api/settings", {
-    method: "PUT",
-    body: JSON.stringify(settings),
-  });
-}
-
 /** 部分更新用户设置（仅更新传入的字段） */
 export function patchUserSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
   return apiFetch<UserSettings>("/api/settings", {

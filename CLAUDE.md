@@ -24,7 +24,7 @@
 
 # 1. 通用规范
 
-- **语言与版本**：前端 TypeScript（Next.js 15）、后端 Java 21（Spring Boot 3.3）、AI 服务 Python 3.12（FastAPI）。
+- **语言与版本**：前端 TypeScript（Next.js 16）、后端 Java 21（Spring Boot 3.3）、AI 服务 Python 3.12（FastAPI）。
 - **编码风格**：跟随语言官方风格——Java 用官方格式化（4 空格缩进），Python 用 PEP 8 + Black（4 空格），TypeScript 用 Prettier（2 空格）。
 - **注释语言**：注释/文档用中文写说明，标识符用英文；对外用户可见文案一律英文（i18n 规范）。
 - **禁止**：硬编码密钥/Token/连接串（必须走环境变量）；提交编译不过或测试失败的代码。
@@ -103,7 +103,7 @@
 # 9. 服务边界铁律
 
 1. ❌ frontend 直连 ai-service 或数据库。
-2. ❌ ai-service 写业务表（user/project/paper/task/conversation）。
+2. ❌ ai-service 写业务表（user/project/paper/task）。
 3. ❌ backend 实现 LLM/向量/PDF 解析逻辑。
 4. ❌ service 查询不带 `user_id` 过滤（越权漏洞）。
 5. ❌ 单 PR 跨三个服务同时改（必须拆分）。

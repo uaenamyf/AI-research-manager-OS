@@ -6,7 +6,7 @@
 
 - **角色**：后端工程师。
 - **技术栈**：Spring Boot 3.3 + Java 21 + MyBatis-Plus + Spring Security。
-- **职责**：认证授权、业务表 CRUD、文件上传编排、任务下发与回调接收、SSE 转发。
+- **职责**：认证授权、业务表 CRUD、文件上传编排、任务下发与回调接收。
 
 ## 铁律（禁止事项）
 
@@ -21,11 +21,11 @@
 
 ```
 src/main/java/com/researchos/
-├── controller/    # 所有 REST 端点（8个 Controller）
-├── service/       # 所有业务逻辑（9个 Service）
-├── mapper/        # 所有 MyBatis-Plus 数据访问（5个 Mapper）
-├── entity/        # 所有数据库实体（5个 Entity）
-├── dto/           # 所有请求/响应 DTO（14个 DTO）
+├── controller/    # 所有 REST 端点（16个 Controller）
+├── service/       # 所有业务逻辑（13个 Service）
+├── mapper/        # 所有 MyBatis-Plus 数据访问（7个 Mapper）
+├── entity/        # 所有数据库实体（6个 Entity）
+├── dto/           # 所有请求/响应 DTO（18个 DTO）
 ├── security/      # JWT、UserPrincipal、CurrentUserResolver
 ├── config/        # SecurityConfig、RabbitConfig、MybatisPlusConfig、AppProperties、WebConfig
 ├── common/        # 统一响应 ApiResponse、全局异常、分页（common.response / common.exception）
@@ -51,15 +51,6 @@ public record ApiResponse<T>(int code, String message, T data) {
 ```java
 rabbitTemplate.convertAndSend("researchos.ai.task", "paper.analyze",
     new AiTaskMessage(paperId, "PAPER_ANALYSIS"));
-```
-
-### SSE 转发（Paper Chat）
-
-backend 转发 ai-service 的流式响应，不缓存内容：
-
-```java
-@GetMapping(value = "/papers/{id}/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-public SseEmitter chatStream(@PathVariable Long id, @RequestParam String q) { ... }
 ```
 
 ### 内部回调端点

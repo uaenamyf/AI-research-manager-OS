@@ -88,17 +88,4 @@ class LiteratureControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
     }
-
-    @Test
-    void sources_returnsUnifiedResponse() throws Exception {
-        when(currentUserResolver.requireUserId()).thenReturn(42L);
-        when(literatureService.sources()).thenReturn(Map.of("count", 7));
-
-        mockMvc.perform(get("/api/literature/sources"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.count").value(7));
-
-        verify(literatureService).sources();
-    }
 }

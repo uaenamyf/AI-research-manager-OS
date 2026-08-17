@@ -1,6 +1,5 @@
 package com.researchos.config;
 
-import com.researchos.dto.AiTaskMessage;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;

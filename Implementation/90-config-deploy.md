@@ -54,7 +54,7 @@ OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=             # 国内网络走火山引擎/DeepSeek 等 OpenAI 兼容端点时填写
 OPENAI_DEFAULT_MODEL=        # 兼容端点时为接入点 ID
 EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_DIM=1536           # 须与 PG paper_chunk.embedding 维度一致
+EMBEDDING_DIM=2048           # 须与 PG paper_chunk.embedding 维度一致
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 

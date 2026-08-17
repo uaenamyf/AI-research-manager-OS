@@ -8,12 +8,13 @@ ai-service/
 │   ├── main.py              # FastAPI 入口
 │   ├── api/
 │   │   ├── routes/
-│   │   │   ├── paper.py     # POST /paper/analyze
-│   │   │   ├── chat.py      # POST /rag/chat/stream (SSE) + POST /rag/chat (非流式)
-│   │   │   └── review.py    # POST /review/generate
+│   │   │   ├── paper.py      # POST /paper/analyze（调试用）
+│   │   │   ├── review.py     # POST /review/generate（调试用）
+│   │   │   ├── writing.py    # POST /writing/rewrite
+│   │   │   ├── literature.py # GET /literature/search（MCP 学术搜索）
+│   │   │   └── latex.py      # POST /latex/compile
 │   ├── agents/
 │   │   ├── paper_agent.py
-│   │   ├── chat_agent.py
 │   │   ├── review_agent.py
 │   │   └── writing_agent.py
 │   ├── rag/
@@ -29,7 +30,6 @@ ai-service/
 │   │                          # 队列未就绪时后台重试（backend 未启动不丢消费）
 │   ├── core/
 │   │   ├── config.py         # Settings（pydantic-settings）
-│   │   ├── deps.py           # 依赖注入
 │   │   └── security.py       # 内部服务鉴权
 │   └── models/              # Pydantic schema
 ├── tests/
@@ -46,9 +46,11 @@ app = FastAPI(title="ResearchOS AI Service")
 @app.get("/health")
 def health(): return {"status": "ok"}
 
-app.include_router(paper_router,   prefix="/paper", tags=["paper"])
-app.include_router(chat_router,    prefix="/rag",   tags=["rag"])
-app.include_router(review_router,  prefix="/review", tags=["review"])
+app.include_router(paper_router,      prefix="/paper", tags=["paper"])
+app.include_router(review_router,     prefix="/review", tags=["review"])
+app.include_router(writing_router,    prefix="/writing", tags=["writing"])
+app.include_router(literature_router, prefix="/literature", tags=["literature"])
+app.include_router(latex_router,      tags=["latex"])
 ```
 
 ## Paper Agent（生成 Paper Intelligence Card + Tags）
@@ -60,7 +62,7 @@ app.include_router(review_router,  prefix="/review", tags=["review"])
 - `name`：仅限**方法论**或**宽泛领域**（如「深度学习」「信号处理」「生物声学」），由 LLM 基于论文 Keywords 与摘要**归纳**生成（4-8 个），不使用论文标题，也不逐字照抄 keywords。
 - `category`：所属**顶层大类领域**（如「人工智能」「生物」「工程」「数学」），相似方法论归入同一大类（「深度学习」「强化学习」都归「人工智能」）；大类本身也可作为 tag 使用。
 - **禁止**使用细分领域作 category（如 Wildlife Biology、marine biology、Bioacoustics 这类子领域只能出现在 `name`）。
-- 随 `summary` 回调 backend 存入 `paper.summary`（JSONB），供 Knowledge Tags / Graph 使用。
+- 随 `summary` 回调 backend 存入 `paper.summary`。
 
 ## 内部鉴权（backend -> ai-service）
 

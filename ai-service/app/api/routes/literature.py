@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.literature_mcp import LiteratureMcpError, list_sources, search_literature
+from app.core.literature_mcp import LiteratureMcpError, search_literature
 from app.core.security import verify_internal_token
 
 router = APIRouter()
@@ -32,14 +32,5 @@ async def search(
             year_to=year_to,
             open_access=open_access,
         )
-    except LiteratureMcpError as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
-
-
-@router.get("/sources", dependencies=[Depends(verify_internal_token)])
-async def sources():
-    """列出支持的学术数据源与凭据配置状态。"""
-    try:
-        return await list_sources()
     except LiteratureMcpError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e

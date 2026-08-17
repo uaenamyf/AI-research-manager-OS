@@ -58,20 +58,6 @@ class PaperAnalyzeResult(BaseModel):
     tags: list[PaperTag] = []
 
 
-class ChatStreamRequest(BaseModel):
-    """POST /rag/chat/stream 请求体。"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    paper_id: int = Field(..., alias="paperId")
-    question: str
-    # 2026-08-12 myf: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
-    llm_override: LlmOverride | None = Field(default=None, alias="llmOverride")
-    # 2026-08-12 myf: 用户自定义 RAG 检索参数（0/None 用系统默认）
-    retrieve_top_k: int | None = Field(default=None, alias="retrieveTopK")
-    similarity_threshold: float | None = Field(default=None, alias="similarityThreshold")
-
-
 class ReviewGenerateRequest(BaseModel):
     """POST /review/generate 请求体。"""
 
@@ -81,37 +67,6 @@ class ReviewGenerateRequest(BaseModel):
     topic: str = ""
     # 2026-08-12 myf: 请求级 LLM 配置覆盖（用户自定义 API Key / 模型等）
     llm_override: LlmOverride | None = Field(default=None, alias="llmOverride")
-
-
-class KnowledgeSearchRequest(BaseModel):
-    """POST /search 请求体（Knowledge 语义搜索）。
-
-    搜索范围（paperIds）由 backend 按 user_id 过滤后传入，
-    ai-service 不查业务表，只做 embedding + 向量检索。
-    """
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    paper_ids: list[int] = Field(..., alias="paperIds")
-    query: str
-    top_k: int = Field(20, alias="topK")
-
-
-class KnowledgeSearchHit(BaseModel):
-    """语义搜索结果项。"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    paper_id: int = Field(..., alias="paperId")
-    section: str = ""
-    content: str = ""
-    score: float = 0.0
-
-
-class KnowledgeSearchResponse(BaseModel):
-    """语义搜索结果。"""
-
-    results: list[KnowledgeSearchHit] = []
 
 
 class WritingRewriteRequest(BaseModel):
@@ -133,30 +88,6 @@ class WritingRewriteResult(BaseModel):
 
     action: str
     text: str
-
-
-class PaperSimilarityRequest(BaseModel):
-    """POST /graph/similarities 请求体（论文相似度）。"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    paper_ids: list[int] = Field(..., alias="paperIds")
-
-
-class PaperSimilarityHit(BaseModel):
-    """论文相似度对（图谱边）。"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    source: int
-    target: int
-    score: float = 0.0
-
-
-class PaperSimilarityResponse(BaseModel):
-    """论文相似度结果。"""
-
-    similarities: list[PaperSimilarityHit] = []
 
 
 class HealthResponse(BaseModel):

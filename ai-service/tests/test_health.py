@@ -39,12 +39,6 @@ def test_paper_analyze_wrong_token(client):
     assert resp.status_code == 401
 
 
-def test_chat_stream_requires_token(client):
-    """Chat 端点未带 token 应 422。"""
-    resp = client.post("/rag/chat/stream", json={"paperId": 1, "question": "test"})
-    assert resp.status_code == 422
-
-
 def test_review_generate_requires_token(client):
     """Review 端点未带 token 应 422。"""
     resp = client.post(

@@ -18,7 +18,4 @@ public interface LiteratureService {
      */
     Map<String, Object> search(String query, Integer limit, List<String> sources,
                                Integer yearFrom, Integer yearTo, Boolean openAccess);
-
-    /** 列出支持的学术数据源及凭据配置状态。 */
-    Map<String, Object> sources();
 }

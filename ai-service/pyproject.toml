@@ -10,14 +10,11 @@ dependencies = [
     # 配置管理
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",
-    # 数据库（PostgreSQL + pgvector 向量库 / MySQL 业务元数据）
+    # 数据库（PostgreSQL 向量库 / MySQL 业务元数据）
     "asyncpg>=0.29.0",
-    "pgvector>=0.3.6",
     "aiomysql>=0.2.0",
     # MySQL 8 默认 caching_sha2_password 认证需要
     "cryptography>=42.0.0",
-    # Redis
-    "redis[hiredis]>=5.0.0",
     # RabbitMQ
     "aio-pika>=9.4.0",
     # PDF 解析

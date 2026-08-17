@@ -44,7 +44,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="p-4">
           <p className="text-sm text-gray-500">Projects</p>
           <p className="text-2xl font-bold text-gray-900">
@@ -56,10 +56,6 @@ export default function DashboardPage() {
           <p className="text-2xl font-bold text-gray-900">
             {recentPapers.length}
           </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-500">Knowledge Nodes</p>
-          <p className="text-2xl font-bold text-gray-900">0</p>
         </Card>
       </div>
 

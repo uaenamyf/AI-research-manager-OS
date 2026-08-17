@@ -23,8 +23,6 @@ FAKE_RESULTS = {
     "all_sources_failed": False,
 }
 
-FAKE_SOURCES = {"count": 7, "sources": ["pubmed", "arxiv"]}
-
 
 class TestLiteratureAPI:
     """文献检索路由测试。"""
@@ -89,16 +87,3 @@ class TestLiteratureAPI:
 
         assert resp.status_code == 502
         assert "不可用" in resp.json()["detail"]
-
-    def test_sources_returns_sources(self):
-        """列出数据源。"""
-        with patch("app.api.routes.literature.list_sources",
-                   new=AsyncMock(return_value=FAKE_SOURCES)):
-            client = TestClient(app)
-            resp = client.get(
-                "/literature/sources",
-                headers={"X-Internal-Token": INTERNAL_TOKEN},
-            )
-
-        assert resp.status_code == 200
-        assert resp.json()["count"] == 7

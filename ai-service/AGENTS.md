@@ -10,7 +10,7 @@
 
 ## 铁律（禁止事项）
 
-1. ❌ **禁止写业务表**：`app_user` / `research_project` / `paper` / `conversation` / `ai_task` 一律不可写（这些表在 **MySQL**）。ai-service 只能写 `paper_chunk`（**PostgreSQL** 向量库），业务数据通过回调让 backend 更新。
+1. ❌ **禁止写业务表**：`app_user` / `research_project` / `paper` / `ai_task` 一律不可写（这些表在 **MySQL**）。ai-service 只能写 `paper_chunk`（**PostgreSQL** 向量库），业务数据通过回调让 backend 更新。
 2. ❌ **禁止直接对前端暴露**：所有端点必须校验 `X-Internal-Token`，只接受 backend 调用。
 3. ❌ **禁止持久化用户敏感信息**：LLM API key、用户密钥只在内存/环境变量，不落库不落盘。
 4. ❌ **禁止自行查业务库取 paper.pdf_url**：如需 pdf_url，由 backend 在 MQ 消息 payload 中传入。
@@ -23,8 +23,8 @@
 ```
 app/
 ├── main.py          # FastAPI 入口、路由注册
-├── api/routes/      # HTTP 端点（paper/chat/review）
-├── agents/          # 4 个业务 Agent（paper/chat/review/writing）
+├── api/routes/      # HTTP 端点（paper/review/writing/literature/latex）
+├── agents/          # 3 个业务 Agent（paper/review/writing）
 ├── rag/             # 检索器、向量存储、embedding
 ├── parser/          # PDF 解析 + section 切分
 ├── llm/client.py    # 统一 LLM 客户端（支持 openai/anthropic 切换）
@@ -55,7 +55,6 @@ app/
 | Agent | 输入 | 输出 |
 | --- | --- | --- |
 | paper_agent | `{ pdf_url }` | `{ title, method, finding, limitation, future_work }` |
-| chat_agent | `{ paper_id, question }` | 流式 text（SSE） |
 | review_agent | `{ paper_ids, topic }` | markdown 文本 |
 | writing_agent | `{ text, action }` | 改写后文本 |
 
@@ -63,7 +62,6 @@ app/
 
 - **LLM 可替换 provider**：通过 `llm/client.py` 统一封装，环境变量 `LLM_PROVIDER` 切换 openai/anthropic。
 - **Prompt 与代码分离**：prompt 模板放 `app/agents/prompts/` 或常量，不散落在逻辑中。
-- **RAG 必须带来源**：chat_agent 回答需附引用 chunk_id。
 - **不越权**：Agent 只读 `paper_chunk` 与传入的 metadata。
 
 ## guardrail 与重试（重要）

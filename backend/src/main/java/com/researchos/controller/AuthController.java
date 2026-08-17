@@ -3,7 +3,6 @@ package com.researchos.controller;
 import com.researchos.dto.AuthResponse;
 import com.researchos.dto.LoginRequest;
 import com.researchos.dto.RegisterRequest;
-import com.researchos.security.UserPrincipal;
 import com.researchos.service.AuthService;
 import com.researchos.common.response.ApiResponse;
 import com.researchos.security.CurrentUserResolver;

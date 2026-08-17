@@ -42,19 +42,6 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /** 生成 refresh token */
-    public String generateRefreshToken(Long userId) {
-        Date now = new Date();
-        Date expiry = new Date(now.getTime() + props.getJwt().getRefreshTtl().toMillis());
-        return Jwts.builder()
-                .subject(String.valueOf(userId))
-                .claim("type", "refresh")
-                .issuedAt(now)
-                .expiration(expiry)
-                .signWith(key)
-                .compact();
-    }
-
     /** 解析并验证 token */
     public Claims parse(String token) {
         return Jwts.parser()
@@ -62,10 +49,6 @@ public class JwtTokenProvider {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-    }
-
-    public Long getUserId(String token) {
-        return Long.parseLong(parse(token).getSubject());
     }
 
     public boolean isValid(String token) {

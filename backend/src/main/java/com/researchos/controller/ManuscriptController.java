@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 手稿控制器（Writing 工作区保存/加载）。
@@ -37,17 +36,6 @@ public class ManuscriptController {
             wrapper.eq(Manuscript::getProjectId, projectId);
         }
         return ApiResponse.ok(manuscriptMapper.selectList(wrapper));
-    }
-
-    /** 获取单篇手稿 */
-    @GetMapping("/{id}")
-    public ApiResponse<Manuscript> get(@PathVariable Long id) {
-        Long userId = currentUserResolver.requireUserId();
-        Manuscript m = manuscriptMapper.selectById(id);
-        if (m == null || !m.getUserId().equals(userId)) {
-            return ApiResponse.fail(404, "Manuscript not found");
-        }
-        return ApiResponse.ok(m);
     }
 
     /** 创建手稿 */
@@ -92,20 +80,6 @@ public class ManuscriptController {
             return ApiResponse.fail(404, "Manuscript not found");
         }
         manuscriptMapper.deleteById(id);
-        return ApiResponse.ok();
-    }
-
-    /** 更新手稿标题（快速重命名） */
-    @PutMapping("/{id}/title")
-    public ApiResponse<Void> rename(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        Long userId = currentUserResolver.requireUserId();
-        Manuscript m = manuscriptMapper.selectById(id);
-        if (m == null || !m.getUserId().equals(userId)) {
-            return ApiResponse.fail(404, "Manuscript not found");
-        }
-        m.setTitle(body.getOrDefault("title", "Untitled").trim());
-        m.setUpdatedTime(LocalDateTime.now());
-        manuscriptMapper.updateById(m);
         return ApiResponse.ok();
     }
 }

@@ -30,7 +30,6 @@ public class AppProperties {
     public static class Jwt {
         private String secret;
         private Duration accessTtl = Duration.ofMinutes(30);
-        private Duration refreshTtl = Duration.ofDays(7);
     }
 
     @Data

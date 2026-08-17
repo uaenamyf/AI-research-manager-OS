@@ -6,14 +6,6 @@ spring:
     username: ${DB_USER:researchos}
     password: ${DB_PASS:researchos}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  flyway:
-    # MySQL schema 已通过 db/migration-mysql/V1__init.sql 手动初始化，
-    # 数据迁移同样手动执行，故关闭 Flyway 自动迁移
-    enabled: false
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
   rabbitmq:
     host: ${RABBIT_HOST:localhost}
     port: ${RABBIT_PORT:5672}
@@ -37,7 +29,6 @@ app:
   jwt:
     secret: ${JWT_SECRET:dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
     access-ttl: 7d
-    refresh-ttl: 30d
   storage:
     type: ${STORAGE_TYPE:local}
     bucket: ${STORAGE_BUCKET:researchos-pdfs}

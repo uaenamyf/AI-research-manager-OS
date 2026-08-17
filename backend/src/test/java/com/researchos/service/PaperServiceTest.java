@@ -4,11 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.researchos.dto.PaperCreateRequest;
 import com.researchos.dto.PaperImportRequest;
 import com.researchos.dto.PaperUploadResponse;
-import com.researchos.entity.Annotation;
 import com.researchos.entity.Paper;
 import com.researchos.entity.ResearchProject;
 import com.researchos.entity.User;
-import com.researchos.mapper.AnnotationMapper;
 import com.researchos.mapper.PaperMapper;
 import com.researchos.service.impl.PaperServiceImpl;
 import com.researchos.service.support.CrossrefService;
@@ -58,9 +56,6 @@ class PaperServiceTest {
 
     @Mock
     private PaperMapper paperMapper;
-
-    @Mock
-    private AnnotationMapper annotationMapper;
 
     @Mock
     private StorageService storageService;
@@ -217,8 +212,6 @@ class PaperServiceTest {
 
         // 删除 MySQL 记录
         verify(paperMapper, times(1)).deleteById(100L);
-        // 清理批注（annotation 无外键，手动删避免孤儿行）
-        verify(annotationMapper, times(1)).delete(any(LambdaQueryWrapper.class));
         // 删除本地/S3 PDF 文件
         verify(storageService, times(1)).deleteFile("papers/abc/test-paper.pdf");
         // 发 paper.delete MQ，让 ai-service 清理 PG paper_chunk
@@ -266,9 +259,8 @@ class PaperServiceTest {
                 paperService.deletePaper(TEST_USER_ID, 999L)
         );
 
-        // 不删记录、不发 MQ、不清理批注和文件
+        // 不删记录、不发 MQ、不清理文件
         verify(paperMapper, never()).deleteById(anyLong());
-        verify(annotationMapper, never()).delete(any(LambdaQueryWrapper.class));
         verify(storageService, never()).deleteFile(anyString());
         verify(rabbitTemplate, never())
                 .convertAndSend(anyString(), anyString(), any(Object.class));

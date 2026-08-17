@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     MYSQL_URL: str = (
         "mysql://researchos:researchos@localhost:3306/researchos"
     )
-    REDIS_URL: str = "redis://localhost:6379/0"
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
 
     # ── 内部鉴权（与 backend 共享）──
@@ -62,9 +61,6 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 512
     CHUNK_OVERLAP: int = 64
     RETRIEVE_TOP_K: int = 5
-
-    # ── MQ 重试 ──
-    MQ_MAX_RETRIES: int = 3
 
 
 settings = Settings()

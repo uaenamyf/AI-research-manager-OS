@@ -28,7 +28,7 @@
 | 2.5 | paper_agent 生成 Paper Card | ai-service | ✅ |
 | 2.6 | 上传 -> 分析异步链路联调 | 全栈 | ✅ |
 | 2.7 | 前端 Paper Workspace（PDF + Card） | frontend | ✅ |
-| 2.8 | Paper Chat SSE 链路 | 全栈 | ✅（流式 + 非流式，2026-08-15 补齐非流式） |
+| 2.8 | Paper Chat SSE 链路 | 全栈 | ✅（已实现，功能后续已移除） |
 | 2.9 | RAG 检索 + prompt | ai-service | ✅ |
 
 ## Sprint 3（3 周）商业化能力
@@ -36,7 +36,7 @@
 | # | 任务 | 服务 | 状态 |
 | --- | --- | --- | --- |
 | 3.1 | review_agent 综述生成 | ai-service | ✅ |
-| 3.2 | Knowledge Base（tag + 搜索） | backend | ✅ |
+| 3.2 | Knowledge Base（tag + 搜索） | backend | ✅（已实现；功能后续已移除） |
 | 3.3 | 前端 Review Generator 页面 | frontend | ✅（Writing Studio：Literature Review + Writing Assistant） |
 | 3.4 | Stripe 订阅 + 额度拦截 | backend | ✅ |
 | 3.5 | 免费档位限制（10 papers/month） | backend | ✅ PLAN_LIMITS + 上传时 checkQuota 拦截 |

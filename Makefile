@@ -3,7 +3,7 @@
 # 使用方法：make <target>
 # ============================================================
 
-.PHONY: help infra up down build test logs clean
+.PHONY: help infra-up infra-down up down build build-backend build-ai build-frontend test test-backend test-ai test-frontend logs logs-backend logs-ai logs-frontend logs-infra clean reset
 
 .DEFAULT_GOAL := help
 

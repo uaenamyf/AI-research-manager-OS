@@ -6,15 +6,14 @@
 
 ```
 MySQL (researchos)                    PostgreSQL (researchos)
-├── app_user          业务数据        ├── paper_chunk      AI 向量（pgvector vector(1536)）
+├── app_user          业务数据        ├── paper_chunk      AI 向量（pgvector vector(2048)）
 ├── research_project  backend 维护    └── (旧业务表已迁移后清理，2026-08-13)
 ├── folder            只被 backend
 ├── paper             读写
-├── conversation
 └── ai_task
 ```
 
-- **MySQL**：backend（Spring Boot + MyBatis-Plus）的唯一数据源，存账号/项目/论文元数据/聊天/任务。
+- **MySQL**：backend（Spring Boot + MyBatis-Plus）的唯一数据源，存账号/项目/论文元数据/任务。
 - **PostgreSQL**：ai-service 的向量库，只存 `paper_chunk`（embedding），支撑 RAG 余弦检索。
 - **跨库关联**：`paper_chunk.paper_id` 是**逻辑外键**（对应 MySQL `paper.id`），PG 侧无物理外键约束。删除论文时由 backend 发 MQ 通知 ai-service 清理 PG 中的 chunk。
 
@@ -92,19 +91,6 @@ CREATE TABLE paper (
 CREATE INDEX idx_paper_project ON paper(project_id);
 CREATE INDEX idx_paper_user    ON paper(user_id);
 
--- 聊天历史
-CREATE TABLE conversation (
-    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id      BIGINT NOT NULL,
-    paper_id     BIGINT,
-    question     TEXT,
-    answer       TEXT,
-    created_time DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-    CONSTRAINT fk_conv_user  FOREIGN KEY (user_id)  REFERENCES app_user(id) ON DELETE CASCADE,
-    CONSTRAINT fk_conv_paper FOREIGN KEY (paper_id) REFERENCES paper(id)    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE INDEX idx_conv_paper ON conversation(paper_id);
-
 -- AI 任务
 CREATE TABLE ai_task (
     task_id      BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -163,10 +149,9 @@ CREATE INDEX idx_chunk_section ON paper_chunk(section);
 
 ## 数据迁移（PG → MySQL）
 
-历史数据迁移脚本：`scripts/migrate_pg_to_mysql.py`
+历史数据迁移：2026-08-13 完成 PG → MySQL 业务数据迁移（一次性脚本已从仓库移除，历史保留在 git）。
 
-- 使用 psycopg2 读 PG（旧业务表）+ pymysql 写 MySQL。
 - 迁移表：`app_user` / `research_project` / `folder` / `paper` / `conversation` / `ai_task`，显式保留原 id。
 - 处理：JSONB → json.dumps 字符串、TIMESTAMPTZ → 本地时间、幂等 TRUNCATE（`SET FOREIGN_KEY_CHECKS=0` 逐个执行）。
 - **paper_chunk 不迁移**，保留在 PG 作为向量库数据源。
-- 迁移验证通过后，PG 中 6 张旧业务表已 DROP（2026-08-13），仅保留 `paper_chunk`；删除前数据备份在 `scripts/backup_pg_business_20260813.sql`（pg_dump --data-only --column-inserts）。
+- 迁移验证通过后，PG 中旧业务表已 DROP（2026-08-13），仅保留 `paper_chunk`。

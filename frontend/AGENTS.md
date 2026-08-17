@@ -5,7 +5,7 @@
 ## 服务定位
 
 - **角色**：前端工程师。
-- **技术栈**：Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui。
+- **技术栈**：Next.js 16 (App Router) + TypeScript + Tailwind + shadcn/ui。
 - **唯一数据来源**：backend 的 `/api/*` 接口。
 
 ## 铁律（禁止事项）
@@ -21,9 +21,9 @@
 | --- | --- |
 | `src/app/` | App Router 页面与路由，只做数据获取与组件编排 |
 | `src/components/ui/` | shadcn/ui 基础组件 |
-| `src/components/paper/` | 论文相关业务组件（PdfViewer、PaperCard、ChatPanel） |
+| `src/components/paper/` | 论文相关业务组件（PdfViewer、PaperCard、PaperUploader） |
 | `src/components/layout/` | 布局组件（Sidebar、Header） |
-| `src/lib/api/` | backend API 客户端，按资源拆分（papers.ts、chat.ts） |
+| `src/lib/api/` | backend API 客户端，按资源拆分（papers.ts、projects.ts） |
 | `src/lib/hooks/` | 自定义 React hooks |
 | `src/lib/utils/` | 工具函数 |
 | `src/stores/` | Zustand 全局状态 |
@@ -32,10 +32,9 @@
 
 ## 关键约定
 
-- **数据获取**：Server Components 优先 `fetch` + RSC；客户端交互用 TanStack Query。
+- **数据获取**：Server Components 优先 `fetch` + RSC；客户端交互用原生 fetch + Zustand。
 - **PDF 渲染**：`react-pdf`（基于 pdf.js）。
-- **流式回复**：AI 回复走 SSE（`text/event-stream`），通过 backend 转发 ai-service 的流。
-- **状态管理**：Zustand 管理全局 UI 状态，TanStack Query 管理服务端状态。
+- **状态管理**：Zustand 管理全局状态（UI 状态与上传进度）。
 - **认证**：JWT 在 httpOnly cookie，前端不读写 token。
 
 ## API 客户端规范
@@ -57,4 +56,4 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 ## 测试
 
 - 核心组件必须有 Vitest 单元测试。
-- 关键用户流程（登录、上传、Chat、Review 生成）必须有 Playwright E2E。
+- 关键用户流程（登录、上传、Review 生成）必须有 Playwright E2E。

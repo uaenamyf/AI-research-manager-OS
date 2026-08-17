@@ -68,6 +68,12 @@ function LibraryContent() {
     });
   }, [searchParams]);
 
+  const loadPapers = (projectId: ID, folderId: ID | null) => {
+    listPapers(projectId, folderId ?? undefined, 0, 200).then((p) =>
+      setPapers(p.items),
+    );
+  };
+
   useEffect(() => {
     if (!selectedProject) return;
     getFolderTree(selectedProject).then(setFolders);
@@ -75,12 +81,6 @@ function LibraryContent() {
     setSelectedPaper(null);
     setSelectedFolderId(null);
   }, [selectedProject]);
-
-  const loadPapers = (projectId: ID, folderId: ID | null) => {
-    listPapers(projectId, folderId ?? undefined, 0, 200).then((p) =>
-      setPapers(p.items),
-    );
-  };
 
   const handleFolderClick = (folderId: ID | null) => {
     setSelectedFolderId(folderId);

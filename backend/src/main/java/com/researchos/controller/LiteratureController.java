@@ -39,11 +39,4 @@ public class LiteratureController {
         return ApiResponse.ok(literatureService.search(
                 query, limit, sources, yearFrom, yearTo, openAccess));
     }
-
-    /** 列出支持的学术数据源及凭据配置状态。 */
-    @GetMapping("/sources")
-    public ApiResponse<Map<String, Object>> sources() {
-        currentUserResolver.requireUserId();
-        return ApiResponse.ok(literatureService.sources());
-    }
 }

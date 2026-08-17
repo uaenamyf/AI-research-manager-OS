@@ -11,25 +11,26 @@ frontend/
 │   │   ├── (auth)/login          # 路由组（不显示布局）
 │   │   ├── (auth)/register
 │   │   ├── dashboard/
-│   │   ├── projects/[id]/
-│   │   ├── papers/[id]/          # Paper Workspace
-│   │   │   ├── page.tsx          # PDF + AI 助手双栏
-│   │   │   └── chat/             # Paper Chat
-│   │   ├── knowledge/
-│   │   ├── writing/              # Review Generator
+│   │   ├── library/              # F2/F3 项目 + 论文库（上传/文件夹/删除）
+│   │   ├── papers/[id]/          # Paper Workspace（PDF + Paper Card）
+│   │   ├── literature/           # 文献检索（MCP 学术搜索）
+│   │   ├── assistant/            # 写作助手
+│   │   ├── writing/              # Review Generator + 手稿工作区
 │   │   └── settings/
 │   ├── components/
 │   │   ├── ui/                   # shadcn/ui 组件
 │   │   ├── paper/
 │   │   │   ├── PdfViewer.tsx
 │   │   │   ├── PaperCard.tsx
-│   │   │   └── ChatPanel.tsx
+│   │   │   └── PaperUploader.tsx
+│   │   ├── upload/               # 全局上传进度面板
 │   │   └── layout/
 │   ├── lib/
 │   │   ├── api/                 # 后端 API 客户端（封装 fetch）
 │   │   │   ├── client.ts         # 带拦截器的 baseURL 客户端
 │   │   │   ├── papers.ts
-│   │   │   └── chat.ts
+│   │   │   ├── projects.ts
+│   │   │   └── literature.ts
 │   │   ├── hooks/
 │   │   └── utils/
 │   ├── stores/                   # Zustand 状态
@@ -72,12 +73,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 ### API 客户端层 `src/lib/api/`
 - `client.ts` - 统一 apiFetch 封装（cookie + 统一响应解析 + ApiError）
 - `auth.ts` - F1 认证（register/login/logout/getCurrentUser/Google OAuth URL）
-- `projects.ts` - F2 Project CRUD
+- `projects.ts` - F2 Project 列表
 - `papers.ts` - F3/F4 论文上传（presigned POST 三步）/详情/列表/状态轮询/删除
-- `chat.ts` - F5 Paper Chat（SSE 流式 + 非流式 + 历史）
-- `knowledge.ts` - F6 Knowledge Base（标签/搜索）
+- `literature.ts` - 文献检索（MCP）
 - `reviews.ts` - F7 Review 生成（异步 + 轮询）
-- `index.ts` - 统一导出
 
 ### Hooks `src/lib/hooks/`
 - `usePaperStatus.ts` - 论文分析状态轮询
@@ -98,10 +97,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 - `PaperStatusBadge.tsx` - 论文状态徽章
 - `PaperUploader.tsx` - PDF 上传（presigned POST 三步）
 - `PdfViewer.tsx` - PDF 阅读器（react-pdf 占位）
-- `ChatPanel.tsx` - 流式问答面板
 
 ### 基础 UI `src/components/ui/`
-- `index.tsx` - Button/Input/Textarea/Card/Spinner/Badge（shadcn 风格轻量实现）
+- `index.tsx` - Button/Input/Card/Spinner/Badge（shadcn 风格轻量实现）
 
 ### 页面 `src/app/`
 - `layout.tsx` + `globals.css` - 根布局
@@ -109,11 +107,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 - `(auth)/login/page.tsx` - F1 登录
 - `(auth)/register/page.tsx` - F1 注册
 - `dashboard/page.tsx` - 仪表盘（项目/论文/统计）
-- `projects/page.tsx` - F2 项目列表 + 创建
-- `projects/[id]/page.tsx` - F2/F3 项目详情 + 论文列表 + 上传
+- `library/page.tsx` - F2/F3 论文库（项目列表 + 论文上传）
+- `assistant/page.tsx` - AI 问答助手
 - `papers/[id]/page.tsx` - F4 Paper Workspace（PDF + Card 双栏）
-- `papers/[id]/chat/page.tsx` - F5 Paper Chat
-- `knowledge/page.tsx` - F6 知识库（Tags 分组展示 + 模糊搜索 + 图谱）
 - `writing/page.tsx` - F7 Review Generator（选论文 + 生成）
 - `settings/page.tsx` - 账户 + 订阅档位
 

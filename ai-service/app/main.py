@@ -11,8 +11,7 @@ import asyncpg
 from fastapi import FastAPI
 from loguru import logger
 
-from app.api.routes import chat, graph, literature, paper, review, search, writing
-from app.api.routes.recommend import router as recommend_router
+from app.api.routes import literature, paper, review, writing
 from app.api.routes.latex import router as latex_router
 from app.core.backend_client import backend_client
 from app.core.config import settings
@@ -91,11 +90,7 @@ async def health():
 # ── 路由注册 ──
 # 所有业务路由都挂内部鉴权依赖（在路由模块内声明）
 app.include_router(paper.router, prefix="/paper", tags=["paper"])
-app.include_router(chat.router, prefix="/rag", tags=["rag"])
 app.include_router(review.router, prefix="/review", tags=["review"])
-app.include_router(search.router, tags=["search"])
 app.include_router(writing.router, prefix="/writing", tags=["writing"])
-app.include_router(graph.router, prefix="/graph", tags=["graph"])
 app.include_router(literature.router, prefix="/literature", tags=["literature"])
-app.include_router(recommend_router, prefix="/rag", tags=["rag"])
 app.include_router(latex_router, tags=["latex"])

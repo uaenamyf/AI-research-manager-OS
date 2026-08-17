@@ -72,7 +72,6 @@ mvn surefire-report:report
 | `ProjectServiceTest` | ✅ | 5 用例 |
 | `PaperServiceTest` | ✅ | 6 用例（所有权校验 + 发 MQ） |
 | `SubscriptionServiceTest` | ✅ | 5 用例 |
-| `KnowledgeServiceTest` | ✅ | 11 用例 |
 | `ChatServiceTest` / `WritingServiceTest` 等 | ✅ | 均通过 |
 | `PostgresIntegrationTest` | ⏸ 跳过 | Testcontainers 需 Docker，本地无 Docker 时 `mvn test -Dtest='!PostgresIntegrationTest'` |
 
@@ -301,7 +300,6 @@ cd infra && docker compose build backend ai-service frontend
 ✅ ProjectService       - 创建/列表/删除/权限
 ✅ PaperService         - 上传/状态管理/发MQ
 ✅ SubscriptionService  - 额度校验/Plan 限制
-✅ KnowledgeService     - 标签/搜索
 
 控制器测试：
 ✅ AuthController       - 注册/登录/me

@@ -137,30 +137,6 @@ export interface PresignedPost {
   fields: Record<string, string>;
 }
 
-// ===== F5 Paper Chat =====
-export interface ChatMessage {
-  id: ID;
-  userId: ID;
-  paperId: ID;
-  question: string;
-  answer: string;
-  createdTime: string;
-  /** RAG 引用的 chunk_id 列表 */
-  citations?: ID[];
-}
-
-export interface ChatRequest {
-  paperId: ID;
-  question: string;
-}
-
-/** SSE 流式事件 */
-export interface ChatStreamEvent {
-  type: "token" | "citation" | "done" | "error";
-  content: string;
-  citations?: ID[];
-}
-
 // ===== F7 Review Assistant =====
 export type AiTaskType = "PAPER_ANALYSIS" | "REVIEW_GENERATION";
 export type AiTaskStatus = "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED";
@@ -285,17 +261,10 @@ export interface UserTranslationSettings {
   machineApiKey?: string;
 }
 
-/** 用户 Knowledge / RAG 设置 */
-export interface UserKnowledgeSettings {
-  retrieveTopK?: number;
-  similarityThreshold?: number;
-}
-
 /** 用户设置（与 backend UserSettings DTO 对齐） */
 export interface UserSettings {
   llm: UserLlmSettings;
   translation: UserTranslationSettings;
-  knowledge: UserKnowledgeSettings;
 }
 
 // ===== Literature Search（Review Tab 3：literature-search-mcp 学术检索）=====

@@ -4,7 +4,7 @@
 
 ```
 ai-research-os/
-├── frontend/                 # Next.js 15 应用
+├── frontend/                 # Next.js 16 应用
 ├── backend/                  # Spring Boot 3 (Java 21)
 ├── ai-service/               # FastAPI Python 服务
 ├── infra/                    # docker-compose、部署脚本
@@ -31,7 +31,7 @@ ai-research-os/
 
 | 层 | 技术 | 版本 |
 | --- | --- | --- |
-| 前端 | Next.js + React | 15.x |
+| 前端 | Next.js + React | 16.x |
 | 前端语言 | TypeScript | 5.x |
 | UI | Tailwind CSS + shadcn/ui | latest |
 | 后端 | Spring Boot | 3.3.x |
@@ -54,9 +54,7 @@ ai-research-os/
 | Feature | 前端模块 | 后端模块 | ai-service 模块 |
 | --- | --- | --- | --- |
 | F1 用户账户 | `app/(auth)` | `user`、`auth` | - |
-| F2 Project | `app/projects` | `project` | - |
-| F3 论文上传 | `app/papers/upload` | `paper`、`file` | `parser/pdf_parser.py` |
+| F2 Project | `app/library` | `project` | - |
+| F3 论文上传 | `app/library` | `paper`、`file` | `parser/pdf_parser.py` |
 | F4 Paper Card | `app/papers/[id]` | `paper` | `agents/paper_agent.py` |
-| F5 Paper Chat | `app/papers/[id]/chat` | `chat` | `agents/chat_agent.py` + `rag/` |
-| F6 Knowledge Base | `app/knowledge` | `paper`（tag 查询） | - |
 | F7 Review Assistant | `app/writing` | `ai-task` | `agents/review_agent.py` |

@@ -1,4 +1,4 @@
-/** 设置页：账户信息 + 订阅档位 + LLM / 翻译 / Knowledge 配置。 */
+/** 设置页：账户信息 + 订阅档位 + LLM / 翻译配置。 */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -30,7 +30,6 @@ const PLAN_META: Record<Plan, { label: string; desc: string }> = {
 const DEFAULT_SETTINGS: UserSettingsType = {
   llm: {},
   translation: {},
-  knowledge: {},
 };
 
 export default function SettingsPage() {
@@ -455,68 +454,6 @@ export default function SettingsPage() {
                     })
                   }
                 />
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* ===== Knowledge Settings ===== */}
-      <Card className="p-5">
-        <h2 className="mb-1 font-semibold text-gray-900">📚 Knowledge & RAG Settings</h2>
-        <p className="mb-4 text-xs text-gray-500">
-          Adjust parameters for knowledge base retrieval and RAG.
-        </p>
-
-        {settingsLoading ? (
-          <div className="py-8 text-center text-gray-400">
-            <Spinner /> <span className="ml-2">Loading…</span>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">
-                  Retrieval Top-K
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={settings.knowledge.retrieveTopK ?? 5}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      knowledge: {
-                        ...settings.knowledge,
-                        retrieveTopK: parseInt(e.target.value) || undefined,
-                      },
-                    })
-                  }
-                />
-                <p className="mt-1 text-xs text-gray-400">Number of most relevant chunks to return (1-20)</p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">
-                  Similarity threshold
-                </label>
-                <Input
-                  type="number"
-                  step="0.05"
-                  min={0}
-                  max={1}
-                  value={settings.knowledge.similarityThreshold ?? 0.5}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      knowledge: {
-                        ...settings.knowledge,
-                        similarityThreshold: parseFloat(e.target.value) || undefined,
-                      },
-                    })
-                  }
-                />
-                <p className="mt-1 text-xs text-gray-400">Filter out low-similarity results (0-1)</p>
               </div>
             </div>
           </div>

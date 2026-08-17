@@ -26,67 +26,6 @@
 [Frontend] 轮询 /papers/{id}/status 或 SSE 通知
 ```
 
-## 6.2 Knowledge Base（Tags / Search / Graph）
-
-```
-[Frontend] GET /api/knowledge/tags
-    ↓
-[Backend] KnowledgeServiceImpl.listTags
-    ├── 取该用户全部 paper.summary
-    └── 聚合 summary.tags（[{name, category}]）：
-        ├── 具体 tag 统计 count（如「机器学习」）
-        └── 大类 category 统计 count（如「人工智能」）
-    ↓
-[Frontend] Tags Tab 按 category 分组渲染
-```
-
-```
-[Frontend] GET /api/knowledge/search?q=&limit=
-    ↓
-[Backend] KnowledgeServiceImpl.search
-    └── title / authors 大小写不敏感 LIKE 模糊匹配（内存过滤）
-        （不做 RAG 向量检索；ai-service /search 接口保留未删）
-```
-
-```
-[Frontend] GET /api/knowledge/graph
-    ↓
-[Backend] KnowledgeServiceImpl.graph
-    ├── 主路径：两两论文按共享 tag（含大类）数建边，weight=共享数
-    └── 均无 tags（旧数据）时降级：POST ai-service /graph/similarities
-        → 向量相似度建边（reason=semantic）
-```
-
-- tags 来源：paper_agent 生成 Paper Card 时由 LLM 基于 Keywords + 摘要生成
-  `tags: [{name, category}]`（见 30-ai-service.md §paper_agent），
-  随 `summary` 回调入库（JSONB）。
-
-## 6.3 Paper Chat（同步 SSE + 非流式）
-
-```
-[Frontend] GET /papers/{id}/chat/stream?q=Why+CNN        （流式）
-    ↓
-[Backend] chat 模块
-    ├── 鉴权 + 校验论文归属/READY
-    └── 转发 ai-service POST /rag/chat/stream (SSE)
-    ↓
-[ai-service] chat_agent
-    ├── retriever 检索 paper_chunk（带 paper_id 过滤）
-    ├── 构造 prompt：context + question
-    └── LLM stream -> 逐 token SSE 返回
-    ↓
-[Backend] 透传 SSE -> [Frontend]
-
-非流式（2026-08-15 补齐）：
-[Frontend] POST /api/papers/{id}/chat {question}
-    ↓
-[Backend] ChatService.ask -> POST ai-service /rag/chat
-    ↓
-[ai-service] 同流式逻辑，LLM 一次性补全
-    ↓ 返回 {answer, citations}
-[Backend] 落库 conversation 历史 -> 返回 {question, answer}
-```
-
 ## 6.4 Literature Review 生成（异步）
 
 ```
@@ -108,17 +47,16 @@
 [Frontend] 轮询 /review/{taskId}
 ```
 
-## 6.5 删除论文（跨库向量清理，2026-08-15 实现；08-17 补批注与文件清理）
+## 6.5 删除论文（跨库向量清理，2026-08-15 实现；08-17 补文件清理）
 
 ```
 [Frontend] DELETE /api/papers/{id}
     ↓
 [Backend] PaperServiceImpl.deletePaper
     ├── 1. requirePaperOwnedBy 校验归属（返回 paper，取 pdf_url）
-    ├── 2. 删 annotation（无外键，手动清理避免孤儿行）
-    ├── 3. 删 MySQL paper 行（事务内；conversation 靠外键 ON DELETE CASCADE 级联）
-    ├── 4. 发 MQ {taskId, type:PAPER_DELETE, payload:{paperId}} → q.paper.cleanup
-    └── 5. storageService.deleteFile(pdf_url) 删 PDF 文件（尽力而为；外链 URL 跳过）
+    ├── 2. 删 MySQL paper 行（事务内）
+    ├── 3. 发 MQ {taskId, type:PAPER_DELETE, payload:{paperId}} → q.paper.cleanup
+    └── 4. storageService.deleteFile(pdf_url) 删 PDF 文件（尽力而为；外链 URL 跳过）
     ↓
 [ai-service] consumer._on_paper_delete_message
     └── DELETE FROM paper_chunk WHERE paper_id = $1（幂等，无需回调）

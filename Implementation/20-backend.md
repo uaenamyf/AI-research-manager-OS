@@ -59,15 +59,3 @@ public void dispatchPaperAnalysis(Long paperId) {
         new AiTaskMessage(paperId, "PAPER_ANALYSIS"));
 }
 ```
-
-### Paper Chat SSE 转发
-
-```java
-@GetMapping(value = "/papers/{id}/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-public SseEmitter chatStream(@PathVariable Long id, @RequestParam String q) {
-    SseEmitter emitter = new SseEmitter(60_000L);
-    // 调用 ai-service 的 /rag/chat/stream，转发 token
-    chatService.forwardStream(id, q, emitter);
-    return emitter;
-}
-```
