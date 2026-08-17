@@ -13,7 +13,8 @@
 | `research-hello` | ✅ Phase 0 已验证 | 最小 bundle：可拔插闭环证明（插件 + HTTP 路由） |
 | `research-mcp` | ✅ Phase 0-2 已验证 | 文献 MCP server：search/get/cite/vector_search（MySQL 真实文献 + 网关 embedding + PG 向量检索）；DSH agent 端到端「检索→读取→引用」已跑通 |
 | `research-llm-gateway` | ✅ Phase 0-1 已验证 | 统一 LLM/Embedding 网关（OpenAI 兼容直连代理，chat+embeddings 真实上游）；ResearchOS AI 已正式切到本网关 |
-| `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口） |
+| `research-auth` | ✅ Phase 3 首域起步 | 认证 bundle：register/login/logout/me 直连 MySQL app_user；与旧 Spring Boot 共享 JWT_SECRET 双认证（token 双向互通已验）；响应沿用 `{code,message,data}` 契约 |
+| `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
 
@@ -176,6 +177,41 @@ agent：中文汇报（标题/作者/年份 + 可粘贴的 BibTeX）
 ```
 
 结论：需求 2 全链路闭环——DSH agent 经 MCP 工具读 ResearchOS 真实文献（MySQL 业务数据 + 网关 embedding + PG 向量库），ResearchOS 后端仍独立运行。
+
+## Phase 3：research-auth bundle（DSH 内认证，与旧后端双认证）✅ 2026-08-17
+
+**形态**：Phase 3 首个业务域 bundle。直连 MySQL `app_user`，经 `ctx.webServer` 暴露认证端点，
+响应沿用 ResearchOS `{code,message,data}` 契约（与旧后端可无缝替换）：
+
+```
+POST /research-auth/register   { email, password }   -> { user } + httpOnly cookie
+POST /research-auth/login      { email, password }   -> { user } + httpOnly cookie
+POST /research-auth/logout                            -> 清 cookie
+GET  /research-auth/me         (cookie 或 Authorization: Bearer) -> userDto
+```
+
+**双认证关键**：与旧 Spring Boot **共享同一 `JWT_SECRET`**（HS256，`JwtTokenProvider` 同款
+`sub/email/plan/iat/exp`），bcrypt 同款校验。验证结论：
+- bundle 签发的 token 被真实后端 `GET /api/auth/me` 接受（Bearer 与 `access_token` cookie 均通过）
+- 后端同款 token 亦被 bundle `/research-auth/me` 接受（双向互通）→ 前端切换无需重新登录
+- 负例：错密码 401、重复邮箱 400、无 token/坏 token 401、短密码 400
+
+**安装/卸载**（与其它 bundle 同）：
+
+```sh
+node apps/cli/lib/bin.js plugin --profile web add /abs/path/to/dsh-plugins/research-auth
+node apps/cli/lib/bin.js plugin --profile web remove @researchos/dsh-research-auth
+```
+
+**配置**：`scripts/dsh-gateway.sh` 启动时注入 `JWT_SECRET` + `RESEARCH_MYSQL_*`（默认
+`researchos@127.0.0.1:3306/researchos`，与 research-mcp 同源）。
+
+> ⚠️ **坑位（已修）**：`dsh-gateway.sh` 原先用 `.env` 的 `OPENAI_BASE_URL` 作为网关上游；
+> Phase 1 切换后 `OPENAI_BASE_URL` 指向网关自身 → 网关自环 fetch 失败。已改为读取专用的
+> `.env` 变量 `RESEARCH_LLM_UPSTREAM_BASE_URL`（真实上游），未设置时回退旧行为。
+
+**遗留/注意**：`createdTime` 序列化时区与后端略有差异（bundle 走 ISO-UTC，后端本地时区），
+属展示层差异不影响认证；旧 `AuthController` 尚未下线（并行阶段，等 Phase 4 前端切换后再下线）。
 
 ## 下一步（Phase 1-2 遗留）
 

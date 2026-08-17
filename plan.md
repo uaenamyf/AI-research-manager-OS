@@ -115,7 +115,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 ### 3.4 业务域 bundle（TS 重写清单，对应原 Spring Boot 控制器）
 | 原后端模块 | 新 bundle | 说明 |
 | --- | --- | --- |
-| AuthController/AuthService | `research-auth` | 认证并入 DSH session；JWT 移除，改用 DSH 统一会话 |
+| AuthController/AuthService | `research-auth` | ✅ 已实现（2026-08-17）：bundle 自持 JWT 认证（与旧后端**共享同一 JWT_SECRET**，HS256 双认证），不并入 DSH session（DSH web 显式无用户认证，见 §7 开放问题 3 结论）；前端经 apiproxy/HTTP 调用 |
 | ProjectController | `research-project` | 项目 CRUD + 列表 |
 | PaperController | `research-paper` | 上传（presigned）/创建/详情/列表/状态/删除/阅读状态 |
 | FolderController | `research-folder` | 文件夹树/增删 |
@@ -169,7 +169,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - **出口（已达成）**：DSH agent 能检索/读取/引用 ResearchOS 文献（ResearchOS 后端仍独立跑，数据经 MCP 暴露）
 
 ### Phase 3 — 后端 TS 重写（需求 1/4 主体，4–8 周，按域拆分）
-- [ ] `research-auth`：DSH 会话统一认证，迁移用户数据。
+- [x] `research-auth`：DSH 内认证 bundle（首域起步）。✅ 2026-08-17：`dsh-plugins/research-auth` 连接 MySQL `app_user`，经 `ctx.webServer` 暴露 `/research-auth/{register,login,logout,me}`；JWT HS256 与旧 Spring Boot **共享同一 `JWT_SECRET`**（双认证），bcrypt 校验同款；响应沿用 `{code,message,data}` 契约。验证：注册→登录→me 全通；**token 双向互通**——bundle 签发的 token 被真实后端 `/api/auth/me` 接受（Bearer+cookie 均通过），后端同款 token 亦被 bundle 接受；负例（错密码/重复邮箱/无 token/坏 token/短密码）全部正确 4xx。装进 web profile（`dsh plugin add`），可随 profile 卸载。
 - [ ] `research-project` / `research-folder` / `research-paper` / `research-file`：核心文献域。
 - [ ] `research-review` / `research-writing` / `research-paper-card`：AI 域（走共享网关）。
 - [ ] `research-export` / `research-citation` / `research-settings` / `research-subscription`。

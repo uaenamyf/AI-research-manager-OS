@@ -37,12 +37,21 @@ start() {
   need_env OPENAI_BASE_URL
 
   export RESEARCH_LLM_API_KEY="$(grep '^OPENAI_API_KEY=' "$ENV_FILE" | cut -d= -f2-)"
-  export RESEARCH_LLM_BASE_URL="$(grep '^OPENAI_BASE_URL=' "$ENV_FILE" | cut -d= -f2-)"
+  # 2026-08-17 uaenamyf: gateway 上游改取 RESEARCH_LLM_UPSTREAM_BASE_URL（真实上游），
+  # 不再用 OPENAI_BASE_URL —— Phase 1 切换后 OPENAI_BASE_URL 已指向网关自身，否则网关自环 fetch 失败。
+  export RESEARCH_LLM_BASE_URL="$(grep '^RESEARCH_LLM_UPSTREAM_BASE_URL=' "$ENV_FILE" | cut -d= -f2- || grep '^OPENAI_BASE_URL=' "$ENV_FILE" | cut -d= -f2- || true)"
   export RESEARCH_LLM_MODEL="$(grep '^OPENAI_DEFAULT_MODEL=' "$ENV_FILE" | cut -d= -f2- || true)"
   export RESEARCH_EMBEDDING_API_KEY="$RESEARCH_LLM_API_KEY"
   export RESEARCH_EMBEDDING_BASE_URL="$RESEARCH_LLM_BASE_URL"
   # MCP server env: reach the gateway + ResearchOS DBs from dsh-spawned children
   export RESEARCH_GATEWAY_URL="http://127.0.0.1:$PORT"
+  # Phase 3 research-auth: shared JWT secret (dual-auth with Spring Boot) + MySQL creds
+  export JWT_SECRET="$(grep '^JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)"
+  export RESEARCH_MYSQL_HOST="${RESEARCH_MYSQL_HOST:-127.0.0.1}"
+  export RESEARCH_MYSQL_PORT="${RESEARCH_MYSQL_PORT:-${MYSQL_PORT:-3306}}"
+  export RESEARCH_MYSQL_USER="${RESEARCH_MYSQL_USER:-${MYSQL_USER:-researchos}}"
+  export RESEARCH_MYSQL_PASSWORD="${RESEARCH_MYSQL_PASSWORD:-$(grep '^MYSQL_PASSWORD=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  export RESEARCH_MYSQL_DATABASE="${RESEARCH_MYSQL_DATABASE:-${MYSQL_DB:-researchos}}"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.
