@@ -254,18 +254,6 @@ export default function WritingPage() {
     }
   };
 
-  const handleDownload = () => {
-    const content = mode === "latex" ? texDoc : mdDoc;
-    const ext = mode === "latex" ? "tex" : "md";
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `manuscript.${ext}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const switchMode = (m: "markdown" | "latex") => {
     setMode(m);
     setMdCompiled(null);
@@ -350,7 +338,7 @@ export default function WritingPage() {
               onClick={newManuscript}
               className="text-sm text-blue-600 hover:underline"
             >
-              + New
+              新建文档
             </button>
           </div>
           <input
@@ -519,9 +507,6 @@ export default function WritingPage() {
                 {compiling ? "Compiling..." : "Compile PDF"}
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              Download
-            </Button>
             <Button
               variant="default"
               size="sm"
