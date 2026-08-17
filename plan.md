@@ -212,12 +212,23 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 
 ---
 
-## 7. 待办开放问题（Phase 0 前确认）
+## 7. 开放问题结论（2026-08-17 静态预研已定，Phase 0 仅需验证）
 
-- [ ] 共享 LLM 网关的最终形态：DSH 内 bundle vs LiteLLM 侧车（spike 后定）。
-- [ ] MySQL/PG 的部署：保留现有 Docker 容器，还是并入 DSH 部署编排。
-- [ ] 认证迁移策略：DSH session 直接接管 vs 保留用户表 + DSH 会话映射。
-- [ ] 文献 MCP server 的进程位置：bundle 内嵌 vs 独立 Node 进程（影响可拔插粒度）。
+| # | 问题 | 结论（源码依据） | Phase 0 验证点 |
+| --- | --- | --- | --- |
+| 1 | 共享 LLM 网关形态 | **DSH 内 bundle 优先**：`ctx.webServer` 支持 bundle 注册 HTTP 路由（WebRoute exact/prefix），`ctx.llm` 是 `LlmAdapter` 注册表 + `stream()` 流式 API → 网关 bundle 做 OpenAI 格式 ↔ `ctx.llm` 转换可行。LiteLLM 侧车作备选 | 最小网关 bundle 跑通 chat + embeddings |
+| 2 | MySQL/PG 部署 | **保留现有容器**：DSH `ctx.storage` 只是 KV（json/sqlite），无关系查询能力；mysql2/pg 为标准 npm 依赖，bundle 直连。数据资产不迁移 | bundle 用 ORM 连 MySQL 跑通 CRUD |
+| 3 | 认证迁移 | **`research-auth` bundle 自己提供用户认证**：DSH web 目前显式无认证（`packages/client/connection` 注释 "explicitly not authentication"，仅 loopback/same-origin 信任栅栏），DSH session 是 agent 会话不是用户账号。ResearchOS 用户表/JWT 逻辑保留在 auth bundle，前端经 apiproxy 调用 | 确认 apiproxy 信任栅栏与自定义认证的共存方式 |
+| 4 | 文献 MCP server 位置 | **stdio 子进程**（`dsh-mcp-client` 配置支持 `transport: 'stdio'`，DSH spawn 子进程并随插件启停）→ 可拔插最彻底；`StreamableHttpConfig` 作远程部署备选 | stdio 子进程 MCP server 被 DSH 拉起/停止 |
+
+## 8. Phase 0 执行清单（下次开工即做）
+
+1. 在 DSH checkout 构建并跑通 `dsh web` + 自定义 profile（`dsh --profile web --dump-config` 验证插件树）。
+2. 最小 bundle `research-hello`：`dsh.bundle` 声明 → `dsh plugin` 挂进 profile → 卸载验证（需求 1 可拔插的最小闭环）。
+3. 最小 MCP server（stdio 子进程）→ `dsh-mcp-client` 配置连接 → 工具出现在 `ctx.tools`（需求 2 最小闭环）。
+4. `dsh-llm-gateway` spike：`ctx.webServer` 注册 `/v1/chat/completions` + `/v1/embeddings`，转发 `ctx.llm.stream()`；与 LiteLLM 对比后定稿（需求 3 最小闭环）。
+5. 数据层 spike：bundle 用 mysql2/pg 连现有 MySQL/PG，验证读写与向量维度对齐。
+6. 产出验证报告，更新本方案细节，开始 Phase 1。
 
 ---
 
