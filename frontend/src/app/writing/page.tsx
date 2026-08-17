@@ -127,6 +127,15 @@ export default function WritingPage() {
         insertAtCursor(`\\cite{${keys.join(",")}}`);
         // 积累 BibTeX 条目，供 \bibliography{references} 使用
         setBibContent((prev) => prev + (prev ? "\n" : "") + res.bibtex);
+        // 若正文还没有 \bibliography 段，自动追加（确保编译能解析引用）
+        if (!texDoc.includes("\\bibliography")) {
+          setTexDoc((prev) =>
+            prev.replace(
+              /\\end\{document\}/,
+              "\\bibliographystyle{plain}\n\\bibliography{references}\n\\end{document}",
+            ),
+          );
+        }
       } else {
         insertAtCursor(keys.map((k) => `[@${k}]`).join(" "));
       }
