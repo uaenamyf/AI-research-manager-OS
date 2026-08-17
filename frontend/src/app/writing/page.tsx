@@ -1,15 +1,16 @@
 /**
  * Writing 页面：Overleaf 风格写作工作区（Markdown / LaTeX 双模式）。
  *
- * - 左侧栏：选论文 + 生成综述，可一键插入正文
+ * - 左侧栏：选论文 → 插入引用/参考文献（主要）+ 生成综述（次要）
  * - 主区域：Markdown 编辑器（Compile 渲染预览）或 LaTeX 编辑器（Compile 出 PDF）
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listProjects } from "@/lib/api/projects";
 import { listPapers } from "@/lib/api/papers";
 import { generateReview, pollReviewTask } from "@/lib/api/reviews";
+import { exportBibtexBatch } from "@/lib/api/export";
 import { apiFetchRaw } from "@/lib/api/client";
 import { renderMarkdown } from "@/lib/utils/markdown";
 import { Card, Button, Spinner } from "@/components/ui";
@@ -43,6 +44,7 @@ export default function WritingPage() {
   const [generating, setGenerating] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showReview, setShowReview] = useState(false);
 
   // 编辑器状态
   const [mode, setMode] = useState<"markdown" | "latex">("markdown");
@@ -53,6 +55,9 @@ export default function WritingPage() {
   const [mdCompiled, setMdCompiled] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [compiling, setCompiling] = useState(false);
+  const [citeMsg, setCiteMsg] = useState<string | null>(null);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     listProjects(0, 50).then((p) => {
@@ -73,6 +78,108 @@ export default function WritingPage() {
     );
   };
 
+  /** 从 BibTeX 中提取 citation key（如 @article{Bermant2019, ...} → Bermant2019） */
+  const extractKeys = (bibtex: string): string[] => {
+    const keys: string[] = [];
+    const re = /@\w+\{([^,]+),/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(bibtex)) !== null) {
+      keys.push(m[1].trim());
+    }
+    return keys;
+  };
+
+  /** 在当前光标位置插入文本 */
+  const insertAtCursor = (text: string) => {
+    const ta = textareaRef.current;
+    if (ta) {
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const current = mode === "latex" ? texDoc : mdDoc;
+      const next = current.slice(0, start) + text + current.slice(end);
+      if (mode === "latex") setTexDoc(next);
+      else setMdDoc(next);
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = start + text.length;
+      });
+    } else {
+      if (mode === "latex") setTexDoc((prev) => prev + text);
+      else setMdDoc((prev) => prev + text);
+    }
+  };
+
+  /** 插入引用：LaTeX 模式 \cite{key1,key2}，Markdown 模式 [@id1][@id2] */
+  const handleInsertCitation = async () => {
+    if (selectedPaperIds.length === 0) {
+      setCiteMsg("Select papers first");
+      return;
+    }
+    try {
+      const res = await exportBibtexBatch(selectedPaperIds);
+      const keys = extractKeys(res.bibtex);
+      if (keys.length === 0) {
+        setCiteMsg("No citation keys found");
+        return;
+      }
+      if (mode === "latex") {
+        insertAtCursor(`\\cite{${keys.join(",")}}`);
+      } else {
+        insertAtCursor(keys.map((k) => `[@${k}]`).join(" "));
+      }
+      setCiteMsg(`Inserted ${keys.length} citation(s)`);
+    } catch (err) {
+      setCiteMsg((err as Error).message);
+    }
+  };
+
+  /** 插入参考文献：LaTeX 模式追加 \\bibliography 段，Markdown 模式追加 References 段 */
+  const handleInsertBibliography = async () => {
+    if (selectedPaperIds.length === 0) {
+      setCiteMsg("Select papers first");
+      return;
+    }
+    try {
+      const res = await exportBibtexBatch(selectedPaperIds);
+      if (mode === "latex") {
+        const section =
+          "\n\\begin{thebibliography}{9}\n" +
+          res.bibtex
+            .split("\n\n")
+            .filter(Boolean)
+            .map((entry) => {
+              const keyMatch = /@\w+\{([^,]+),/.exec(entry);
+              const key = keyMatch ? keyMatch[1].trim() : "";
+              const titleMatch = /title\s*=\s*\{([^}]+)\}/.exec(entry);
+              const title = titleMatch ? titleMatch[1] : "Untitled";
+              const authorMatch = /author\s*=\s*\{([^}]+)\}/.exec(entry);
+              const author = authorMatch ? authorMatch[1] : "Anonymous";
+              return `\\bibitem{${key}} ${author}. ${title}.`;
+            })
+            .join("\n\n") +
+          "\n\\end{thebibliography}\n";
+        insertAtCursor(section);
+      } else {
+        const section =
+          "\n\n## References\n\n" +
+          res.bibtex
+            .split("\n\n")
+            .filter(Boolean)
+            .map((entry) => {
+              const titleMatch = /title\s*=\s*\{([^}]+)\}/.exec(entry);
+              const title = titleMatch ? titleMatch[1] : "Untitled";
+              return `- ${title}`;
+            })
+            .join("\n") +
+          "\n";
+        insertAtCursor(section);
+      }
+      setCiteMsg("Bibliography inserted");
+    } catch (err) {
+      setCiteMsg((err as Error).message);
+    }
+  };
+
   const handleGenerateReview = async () => {
     if (selectedPaperIds.length === 0 || !topic.trim()) return;
     setGenerating(true);
@@ -88,9 +195,11 @@ export default function WritingPage() {
       const review = task.result?.markdown ?? "";
       if (mode === "latex") {
         setTexDoc((prev) =>
-          prev.replace(/\\end\{document\}/,
-            "\\section{Literature Review: " + topic.replace(/[^a-zA-Z0-9 ]/g, "") + "}\n\n" +
-            review + "\n\n\\end{document}"),
+          prev.replace(
+            /\\end\{document\}/,
+            "\\section{Literature Review: " + topic.replace(/[^a-zA-Z0-9 ]/g, "") +
+              "}\n\n" + review + "\n\n\\end{document}",
+          ),
         );
       } else {
         setMdDoc((prev) => prev + "\n\n## Literature Review: " + topic + "\n\n" + review + "\n");
@@ -151,7 +260,7 @@ export default function WritingPage() {
 
   return (
     <div className="flex h-[calc(100vh-3rem)] gap-4">
-      {/* 左侧栏：论文选择 + 综述生成 */}
+      {/* 左侧栏：论文选择 + 引用/综述 */}
       <div className="w-72 flex-shrink-0 flex flex-col gap-3">
         <Card className="p-3">
           <h2 className="mb-2 font-semibold text-gray-900 text-sm">Project</h2>
@@ -194,25 +303,59 @@ export default function WritingPage() {
         </Card>
 
         <Card className="p-3">
-          <h2 className="mb-2 font-semibold text-gray-900 text-sm">
-            Generate Literature Review
-          </h2>
-          <input
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. Deep learning for bioacoustics"
-            className="h-9 w-full rounded border border-gray-300 px-2 text-sm"
-          />
-          <Button
-            onClick={handleGenerateReview}
-            disabled={generating || selectedPaperIds.length === 0 || !topic.trim()}
-            className="mt-2 w-full"
-          >
-            {generating ? <Spinner /> : "Generate & Insert"}
-          </Button>
-          {status && <p className="mt-2 text-xs text-blue-600">{status}</p>}
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          <h2 className="mb-2 font-semibold text-gray-900 text-sm">Insert</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handleInsertCitation}
+              disabled={selectedPaperIds.length === 0}
+            >
+              Citation
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handleInsertBibliography}
+              disabled={selectedPaperIds.length === 0}
+            >
+              Bibliography
+            </Button>
+          </div>
+          {citeMsg && <p className="mt-2 text-xs text-blue-600">{citeMsg}</p>}
         </Card>
+
+        <Card className="p-3">
+          <button
+            onClick={() => setShowReview(!showReview)}
+            className="flex w-full items-center justify-between text-sm font-semibold text-gray-900"
+          >
+            <span>Generate Review</span>
+            <span className="text-gray-400">{showReview ? "−" : "+"}</span>
+          </button>
+          {showReview && (
+            <div className="mt-2">
+              <input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. Deep learning for bioacoustics"
+                className="h-9 w-full rounded border border-gray-300 px-2 text-sm"
+              />
+              <Button
+                onClick={handleGenerateReview}
+                disabled={generating || selectedPaperIds.length === 0 || !topic.trim()}
+                className="mt-2 w-full"
+              >
+                {generating ? <Spinner /> : "Generate & Insert"}
+              </Button>
+              {status && <p className="mt-2 text-xs text-blue-600">{status}</p>}
+            </div>
+          )}
+        </Card>
+
+        {error && <p className="text-xs text-red-600 px-1">{error}</p>}
       </div>
 
       {/* 主区域：编辑器 + 编译预览 */}
@@ -256,13 +399,13 @@ export default function WritingPage() {
           </div>
         </div>
 
-        {/* 编辑器 + 预览：左右分栏，编译后右侧显示预览，可对照写作 */}
+        {/* 编辑器 + 预览：左右分栏 */}
         <div className="flex-1 flex gap-3 min-h-0">
-          {/* 左：编辑器（始终显示） */}
           <div className="flex-1 min-w-0 flex flex-col">
             <Card className="flex-1 p-0 min-h-0 flex flex-col">
               {mode === "markdown" ? (
                 <textarea
+                  ref={textareaRef}
                   value={mdDoc}
                   onChange={(e) => setMdDoc(e.target.value)}
                   className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
@@ -270,6 +413,7 @@ export default function WritingPage() {
                 />
               ) : (
                 <textarea
+                  ref={textareaRef}
                   value={texDoc}
                   onChange={(e) => setTexDoc(e.target.value)}
                   className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
@@ -279,7 +423,6 @@ export default function WritingPage() {
             </Card>
           </div>
 
-          {/* 右：编译预览（编译后显示） */}
           {(mode === "markdown" ? mdCompiled !== null : pdfUrl !== null) && (
             <div className="flex-1 min-w-0 flex flex-col border-l border-gray-200 pl-3">
               {mode === "markdown" ? (
