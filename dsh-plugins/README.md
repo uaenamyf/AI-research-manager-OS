@@ -14,6 +14,7 @@
 | `research-mcp` | ✅ Phase 0-2 已验证 | 文献 MCP server：search/get/cite/vector_search（MySQL 真实文献 + 网关 embedding + PG 向量检索）；DSH agent 端到端「检索→读取→引用」已跑通 |
 | `research-llm-gateway` | ✅ Phase 0-1 已验证 | 统一 LLM/Embedding 网关（OpenAI 兼容直连代理，chat+embeddings 真实上游）；ResearchOS AI 已正式切到本网关 |
 | `research-auth` | ✅ Phase 3 首域起步 | 认证 bundle：register/login/logout/me 直连 MySQL app_user；与旧 Spring Boot 共享 JWT_SECRET 双认证（token 双向互通已验）；响应沿用 `{code,message,data}` 契约 |
+| `research-project` | ✅ Phase 3 文献域 | 项目 CRUD bundle：create/list(分页)/detail/delete 直连 MySQL research_project，严格 user_id 过滤（越权 404 已验），认证复用共享 JWT |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -212,6 +213,24 @@ node apps/cli/lib/bin.js plugin --profile web remove @researchos/dsh-research-au
 
 **遗留/注意**：`createdTime` 序列化时区与后端略有差异（bundle 走 ISO-UTC，后端本地时区），
 属展示层差异不影响认证；旧 `AuthController` 尚未下线（并行阶段，等 Phase 4 前端切换后再下线）。
+
+## Phase 3：research-project bundle（项目 CRUD，user_id 强隔离）✅ 2026-08-17
+
+文献域第一个业务 bundle。直连 MySQL `research_project`，经 `ctx.webServer` 前缀路由 `/research-project`
+暴露（复用共享 JWT 认证，跨 bundle 免重新登录）：
+
+```
+POST   /research-project            { name, description, domain } -> 创建
+GET    /research-project?page=0&size=20                            -> 分页列表（created_time DESC）
+GET    /research-project/:id                                       -> 详情（非本人 404）
+DELETE /research-project/:id                                       -> 删除（非本人 404）
+```
+
+**关键验证**：
+- 所有查询 `WHERE user_id = ?`（归属铁律）：用户 A 访问/删除用户 B 的项目 → 404
+- 分页契约对齐后端 `{ items, page, size, total, totalPages }`
+- 认证：bundle 内联 JWT 验签（同 `JWT_SECRET`）+ 校验 subject 对应 app_user 仍存在（同 JwtAuthFilter）
+- 负例：无 token/坏 token 401、非数字 id 404、method 405
 
 ## 下一步（Phase 1-2 遗留）
 
