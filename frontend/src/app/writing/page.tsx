@@ -70,6 +70,7 @@ export default function WritingPage() {
   const [currentManuscriptId, setCurrentManuscriptId] = useState<number | null>(null);
   const [manuscriptTitle, setManuscriptTitle] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [showNewInput, setShowNewInput] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -310,14 +311,15 @@ export default function WritingPage() {
     }
   };
 
-  const newManuscript = () => {
+  const newManuscript = (name?: string) => {
     setCurrentManuscriptId(null);
-    setManuscriptTitle("");
+    setManuscriptTitle(name ?? "");
     setBibContent("");
     if (mode === "latex") setTexDoc(LATEX_TEMPLATE);
     else setMdDoc("# Untitled\n\nStart writing your manuscript here...\n");
     setMdCompiled(null);
     setPdfUrl(null);
+    setShowNewInput(false);
   };
 
   const handleDeleteManuscript = async (id: number) => {
@@ -335,18 +337,29 @@ export default function WritingPage() {
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900 text-sm">Manuscripts</h2>
             <button
-              onClick={newManuscript}
+              onClick={() => setShowNewInput(true)}
               className="text-sm text-blue-600 hover:underline"
             >
-              新建文档
+              + New
             </button>
           </div>
-          <input
-            value={manuscriptTitle}
-            onChange={(e) => setManuscriptTitle(e.target.value)}
-            placeholder="Manuscript title"
-            className="mb-2 h-9 w-full rounded border border-gray-300 px-2 text-sm"
-          />
+          {showNewInput && (
+            <div className="mb-2 flex gap-1">
+              <input
+                value={manuscriptTitle}
+                onChange={(e) => setManuscriptTitle(e.target.value)}
+                placeholder="Document name"
+                className="h-9 flex-1 rounded border border-gray-300 px-2 text-sm"
+                autoFocus
+              />
+              <button
+                onClick={() => newManuscript(manuscriptTitle)}
+                className="h-9 px-3 text-sm bg-gray-900 text-white rounded"
+              >
+                Add
+              </button>
+            </div>
+          )}
           <div className="max-h-28 overflow-y-auto space-y-0.5">
             {manuscripts.length === 0 ? (
               <p className="text-xs text-gray-400">No saved manuscripts</p>
@@ -507,6 +520,23 @@ export default function WritingPage() {
                 {compiling ? "Compiling..." : "Compile PDF"}
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const content = mode === "latex" ? texDoc : mdDoc;
+                const ext = mode === "latex" ? "tex" : "md";
+                const blob = new Blob([content], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${manuscriptTitle || "manuscript"}.${ext}`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download
+            </Button>
             <Button
               variant="default"
               size="sm"
