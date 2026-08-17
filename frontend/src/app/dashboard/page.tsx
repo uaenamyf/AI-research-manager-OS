@@ -67,9 +67,9 @@ export default function DashboardPage() {
         <h2 className="mb-3 font-semibold text-gray-900">Projects</h2>
         {projects.length === 0 ? (
           <p className="text-sm text-gray-500">
-            No projects yet.{" "}
-            <Link href="/projects" className="underline">
-              Create one
+            No papers yet.{" "}
+            <Link href="/library" className="underline">
+              Go to Library
             </Link>
           </p>
         ) : (
@@ -77,7 +77,7 @@ export default function DashboardPage() {
             {projects.map((p) => (
               <Link
                 key={p.id}
-                href={`/projects/${p.id}`}
+                href={`/library?projectId=${p.id}`}
                 className="block rounded-md border border-gray-100 p-3 hover:bg-gray-50"
               >
                 <p className="font-medium text-gray-900">{p.name}</p>

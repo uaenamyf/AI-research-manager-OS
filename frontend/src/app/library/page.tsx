@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { listProjects } from "@/lib/api/projects";
-import { listPapers, getPaper, movePaper, updateReadingStatus } from "@/lib/api/papers";
+import { listPapers, getPaper, movePaper, deletePaper, updateReadingStatus } from "@/lib/api/papers";
 import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
 import { getBibliography } from "@/lib/api/citation";
@@ -122,6 +122,45 @@ function LibraryContent() {
         p.id === paperId ? { ...p, readingStatus: status as any } : p,
       ),
     );
+  };
+
+  const handleDeletePaper = async (paper: PaperListItem) => {
+    if (!window.confirm(`Delete paper "${paper.title}"?\nThis cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deletePaper(paper.id);
+      loadPapers(selectedProject!, selectedFolderId);
+      setSelectedPaper((prev) => (prev?.id === paper.id ? null : prev));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(paper.id);
+        return next;
+      });
+    } catch {
+      alert("Failed to delete paper, please try again");
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedIds);
+    if (
+      !window.confirm(
+        `Delete ${ids.length} paper(s)?\nThis cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      for (const id of ids) {
+        await deletePaper(id);
+      }
+      setSelectedIds(new Set());
+      loadPapers(selectedProject!, selectedFolderId);
+      setSelectedPaper(null);
+    } catch {
+      alert("Failed to delete papers, please try again");
+    }
   };
 
   const filteredPapers = (searchQuery
@@ -284,6 +323,17 @@ function LibraryContent() {
                   className="shrink-0"
                 />
                 <span className="truncate flex-1">{paper.title}</span>
+                <button
+                  type="button"
+                  title="Delete paper"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeletePaper(paper);
+                  }}
+                  className="shrink-0 text-red-500 opacity-0 group-hover:opacity-100 hover:text-red-700"
+                >
+                  ✕
+                </button>
               </div>
             ))
           )}
@@ -353,6 +403,12 @@ function LibraryContent() {
                 className="text-blue-600 hover:underline"
               >
                 Clear
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                className="text-red-600 hover:underline"
+              >
+                Delete
               </button>
 
             </div>
