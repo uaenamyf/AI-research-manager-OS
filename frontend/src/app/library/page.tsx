@@ -9,6 +9,8 @@ import { listProjects } from "@/lib/api/projects";
 import { listPapers, getPaper, movePaper, updateReadingStatus } from "@/lib/api/papers";
 import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
+import { getBibliography } from "@/lib/api/citation";
+import type { CitationFormat } from "@/lib/api/citation";
 import { generateReview, pollReviewTask } from "@/lib/api/reviews";
 import { PaperCard } from "@/components/paper/PaperCard";
 import { PaperUploader } from "@/components/paper/PaperUploader";
@@ -42,6 +44,7 @@ function LibraryContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [moveFolderId, setMoveFolderId] = useState<string>("");
+  const [citeFormat, setCiteFormat] = useState<CitationFormat>("APA");
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -358,9 +361,28 @@ function LibraryContent() {
               >
                 Copy RIS
               </button>
+              <select
+                value={citeFormat}
+                onChange={(e) => setCiteFormat(e.target.value as CitationFormat)}
+                className="text-xs border rounded px-1 py-0.5"
+              >
+                <option value="APA">APA</option>
+                <option value="MLA">MLA</option>
+                <option value="GB_7714">GB/T 7714</option>
+              </select>
+              <button
+                onClick={() => {
+                  getBibliography(Array.from(selectedIds), citeFormat).then((r) =>
+                    navigator.clipboard.writeText(r.citations.join("\n\n")),
+                  );
+                }}
+                className="text-blue-600 hover:underline"
+              >
+                Copy Cite
+              </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="text-gray-400 hover:underline"
+                className="text-blue-600 hover:underline"
               >
                 Clear
               </button>
