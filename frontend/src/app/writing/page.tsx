@@ -132,7 +132,7 @@ export default function WritingPage() {
           setTexDoc((prev) =>
             prev.replace(
               /\\end\{document\}/,
-              "\\bibliographystyle{plain}\n\\bibliography{references}\n\\end{document}",
+              "\\bibliographystyle{apalike}\n\\bibliography{references}\n\\end{document}",
             ),
           );
         }
@@ -156,7 +156,7 @@ export default function WritingPage() {
       if (mode === "latex") {
         // 用 \bibliography{references} 引用 .bib 文件（编译时 bibtex 解析）
         setBibContent((prev) => prev + (prev ? "\n" : "") + res.bibtex);
-        const section = "\n\\bibliographystyle{plain}\n\\bibliography{references}\n";
+        const section = "\n\\bibliographystyle{apalike}\n\\bibliography{references}\n";
         insertAtCursor(section);
       } else {
         const section =
