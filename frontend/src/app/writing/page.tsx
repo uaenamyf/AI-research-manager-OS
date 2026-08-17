@@ -311,22 +311,48 @@ export default function WritingPage() {
     }
   };
 
-  const newManuscript = (name?: string) => {
+  const newManuscript = async (name?: string) => {
+    const title = name?.trim() || "Untitled";
     setCurrentManuscriptId(null);
-    setManuscriptTitle(name ?? "");
+    setManuscriptTitle(title);
     setBibContent("");
-    if (mode === "latex") setTexDoc(LATEX_TEMPLATE);
-    else setMdDoc("# Untitled\n\nStart writing your manuscript here...\n");
+    const content =
+      mode === "latex" ? LATEX_TEMPLATE : "# Untitled\n\nStart writing your manuscript here...\n";
+    if (mode === "latex") setTexDoc(content);
+    else setMdDoc(content);
     setMdCompiled(null);
     setPdfUrl(null);
     setShowNewInput(false);
+    // 立即创建并保存手稿（出现在列表，Save 变为更新）
+    try {
+      const created = await createManuscript({
+        title,
+        format: mode,
+        content,
+        projectId: selectedProject,
+      });
+      setCurrentManuscriptId(created.id);
+      setManuscripts((prev) => [created, ...prev]);
+      setCiteMsg(`Created "${title}"`);
+    } catch (err) {
+      setCiteMsg("Create failed: " + (err as Error).message);
+    }
   };
 
   const handleDeleteManuscript = async (id: number) => {
     if (!confirm("Delete this manuscript?")) return;
     await deleteManuscript(id);
     setManuscripts((prev) => prev.filter((m) => m.id !== id));
-    if (currentManuscriptId === id) newManuscript();
+    if (currentManuscriptId === id) {
+      // 删除当前手稿后清空编辑器（不新建）
+      setCurrentManuscriptId(null);
+      setManuscriptTitle("");
+      setBibContent("");
+      if (mode === "latex") setTexDoc(LATEX_TEMPLATE);
+      else setMdDoc("# Untitled\n\nStart writing your manuscript here...\n");
+      setMdCompiled(null);
+      setPdfUrl(null);
+    }
   };
 
   return (
