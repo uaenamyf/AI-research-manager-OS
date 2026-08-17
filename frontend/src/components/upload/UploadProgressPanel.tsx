@@ -41,11 +41,14 @@ function StatusBadge({ item }: { item: UploadItem }) {
 
 function ItemRow({
   item,
+  onCancel,
   onRemove,
 }: {
   item: UploadItem;
+  onCancel: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
+  const active = item.status === "pending" || item.status === "uploading" || item.status === "analyzing";
   const showBar = item.status === "uploading" || item.status === "analyzing";
   return (
     <div className="rounded-lg border border-gray-100 bg-white px-3 py-2 shadow-sm">
@@ -61,7 +64,15 @@ function ItemRow({
           {formatBytes(item.fileSize)}
         </span>
         <StatusBadge item={item} />
-        {(item.status === "done" || item.status === "error") && (
+        {active ? (
+          <button
+            onClick={() => onCancel(item.id)}
+            title="Cancel"
+            className="shrink-0 text-gray-300 hover:text-red-500"
+          >
+            ✕
+          </button>
+        ) : (
           <button
             onClick={() => onRemove(item.id)}
             title="Dismiss"
@@ -96,6 +107,7 @@ function ItemRow({
 
 export function UploadProgressPanel() {
   const items = useUploadStore((s) => s.items);
+  const cancel = useUploadStore((s) => s.cancel);
   const removeItem = useUploadStore((s) => s.removeItem);
   const clearFinished = useUploadStore((s) => s.clearFinished);
   const [open, setOpen] = useState(true);
@@ -140,7 +152,7 @@ export function UploadProgressPanel() {
         {open && (
           <div className="max-h-72 space-y-1.5 overflow-y-auto p-2">
             {items.map((it) => (
-              <ItemRow key={it.id} item={it} onRemove={removeItem} />
+              <ItemRow key={it.id} item={it} onCancel={cancel} onRemove={removeItem} />
             ))}
           </div>
         )}

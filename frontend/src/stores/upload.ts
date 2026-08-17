@@ -7,6 +7,7 @@
  *
  * 2026-08-17: 原 PaperUploader 内局部 state 切页即丢，改为全局 store；
  * 支持 localStorage 持久化，刷新后 analyzing 项重新挂起轮询（后端仍在解析）。
+ * 支持 cancel(id) 中断：pending 移出队列、uploading 中断 XHR、analyzing 停止轮询并删除后端论文。
  */
 "use client";
 
@@ -17,6 +18,7 @@ import {
   uploadToStorage,
   createPaper,
   getPaperStatus,
+  deletePaper,
 } from "@/lib/api/papers";
 import type { ID, PaperStatus } from "@/types";
 
@@ -46,6 +48,9 @@ export interface UploadItem {
 interface UploadStore {
   items: UploadItem[];
   addFiles: (files: File[], projectId: ID, folderId?: ID | null) => void;
+  /** 中断某条任务：pending 移出队列 / uploading 中断上传 / analyzing 停止轮询并删除后端论文 */
+  cancel: (id: string) => void;
+  /** 关闭已完成/失败条目的展示（不影响后端） */
   removeItem: (id: string) => void;
   clearFinished: () => void;
   /** 内部更新单项（上传/轮询/计时回调用） */
@@ -59,6 +64,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** 仅运行时持有的 File 引用（不持久化；pending/uploading 依赖它） */
 const fileMap = new Map<string, File>();
 
+/** 上传中 XHR 的中断控制器（id -> AbortController） */
+const uploadControllers = new Map<string, AbortController>();
+
+/** 已请求中断轮询的 analyzing 任务 id */
+const cancelledPolls = new Set<string>();
+
 // 模块级上传队列（跨组件/页面存活，切页不中断）
 const queue: string[] = [];
 let activeWorkers = 0;
@@ -69,10 +80,12 @@ let analyzeTimer: ReturnType<typeof setInterval> | null = null;
 const uid = () =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-/** 轮询论文状态直到终态；解析失败抛错 */
-async function pollReady(paperId: number): Promise<void> {
+/** 轮询论文状态直到终态；解析失败抛错；被中断（cancel analyzing）时正常返回 */
+async function pollReady(paperId: number, itemId: string): Promise<void> {
   for (;;) {
+    if (cancelledPolls.has(itemId)) return;
     await sleep(POLL_INTERVAL);
+    if (cancelledPolls.has(itemId)) return;
     let s: PaperStatus;
     try {
       s = await getPaperStatus(paperId);
@@ -84,12 +97,20 @@ async function pollReady(paperId: number): Promise<void> {
   }
 }
 
-/** 等待解析完成：成功置 done，失败置 error */
+/** 等待解析完成：成功置 done，失败置 error；被中断则静默结束 */
 async function watchAnalysis(item: UploadItem) {
   try {
-    await pollReady(item.paperId!);
+    await pollReady(item.paperId!, item.id);
+    if (cancelledPolls.has(item.id)) {
+      cancelledPolls.delete(item.id);
+      return;
+    }
     useUploadStore.getState()._updateItem(item.id, { status: "done" });
   } catch (err) {
+    if (cancelledPolls.has(item.id)) {
+      cancelledPolls.delete(item.id);
+      return;
+    }
     useUploadStore.getState()._updateItem(item.id, {
       status: "error",
       error: (err as Error).message,
@@ -99,6 +120,8 @@ async function watchAnalysis(item: UploadItem) {
 
 /** 单个文件完整流程：presigned → 直传 → 建 paper 记录 → 轮询解析 */
 async function uploadOne(item: UploadItem): Promise<void> {
+  const controller = new AbortController();
+  uploadControllers.set(item.id, controller);
   useUploadStore.getState()._updateItem(item.id, {
     status: "uploading",
     progress: 0,
@@ -109,9 +132,12 @@ async function uploadOne(item: UploadItem): Promise<void> {
     if (!file) throw new Error("File not found, please try again");
     // 1. 请求 presigned POST
     const presigned = await getUploadUrl(item.projectId, item.fileName, file.type);
-    // 2. 直传存储（带字节进度）
-    await uploadToStorage(presigned, file, (pct) =>
-      useUploadStore.getState()._updateItem(item.id, { progress: pct }),
+    // 2. 直传存储（带字节进度，可中断）
+    await uploadToStorage(
+      presigned,
+      file,
+      (pct) => useUploadStore.getState()._updateItem(item.id, { progress: pct }),
+      controller.signal,
     );
     useUploadStore.getState()._updateItem(item.id, { progress: 100 });
     // 3. 通知 backend 创建 paper 记录 + 触发 AI 分析
@@ -129,10 +155,14 @@ async function uploadOne(item: UploadItem): Promise<void> {
     });
     await watchAnalysis({ ...item, paperId: res.paperId, status: "analyzing" });
   } catch (err) {
+    // 用户主动取消上传：该项已从列表移除，静默丢弃，不显示错误
+    if (controller.signal.aborted) return;
     useUploadStore.getState()._updateItem(item.id, {
       status: "error",
       error: (err as Error).message,
     });
+  } finally {
+    uploadControllers.delete(item.id);
   }
 }
 
@@ -195,6 +225,29 @@ export const useUploadStore = create<UploadStore>()(
         set({ items: [...get().items, ...newItems] });
         queue.push(...newItems.map((it) => it.id));
         pump();
+      },
+
+      cancel(id) {
+        const item = get().items.find((it) => it.id === id);
+        if (!item) return;
+        if (item.status === "pending") {
+          // 还在队列等待：直接从队列移除
+          const qIdx = queue.indexOf(id);
+          if (qIdx >= 0) queue.splice(qIdx, 1);
+        } else if (item.status === "uploading") {
+          // 上传中：中断 XHR（uploadOne 捕获 AbortError 后静默丢弃）
+          uploadControllers.get(id)?.abort();
+        } else if (item.status === "analyzing") {
+          // 解析中：停止轮询 + 删除已创建的 backend 论文（含 PDF/向量清理）
+          cancelledPolls.add(id);
+          if (item.paperId) {
+            deletePaper(item.paperId).catch(() => {
+              /* 删除失败不阻塞：解析完成后论文仍在库中，用户可从 Library 删除 */
+            });
+          }
+        }
+        // 从全局列表移除（uploadOne 后续对已移除 id 的更新为 no-op）
+        get().removeItem(id);
       },
 
       removeItem(id) {

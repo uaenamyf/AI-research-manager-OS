@@ -33,11 +33,13 @@ export function getUploadUrl(
  * 步骤 2：前端直传文件到存储（S3 或本地）。
  * 用 FormData 携带 presigned POST 的 fields + file。
  * 用 XMLHttpRequest 以获得真实的上传字节进度回调。
+ * 传入 AbortSignal 可在上传中中断（xhr.abort()）。
  */
 export function uploadToStorage(
   presigned: PresignedPost,
   file: File,
   onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const form = new FormData();
@@ -55,11 +57,21 @@ export function uploadToStorage(
         onProgress(Math.round((e.loaded / e.total) * 100));
       }
     };
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
     xhr.onload = () => {
+      signal?.removeEventListener("abort", onAbort);
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new Error(`Upload failed: ${xhr.status}`));
     };
-    xhr.onerror = () => reject(new Error("Upload failed: network error"));
+    xhr.onabort = () => {
+      signal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    xhr.onerror = () => {
+      signal?.removeEventListener("abort", onAbort);
+      reject(new Error("Upload failed: network error"));
+    };
     xhr.send(form);
   });
 }
