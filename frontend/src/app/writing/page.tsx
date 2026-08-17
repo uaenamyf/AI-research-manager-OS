@@ -513,6 +513,7 @@ export default function WritingPage() {
 
       {/* 主区域：编辑器 + 编译预览 */}
       <div className="flex-1 flex flex-col gap-3 min-w-0">
+        {currentManuscriptId && (
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
             <Button
@@ -573,6 +574,7 @@ export default function WritingPage() {
             </Button>
           </div>
         </div>
+        )}
 
         {/* 编辑器 + 预览：左右分栏 */}
         <div className="flex-1 flex gap-3 min-h-0">
