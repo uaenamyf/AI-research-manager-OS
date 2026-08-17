@@ -11,7 +11,6 @@ import { getFolderTree, createFolder, deleteFolder } from "@/lib/api/folders";
 import { exportBibtexBatch, exportRisBatch } from "@/lib/api/export";
 import { getBibliography } from "@/lib/api/citation";
 import type { CitationFormat } from "@/lib/api/citation";
-import { generateReview, pollReviewTask } from "@/lib/api/reviews";
 import { PaperCard } from "@/components/paper/PaperCard";
 import { PaperUploader } from "@/components/paper/PaperUploader";
 import { PaperStatusBadge } from "@/components/paper/PaperStatusBadge";
@@ -48,13 +47,6 @@ function LibraryContent() {
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  // Review 生成
-  const [reviewMode, setReviewMode] = useState(false);
-  const [reviewTopic, setReviewTopic] = useState("");
-  const [reviewGenerating, setReviewGenerating] = useState(false);
-  const [reviewResult, setReviewResult] = useState("");
-  const [reviewStatus, setReviewStatus] = useState("");
-  const [reviewError, setReviewError] = useState<string | null>(null);
   const folderInputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -121,30 +113,6 @@ function LibraryContent() {
     setSelectedIds(new Set());
     setMoveFolderId("");
     loadPapers(selectedProject!, selectedFolderId);
-  };
-
-  const handleReviewGenerate = async () => {
-    if (!reviewTopic.trim() || selectedIds.size === 0) return;
-    setReviewGenerating(true);
-    setReviewError(null);
-    setReviewResult("");
-    setReviewStatus("Submitting...");
-    try {
-      const { taskId } = await generateReview({
-        paperIds: Array.from(selectedIds),
-        topic: reviewTopic.trim(),
-      });
-      setReviewStatus("Generating...");
-      const task = await pollReviewTask(taskId, 2000, (t) =>
-        setReviewStatus(t.status),
-      );
-      setReviewResult(task.result?.markdown ?? "");
-    } catch (err) {
-      setReviewError((err as Error).message);
-    } finally {
-      setReviewGenerating(false);
-      setReviewStatus("");
-    }
   };
 
   const handleStatus = async (paperId: number, status: string) => {
@@ -386,79 +354,14 @@ function LibraryContent() {
               >
                 Clear
               </button>
-              <button
-                onClick={() => setReviewMode(true)}
-                className="text-blue-600 hover:underline"
-              >
-                Generate Review
-              </button>
+
             </div>
           )}
         </div>
 
-      {/* 右侧：PDF 预览 + 信息 + Review 生成 */}
+      {/* 右侧：PDF 预览 + 信息 */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
-        {reviewMode ? (
-          <>
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-gray-900">Generate Review</h1>
-              <button
-                onClick={() => setReviewMode(false)}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Back to paper
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 mb-2">
-                  {selectedIds.size} papers selected. Enter a topic to generate a literature review.
-                </p>
-                <input
-                  value={reviewTopic}
-                  onChange={(e) => setReviewTopic(e.target.value)}
-                  placeholder="e.g. Deep learning for bioacoustic signal classification"
-                  className="w-full h-10 rounded border border-gray-300 px-3 text-sm"
-                />
-                <button
-                  onClick={handleReviewGenerate}
-                  disabled={reviewGenerating || !reviewTopic.trim()}
-                  className="mt-3 px-4 py-2 text-sm bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50"
-                >
-                  {reviewGenerating ? "Generating..." : "Generate Review"}
-                </button>
-              </div>
-
-              {(reviewGenerating || reviewStatus) && (
-                <div className="flex items-center gap-2 p-3 text-sm text-blue-600 bg-blue-50 rounded mb-4">
-                  {reviewGenerating && <span className="animate-pulse">●</span>} {reviewStatus}
-                </div>
-              )}
-
-              {reviewError && (
-                <div className="p-3 text-sm text-red-600 bg-red-50 rounded mb-4">{reviewError}</div>
-              )}
-
-              {reviewResult && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-semibold text-gray-900">Generated Review</h2>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(reviewResult)}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-800 bg-white rounded border border-gray-200 p-4">
-                    {reviewResult}
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        ) : selectedPaper ? (
+        {selectedPaper ? (
           <>
             <div className="flex items-center justify-between">
               <div>
