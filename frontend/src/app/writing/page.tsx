@@ -531,6 +531,14 @@ export default function WritingPage() {
             <Button variant="outline" size="sm" onClick={handleDownload}>
               Download
             </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={saveManuscript}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : currentManuscriptId ? "Save" : "Save As New"}
+            </Button>
           </div>
         </div>
 
