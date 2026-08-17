@@ -567,54 +567,62 @@ export default function WritingPage() {
               variant="default"
               size="sm"
               onClick={saveManuscript}
-              disabled={saving}
+              disabled={saving || !currentManuscriptId}
             >
-              {saving ? "Saving..." : currentManuscriptId ? "Save" : "Save As New"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
 
         {/* 编辑器 + 预览：左右分栏 */}
         <div className="flex-1 flex gap-3 min-h-0">
-          <div className="flex-1 min-w-0 flex flex-col">
-            <Card className="flex-1 p-0 min-h-0 flex flex-col">
-              {mode === "markdown" ? (
-                <textarea
-                  ref={textareaRef}
-                  value={mdDoc}
-                  onChange={(e) => setMdDoc(e.target.value)}
-                  className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
-                  placeholder="Write your manuscript in Markdown..."
-                />
-              ) : (
-                <textarea
-                  ref={textareaRef}
-                  value={texDoc}
-                  onChange={(e) => setTexDoc(e.target.value)}
-                  className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
-                  placeholder="Write your LaTeX document..."
-                />
-              )}
-            </Card>
-          </div>
-
-          {(mode === "markdown" ? mdCompiled !== null : pdfUrl !== null) && (
-            <div className="flex-1 min-w-0 flex flex-col border-l border-gray-200 pl-3">
-              {mode === "markdown" ? (
-                <Card className="flex-1 p-4 min-h-0 overflow-y-auto">
-                  <div
-                    className="prose prose-sm max-w-none text-gray-800"
-                    dangerouslySetInnerHTML={{ __html: mdCompiled || "" }}
-                  />
-                </Card>
-              ) : (
-                <Card className="flex-1 p-0 min-h-0 overflow-hidden">
-                  {pdfUrl && (
-                    <iframe src={pdfUrl} className="h-full w-full border-0" title="Compiled PDF" />
+          {!currentManuscriptId ? (
+            <div className="flex flex-1 items-center justify-center text-gray-400">
+              Select a manuscript on the left to start writing, or click + New to create one.
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-w-0 flex flex-col">
+                <Card className="flex-1 p-0 min-h-0 flex flex-col">
+                  {mode === "markdown" ? (
+                    <textarea
+                      ref={textareaRef}
+                      value={mdDoc}
+                      onChange={(e) => setMdDoc(e.target.value)}
+                      className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
+                      placeholder="Write your manuscript in Markdown..."
+                    />
+                  ) : (
+                    <textarea
+                      ref={textareaRef}
+                      value={texDoc}
+                      onChange={(e) => setTexDoc(e.target.value)}
+                      className="flex-1 w-full resize-none rounded border-0 p-4 font-mono text-sm focus:outline-none"
+                      placeholder="Write your LaTeX document..."
+                    />
                   )}
                 </Card>
+              </div>
+
+              {(mode === "markdown" ? mdCompiled !== null : pdfUrl !== null) && (
+                <div className="flex-1 min-w-0 flex flex-col border-l border-gray-200 pl-3">
+                  {mode === "markdown" ? (
+                    <Card className="flex-1 p-4 min-h-0 overflow-y-auto">
+                      <div
+                        className="prose prose-sm max-w-none text-gray-800"
+                        dangerouslySetInnerHTML={{ __html: mdCompiled || "" }}
+                      />
+                    </Card>
+                  ) : (
+                    <Card className="flex-1 p-0 min-h-0 overflow-hidden">
+                      {pdfUrl && (
+                        <iframe src={pdfUrl} className="h-full w-full border-0" title="Compiled PDF" />
+                      )}
+                    </Card>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>
