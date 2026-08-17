@@ -12,6 +12,13 @@ import { listPapers } from "@/lib/api/papers";
 import { generateReview, pollReviewTask } from "@/lib/api/reviews";
 import { exportBibtexBatch } from "@/lib/api/export";
 import { apiFetchRaw } from "@/lib/api/client";
+import {
+  listManuscripts,
+  createManuscript,
+  updateManuscript,
+  deleteManuscript,
+} from "@/lib/api/manuscripts";
+import type { Manuscript } from "@/lib/api/manuscripts";
 import { renderMarkdown } from "@/lib/utils/markdown";
 import { Card, Button, Spinner } from "@/components/ui";
 import type { ID, PaperListItem, ResearchProject } from "@/types";
@@ -57,6 +64,12 @@ export default function WritingPage() {
   const [compiling, setCompiling] = useState(false);
   const [citeMsg, setCiteMsg] = useState<string | null>(null);
   const [bibContent, setBibContent] = useState<string>("");
+
+  // 手稿状态
+  const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
+  const [currentManuscriptId, setCurrentManuscriptId] = useState<number | null>(null);
+  const [manuscriptTitle, setManuscriptTitle] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -259,10 +272,131 @@ export default function WritingPage() {
     setPdfUrl(null);
   };
 
+  // 加载手稿列表
+  useEffect(() => {
+    listManuscripts().then(setManuscripts).catch(() => {});
+  }, []);
+
+  const loadManuscript = (m: Manuscript) => {
+    setCurrentManuscriptId(m.id);
+    setManuscriptTitle(m.title);
+    setMode(m.format === "markdown" ? "markdown" : "latex");
+    if (m.format === "markdown") setMdDoc(m.content);
+    else setTexDoc(m.content || LATEX_TEMPLATE);
+    setMdCompiled(null);
+    setPdfUrl(null);
+    setBibContent("");
+  };
+
+  const saveManuscript = async () => {
+    setSaving(true);
+    try {
+      const content = mode === "latex" ? texDoc : mdDoc;
+      const title = manuscriptTitle.trim() || "Untitled";
+      if (currentManuscriptId) {
+        const updated = await updateManuscript(currentManuscriptId, {
+          title,
+          format: mode,
+          content,
+          projectId: selectedProject,
+        });
+        setManuscripts((prev) =>
+          prev.map((m) => (m.id === updated.id ? updated : m)),
+        );
+        setCiteMsg("Saved");
+      } else {
+        const created = await createManuscript({
+          title,
+          format: mode,
+          content,
+          projectId: selectedProject,
+        });
+        setCurrentManuscriptId(created.id);
+        setManuscripts((prev) => [created, ...prev]);
+        setCiteMsg("Saved as new manuscript");
+      }
+    } catch (err) {
+      setCiteMsg("Save failed: " + (err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const newManuscript = () => {
+    setCurrentManuscriptId(null);
+    setManuscriptTitle("");
+    setBibContent("");
+    if (mode === "latex") setTexDoc(LATEX_TEMPLATE);
+    else setMdDoc("# Untitled\n\nStart writing your manuscript here...\n");
+    setMdCompiled(null);
+    setPdfUrl(null);
+  };
+
+  const handleDeleteManuscript = async (id: number) => {
+    if (!confirm("Delete this manuscript?")) return;
+    await deleteManuscript(id);
+    setManuscripts((prev) => prev.filter((m) => m.id !== id));
+    if (currentManuscriptId === id) newManuscript();
+  };
+
   return (
     <div className="flex h-[calc(100vh-3rem)] gap-4">
       {/* 左侧栏：论文选择 + 引用/综述 */}
       <div className="w-72 flex-shrink-0 flex flex-col gap-3">
+        <Card className="p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900 text-sm">Manuscripts</h2>
+            <button
+              onClick={newManuscript}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              + New
+            </button>
+          </div>
+          <input
+            value={manuscriptTitle}
+            onChange={(e) => setManuscriptTitle(e.target.value)}
+            placeholder="Manuscript title"
+            className="mb-2 h-9 w-full rounded border border-gray-300 px-2 text-sm"
+          />
+          <div className="max-h-28 overflow-y-auto space-y-0.5">
+            {manuscripts.length === 0 ? (
+              <p className="text-xs text-gray-400">No saved manuscripts</p>
+            ) : (
+              manuscripts.map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-sm cursor-pointer ${
+                    currentManuscriptId === m.id ? "bg-gray-100" : "hover:bg-gray-50"
+                  }`}
+                  onClick={() => loadManuscript(m)}
+                >
+                  <span className="truncate flex-1">{m.title}</span>
+                  <span className="text-[10px] text-gray-400">{m.format}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteManuscript(m.id);
+                    }}
+                    className="text-gray-300 hover:text-red-600 text-xs"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full"
+            onClick={saveManuscript}
+            disabled={saving}
+          >
+            {saving ? "Saving..." : currentManuscriptId ? "Save" : "Save As New"}
+          </Button>
+        </Card>
+
         <Card className="p-3">
           <h2 className="mb-2 font-semibold text-gray-900 text-sm">Project</h2>
           <select
