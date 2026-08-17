@@ -113,12 +113,32 @@ function WritingAssistantTab() {
             </Button>
           ))}
         </div>
-        {current?.needsInstruction && (
-          <input
+        {current?.value === "translate" && (
+          <select
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
-            placeholder={current.value === "translate" ? "Target language, e.g. Chinese" : "Paste the reviewer comments here"}
             className="mt-3 h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+          >
+            <option value="">Select target language...</option>
+            <option value="Chinese">Chinese</option>
+            <option value="English">English</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Korean">Korean</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Spanish">Spanish</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="Russian">Russian</option>
+            <option value="Arabic">Arabic</option>
+          </select>
+        )}
+        {current?.value === "rebuttal" && (
+          <textarea
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder="Paste the reviewer comments here"
+            rows={4}
+            className="mt-3 w-full rounded-md border border-gray-300 px-3 text-sm"
           />
         )}
       </Card>

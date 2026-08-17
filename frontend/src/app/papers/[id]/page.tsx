@@ -25,7 +25,7 @@ export default function PaperWorkspacePage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingStatus, setReadingStatus] = useState<string>("unread");
-  const [starRating, setStarRating] = useState<number | null>(null);
+
 
   const { status } = usePaperStatus(
     paper?.status === "PROCESSING" ? paperId : null,
@@ -36,7 +36,7 @@ export default function PaperWorkspacePage() {
       .then((p) => {
         setPaper(p);
         setReadingStatus(p.readingStatus || "unread");
-        setStarRating(p.starRating ?? null);
+
       })
       .finally(() => setLoading(false));
   }, [paperId]);
@@ -103,21 +103,7 @@ export default function PaperWorkspacePage() {
           <option value="reading">Reading</option>
           <option value="done">Done</option>
         </select>
-        <div className="flex gap-0.5">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <button
-              key={s}
-              onClick={() => {
-                const v = starRating === s ? null : s;
-                setStarRating(v);
-                updateReadingStatus(paper.id, { starRating: v });
-              }}
-              className={`text-lg ${(starRating ?? 0) >= s ? "text-yellow-400" : "text-gray-300"}`}
-            >
-              ★
-            </button>
-          ))}
-        </div>
+
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
