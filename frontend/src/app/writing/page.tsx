@@ -349,6 +349,7 @@ export default function WritingPage() {
   };
 
   return (
+    <>
     <div className="flex h-[calc(100vh-3rem)] gap-4">
       {/* 左侧栏：论文选择 + 引用/综述 */}
       <div className="w-72 flex-shrink-0 flex flex-col gap-3">
@@ -653,5 +654,6 @@ export default function WritingPage() {
           </div>
         </div>
       )}
+    </>
   );
 }
