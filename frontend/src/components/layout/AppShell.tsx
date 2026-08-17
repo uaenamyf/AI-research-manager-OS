@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { UploadProgressPanel } from "@/components/upload/UploadProgressPanel";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -66,6 +67,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Header />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+      {/* 全局上传/解析进度（任意页面可见，切页不丢） */}
+      <UploadProgressPanel />
     </div>
   );
 }
