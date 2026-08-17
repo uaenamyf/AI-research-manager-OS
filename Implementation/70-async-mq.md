@@ -51,8 +51,9 @@ ai-service 处理完成后，通过 HTTP 回调 backend：
 
 **删除论文流程**（backend）：
 
-1. backend 删除 MySQL `paper` 行（事务内）。
+1. backend 删除 MySQL `paper` 行（事务内；同时删 annotation 批注、按 `pdf_url` 删存储中的 PDF 文件）。
 2. backend 发 MQ `paper.delete` 到 `q.paper.cleanup`，payload `{ paperId }`。
 3. ai-service 消费后执行 `DELETE FROM paper_chunk WHERE paper_id = $1`，完成后确认消息。
 
 > 不可依赖数据库 CASCADE——两张表在不同数据库实例，必须靠 MQ 保证最终一致。
+> 2026-08-17：文件删除走 `StorageService.deleteFile(key)`（Local/S3），导入的外链 PDF 跳过。

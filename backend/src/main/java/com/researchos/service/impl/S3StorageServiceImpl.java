@@ -14,6 +14,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -38,6 +39,7 @@ public class S3StorageServiceImpl implements StorageService {
 
     private final AppProperties props;
     private S3Presigner presigner;
+    private S3Client client;
 
     @PostConstruct
     public void init() {
@@ -57,6 +59,7 @@ public class S3StorageServiceImpl implements StorageService {
                 .endpointOverride(s.getEndpoint() != null && !s.getEndpoint().isBlank()
                         ? java.net.URI.create(s.getEndpoint()) : null)
                 .build();
+        this.client = client;
         this.presigner = S3Presigner.builder()
                 .region(Region.of(s.getRegion()))
                 .credentialsProvider(StaticCredentialsProvider.create(creds))
@@ -100,5 +103,26 @@ public class S3StorageServiceImpl implements StorageService {
                 .getObjectRequest(getRequest)
                 .build();
         return presigner.presignGetObject(presignRequest).url().toString();
+    }
+
+    // 2026-08-17 myf: 论文删除时清理 S3 对象，避免孤儿文件；尽力而为，失败只记日志
+    @Override
+    public void deleteFile(String key) {
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        if (client == null) {
+            log.warn("S3 客户端未初始化（凭据未配置），跳过删除 key={}", key);
+            return;
+        }
+        try {
+            client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(props.getStorage().getBucket())
+                    .key(key)
+                    .build());
+            log.info("已删除 S3 对象: {}", key);
+        } catch (Exception e) {
+            log.warn("删除 S3 对象失败 key={}", key, e);
+        }
     }
 }

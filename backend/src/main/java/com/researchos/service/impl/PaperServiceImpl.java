@@ -13,11 +13,14 @@ import com.researchos.dto.PaperCreateRequest;
 import com.researchos.dto.PaperImportRequest;
 import com.researchos.dto.PaperListItem;
 import com.researchos.dto.PaperUploadResponse;
+import com.researchos.entity.Annotation;
 import com.researchos.entity.Paper;
 import com.researchos.entity.User;
+import com.researchos.mapper.AnnotationMapper;
 import com.researchos.mapper.PaperMapper;
 import com.researchos.service.PaperService;
 import com.researchos.service.ProjectService;
+import com.researchos.service.StorageService;
 import com.researchos.service.SubscriptionService;
 import com.researchos.service.UserService;
 import com.researchos.service.support.CrossrefService;
@@ -48,6 +51,8 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     private final SubscriptionService subscriptionService;
     private final UserService userService;
     private final CrossrefService crossrefService;
+    private final StorageService storageService;
+    private final AnnotationMapper annotationMapper;
 
     /**
      * 创建论文记录 + 发 MQ 触发 AI 分析。
@@ -199,7 +204,10 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
     @Override
     @Transactional
     public void deletePaper(Long userId, Long paperId) {
-        requirePaperOwnedBy(paperId, userId);
+        Paper paper = requirePaperOwnedBy(paperId, userId);
+        // 2026-08-17 myf: annotation 无外键，删论文需手动清理批注，避免孤儿行
+        annotationMapper.delete(new LambdaQueryWrapper<Annotation>()
+                .eq(Annotation::getPaperId, paperId));
         removeById(paperId);
         // 发 MQ 让 ai-service 清理 PG paper_chunk（幂等：chunk 不存在也安全）
         rabbitTemplate.convertAndSend(
@@ -207,7 +215,34 @@ public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements
                 RabbitConfig.ROUTING_PAPER_DELETE,
                 new AiTaskMessage(paperId, "PAPER_DELETE",
                         Map.of("paperId", paperId)));
+        // 2026-08-17 myf: 删除论文时一并清理 PDF 文件（尽力而为，失败不阻断删除）
+        deleteStoredFile(paper);
         log.info("已删除论文 paperId={} 并发 paper.delete 消息清理向量", paperId);
+    }
+
+    /**
+     * 删除论文对应的 PDF 文件。
+     * 仅处理本系统存储的 key（上传路径存的原始对象 key）；
+     * 导入路径存的外链 URL（http/https）不属于本系统存储，跳过。
+     * 尽力而为：任何失败只记日志，不影响论文删除事务。
+     */
+    private void deleteStoredFile(Paper paper) {
+        if (paper == null) {
+            return;
+        }
+        String pdfUrl = paper.getPdfUrl();
+        if (pdfUrl == null || pdfUrl.isBlank()) {
+            return;
+        }
+        if (pdfUrl.startsWith("http://") || pdfUrl.startsWith("https://")) {
+            log.debug("外链 PDF 跳过文件删除: {}", pdfUrl);
+            return;
+        }
+        try {
+            storageService.deleteFile(pdfUrl);
+        } catch (Exception e) {
+            log.warn("删除 PDF 文件失败 key={}，不影响论文删除", pdfUrl, e);
+        }
     }
 
     /**

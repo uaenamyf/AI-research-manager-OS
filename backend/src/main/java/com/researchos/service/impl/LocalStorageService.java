@@ -117,4 +117,31 @@ public class LocalStorageService implements StorageService {
         Path filePath = uploadDir.resolve(key).normalize();
         return filePath.startsWith(uploadDir) && Files.exists(filePath);
     }
+
+    // 2026-08-17 myf: 论文删除时清理本地 PDF，避免孤儿文件；尽力而为，失败只记日志
+    @Override
+    public void deleteFile(String key) {
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        Path filePath = uploadDir.resolve(key).normalize();
+        if (!filePath.startsWith(uploadDir)) {
+            throw new SecurityException("非法路径: " + key);
+        }
+        try {
+            boolean deleted = Files.deleteIfExists(filePath);
+            if (deleted) {
+                // 顺带清理空的论文目录 papers/{uuid}/
+                Path parent = filePath.getParent();
+                if (parent != null && parent.startsWith(uploadDir)) {
+                    Files.deleteIfExists(parent);
+                }
+                log.info("已删除本地文件: {}", filePath);
+            } else {
+                log.debug("文件不存在，跳过删除: {}", filePath);
+            }
+        } catch (IOException e) {
+            log.warn("删除本地文件失败: {}", filePath, e);
+        }
+    }
 }

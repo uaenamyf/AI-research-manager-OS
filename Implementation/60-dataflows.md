@@ -108,21 +108,25 @@
 [Frontend] 轮询 /review/{taskId}
 ```
 
-## 6.5 删除论文（跨库向量清理，2026-08-15 实现）
+## 6.5 删除论文（跨库向量清理，2026-08-15 实现；08-17 补批注与文件清理）
 
 ```
 [Frontend] DELETE /api/papers/{id}
     ↓
 [Backend] PaperServiceImpl.deletePaper
-    ├── 1. requirePaperOwnedBy 校验归属
-    ├── 2. 删 MySQL paper 行（事务内）
-    └── 3. 发 MQ {taskId, type:PAPER_DELETE, payload:{paperId}} → q.paper.cleanup
+    ├── 1. requirePaperOwnedBy 校验归属（返回 paper，取 pdf_url）
+    ├── 2. 删 annotation（无外键，手动清理避免孤儿行）
+    ├── 3. 删 MySQL paper 行（事务内；conversation 靠外键 ON DELETE CASCADE 级联）
+    ├── 4. 发 MQ {taskId, type:PAPER_DELETE, payload:{paperId}} → q.paper.cleanup
+    └── 5. storageService.deleteFile(pdf_url) 删 PDF 文件（尽力而为；外链 URL 跳过）
     ↓
 [ai-service] consumer._on_paper_delete_message
     └── DELETE FROM paper_chunk WHERE paper_id = $1（幂等，无需回调）
 ```
 
 > 双库无物理外键，必须靠 MQ 保证最终一致；删除失败时 chunk 残留，重发消息可幂等清理。
+> 2026-08-17：PDF 文件删除由 `StorageService.deleteFile(key)` 实现（Local 删本地文件+空目录、S3 删对象），
+> 导入的外链 PDF（pdf_url 以 http 开头）不属于本系统存储，跳过不删；文件删除失败只记日志不阻断事务。
 
 ## 状态机（单一数据源在 backend）
 

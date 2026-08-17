@@ -20,4 +20,12 @@ public interface StorageService {
      * 生成下载用 signed URL（有效期 15min）。
      */
     String getSignedDownloadUrl(String key);
+
+    /**
+     * 删除对象存储中的文件（论文删除时清理，避免孤儿文件）。
+     * 实现应尽力而为：删除失败记日志，不向调用方抛异常。
+     *
+     * @param key 对象 key（即 paper.pdf_url 中存的值）
+     */
+    void deleteFile(String key);
 }
