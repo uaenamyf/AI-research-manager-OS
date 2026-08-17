@@ -160,13 +160,13 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 
 - [x] 实现 `dsh-llm-gateway`（chat completions + embeddings）。✅ 2026-08-17：改为**直连上游的 OpenAI 兼容代理**（不再依赖 ctx.llm/DSH provider 配置），环境变量配置（RESEARCH_LLM_* / RESEARCH_EMBEDDING_*，兼容 .env 兜底）；上游路径对齐 OpenAI SDK 语义 `{base}/chat/completions`
 - [x] ResearchOS ai-service 改造：`OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 指向网关。✅ **调用模式已验证**：ai-service 容器内用真实 OpenAI SDK（llm/client.py 同款）`base_url` 指向网关 → 真实回复；**零代码改动**，切换 = .env 两行配置（见 `dsh-plugins/README.md`）
-- [ ] 正式切换 + 两端同 key/同模型/限流验证 —— **待 dsh 常驻部署后执行**（当前 dsh 为手动测试进程，切换会使 ResearchOS AI 依赖 dsh 常驻；网关 key 收口到 DSH `ctx.credentials` 亦属此步）
-- **出口（部分达成）**：统一 API 链路验证通过，正式切换挂起于 dsh 常驻部署
+- [x] 正式切换 + 两端同 key/同模型验证。✅ 2026-08-17：dsh 常驻（`dsh-gateway.sh`）就绪后，`.env` 的 `OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 正式指向网关 `http://host.docker.internal:3081/v1`，重建 ai-service 容器；验证：容器内真实 OpenAI SDK chat 回「网关通」、embeddings 2048 维；真实业务 writing rewrite 经 backend-token → ai-service → 网关 → 上游返回润色文本。两端同 key（网关单点注入上游 key）、同 chat 模型（ark-code-latest）、同 embedding 模型（doubao-embedding-vision）。**遗留**：① 网关暂无限流（直连代理，key/模型已单点收口到网关 env）；② key 收口到 DSH `ctx.credentials` 待做
+- **出口（已达成）**：统一 API 链路 + 正式切换验证通过，ResearchOS AI 与 DSH 指向同一 OpenAI 兼容入口（key/模型单点收口于网关）
 
-### Phase 2 — 文献 MCP server（需求 2 数据侧落地，1–2 周）
-- [ ] 实现 `research-mcp-server`（检索/读取/引用工具），DSH mcp-client 接入。
-- [ ] DSH agent 里跑通「检索文献 → 读取 → 引用」端到端。
-- **出口**：DSH 能读 ResearchOS 文献（ResearchOS 后端仍独立跑，数据经 MCP 暴露）。
+### Phase 2 — 文献 MCP server（需求 2 数据侧落地，1–2 周）✅ 已完成（2026-08-17）
+- [x] 实现 `research-mcp-server`（检索/读取/引用/向量检索 4 工具），DSH mcp-client 接入。✅ search/get 查 MySQL 真实文献；vector_search 经统一网关 embedding + PG 向量检索；cite 生成 BibTeX
+- [x] DSH agent 里跑通「检索文献 → 读取 → 引用」端到端。✅ 经 apiproxy 会话验证：`literature_search(gibbon)` → 2 篇真实论文 → `literature_get(51)` 元数据+摘要 → `literature_cite([51],bibtex)` 真实 BibTeX → 中文汇报
+- **出口（已达成）**：DSH agent 能检索/读取/引用 ResearchOS 文献（ResearchOS 后端仍独立跑，数据经 MCP 暴露）
 
 ### Phase 3 — 后端 TS 重写（需求 1/4 主体，4–8 周，按域拆分）
 - [ ] `research-auth`：DSH 会话统一认证，迁移用户数据。

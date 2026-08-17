@@ -11,8 +11,8 @@
 | 包 | 状态 | 说明 |
 | --- | --- | --- |
 | `research-hello` | ✅ Phase 0 已验证 | 最小 bundle：可拔插闭环证明（插件 + HTTP 路由） |
-| `research-mcp` | ✅ Phase 0-2 已验证 | 文献 MCP server：search/get/cite/vector_search（MySQL 真实文献 + 网关 embedding + PG 向量检索） |
-| `research-llm-gateway` | ✅ Phase 0-1 已验证 | 统一 LLM/Embedding 网关（OpenAI 兼容直连代理，chat+embeddings 真实上游） |
+| `research-mcp` | ✅ Phase 0-2 已验证 | 文献 MCP server：search/get/cite/vector_search（MySQL 真实文献 + 网关 embedding + PG 向量检索）；DSH agent 端到端「检索→读取→引用」已跑通 |
+| `research-llm-gateway` | ✅ Phase 0-1 已验证 | 统一 LLM/Embedding 网关（OpenAI 兼容直连代理，chat+embeddings 真实上游）；ResearchOS AI 已正式切到本网关 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -137,8 +137,48 @@ pg     → PG     researchos.paper_chunk ✅（验证时 522 行）
 - `cordis.patch.yml`：`- insert:` 行，`{id, name}` 挂插件（name 是本包名，自挂载）
 - `index.js`：`export const name` + `export const inject` + `export function apply(ctx)`（Cordis 插件形态）
 
-## 下一步（Phase 0 剩余）
+## Phase 1：正式切换完成（ResearchOS AI 已切到统一网关）✅ 2026-08-17
 
-- [ ] `research-mcp`：最小 stdio MCP server（文献检索工具）→ `dsh-mcp-client` 连接验证
-- [ ] `dsh-llm-gateway` spike：`ctx.webServer` 注册 `/v1/chat/completions` + `/v1/embeddings`，转发 `ctx.llm.stream()`
-- [ ] 数据层 spike：bundle 用 mysql2/pg 连现有 MySQL/PG
+**状态**：ResearchOS `.env` 的 `OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` 已正式指向网关：
+
+```
+OPENAI_BASE_URL=http://host.docker.internal:3081/v1
+EMBEDDING_BASE_URL=http://host.docker.internal:3081/v1
+```
+
+**执行**：改 `.env`（两行）→ `docker compose --env-file ../.env --profile app up -d --force-recreate --no-deps ai-service`。
+注意必须带 `--env-file ../.env`（Makefile 约定），否则 compose 读不到仓库根 `.env` 会用默认值。
+
+**验证（真实链路）**：
+- ai-service 容器内真实 OpenAI SDK（`llm/client.py` 同款）：chat 经网关回「网关通」、embeddings 经网关返回 2048 维向量
+- 真实业务：`POST /writing/rewrite`（backend 内网 token）→ writing agent → 网关 → 上游，返回真实润色文本
+- 网关 key/模型单点收口：上游 `Authorization` 只由网关注入（`RESEARCH_LLM_API_KEY` 等，来自 `.env`），请求侧 key 不校验；模型缺省由网关填（chat `ark-code-latest`、embedding `doubao-embedding-vision`）→ 两端同 key、同模型
+
+**前置条件**：dsh 须常驻（`scripts/dsh-gateway.sh start`，nohup + PID 管理；macOS 容器内 `host.docker.internal` 可达宿主机 3081）。
+
+**遗留（Phase 1 后续）**：
+- [ ] 网关限流：当前为直连代理、无速率限制，正式化应加 per-key QPS/并发限制
+- [ ] key 收口到 DSH `ctx.credentials`（目前收口到网关 env，来源仍是 ResearchOS `.env`）
+
+## Phase 2：文献 MCP 端到端（DSH agent 检索→读取→引用）✅ 2026-08-17
+
+经 dsh apiproxy（`POST /api/session.create` / `session.prompt` / `session.history`，实例 3081）驱动标准 agent 会话验证：
+
+```
+用户：用 literature_search 检索 gibbon；对第一篇用 literature_get 读取元数据/摘要；用 literature_cite 生成 BibTeX
+agent：mcp__research__literature_search {query:"gibbon"}
+   → 2 篇真实论文（id 51 / 50，MySQL paper 表，标题/作者/年份/READY）
+agent：mcp__research__literature_get {paperId:51}
+   → 真实元数据 + Paper Intelligence Card summary（DOI/method/tags）
+agent：mcp__research__literature_cite {paperIds:[51],format:"bibtex"}
+   → @article{DenaJ.Clink2019, title=..., author=..., year={2019}}
+agent：中文汇报（标题/作者/年份 + 可粘贴的 BibTeX）
+```
+
+结论：需求 2 全链路闭环——DSH agent 经 MCP 工具读 ResearchOS 真实文献（MySQL 业务数据 + 网关 embedding + PG 向量库），ResearchOS 后端仍独立运行。
+
+## 下一步（Phase 1-2 遗留）
+
+- [ ] 网关限流（per-key QPS/并发）与 key 收口到 DSH `ctx.credentials`
+- [ ] Phase 3：ResearchOS 后端 TS 重写（bundle 化，MySQL/PG 直连已无架构障碍）
+- [ ] Phase 4：前端 DSH React 重写（浏览器只访问 `:3080`）
