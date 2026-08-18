@@ -261,11 +261,19 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - 网关限流（per-key QPS/并发）待做（Phase 1 遗留）。
 
 ### Phase 5 — 数据迁移与收尾（1–2 周）
-- [ ] MySQL/PG 数据核对（表结构微调以适配新 ORM）、向量维度与网关 embedding 对齐。
-- [ ] 移除 RabbitMQ/Redis/旧任务表；清理旧代码仓库残留。
-- [ ] 可拔插回归：全量 profile 运行 → 卸载 research-* → DSH 裸跑正常 → 重装恢复。
+
+- [x] MySQL/PG 数据核对、向量维度与网关 embedding 对齐 ✅ 2026-08-18（详见下方「Phase 5 数据核对结果」）。
+- [ ] 移除 RabbitMQ/Redis/旧任务表；清理旧代码仓库残留。——**评估结论（2026-08-18）**：Redis 可安全移除（0 key、backend 无 RedisTemplate 引用）；RabbitMQ **暂不可移除**——`q.paper.analyze`/`q.review.generate`/`q.paper.cleanup` 三条队列仍被 ai-service 消费（论文分析/综述/删除清理全链路依赖），须先把 AI 管道迁入 DSH（PDF 解析+embedding+RAG+LLM 迁为 bundle/ctx.jobs，状态回调改为 bundle 直写 MySQL）后才可下线（见 Phase 3 出口映射表「RabbitMQ 任务下发/回调、ai-service MQ 消费：保留至 AI 能力完全迁入 DSH」）。
+- [ ] 可拔插回归：全量 profile 运行 → 卸载 research-* → DSH 裸跑正常 → 重装恢复。——需重启 GUI（打断会话），待用户择时执行。
 - [ ] 更新 `Implementation/` 契约文档、AGENTS.md 模块边界。
 - **出口**：融合完成，符合三项需求验收标准；`feat/dsh-integration` 合入 `main`（PR）。
+
+### Phase 5 数据核对结果（2026-08-18）
+
+- **表健康**：MySQL app_user=3 / research_project=1 / folder=6 / paper=3 / ai_task=6；PG paper_chunk=141（核对前 569）。
+- **向量对齐**：PG `embedding vector(2048)` ↔ 网关 embedding 2048 维（doubao-embedding-vision）✅ 一致。
+- **孤儿 chunk 清理**：PG 存在 paper 30/36/37 的 chunk（MySQL 已无对应 paper）——经正规契约通道修复：向 `researchos.ai.task` / `paper.delete` 发布 3 条消息 → ai-service `_on_paper_delete_message` 清理（30→276、36→53、37→99 个 chunk）→ PG 剩余 chunk 仅含 49/50/51，与 MySQL paper 完全一致。
+- **结论**：双库最终一致达成；bundle 用原生 SQL 直连（无 ORM 迁移需求），表结构无需微调。
 
 ---
 
