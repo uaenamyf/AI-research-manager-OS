@@ -18,6 +18,7 @@
 | `research-folder` | ✅ Phase 3 文献域 | 文件夹树 CRUD bundle：create/tree/children/rename/move/delete/sort 直连 MySQL folder，user+project 归属校验，递归删除，move 防循环/跨项目 |
 | `research-paper` | ✅ Phase 3 文献域 | 论文管理 bundle：create/import(Crossref)/list(文件夹过滤)/detail/status/card/move/reading/delete 直连 MySQL paper，MQ 触发+清理（paper.analyze/paper.delete 全链路已验），配额开关 |
 | `research-file` | ✅ Phase 3 文献域 | 文件存储 bundle：upload-url presign / multipart 上传 / 下载(全量+Range) / 删除（~/.researchos/uploads，路径穿越防护），旧后端 PDF 代理兜底读取 |
+| `research-writing` | ✅ Phase 3 AI 域 | 写作 Agent bundle：6 动作 LLM 改写（走共享网关 + llmOverride 直连/回退）+ MyMemory 机器翻译；prompt 与 ai-service 同源 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -312,6 +313,32 @@ DELETE /research-file/files/{key...}        删除本地文件（顺带清空目
 
 > 双认证阶段说明：新上传走本 bundle 本地目录，旧后端已有 PDF 走代理兜底（macOS 下 docker 卷
 > 对宿主机不可直接读，故不直读）。S3 分支未实现（当前 `STORAGE_TYPE=local`，与后端一致）。
+
+## Phase 3：research-writing bundle（写作 Agent，LLM 走共享网关）✅ 2026-08-17
+
+AI 域第一个 bundle，替代 backend `/api/writing/*` + ai-service writing_agent 整条链，prompt 与
+ai-service 同源（`app/agents/prompts/writing.py` 原样搬运），LLM 调用走**共享网关**（需求 3）：
+
+```
+POST /research-writing/rewrite
+  { text, action?: polish|expand|shorten|translate|rebuttal|cover_letter, instruction?, llmOverride? }
+  -> { action, text }
+POST /research-writing/translate-machine
+  { text, targetLang? } -> { text, sourceLang, targetLang }   （MyMemory 免费引擎）
+```
+
+**LLM 路由（镜像 ai-service llm/client.py）**：
+- 无 override → 共享网关 `POST {RESEARCH_GATEWAY_URL}/v1/chat/completions`（模型 RESEARCH_LLM_MODEL）
+- 有 llmOverride（用户自定义 apiKey/baseUrl/model）→ 直连该端点（绕过网关）
+- override 失败 → 自动回退系统默认（已验证直连 shorten 正常）
+- 结果剥离 markdown 代码围栏
+
+**关键验证**：polish/translate(中文)/未知 action 回退 polish/空文本、translate-machine 双向
+（en↔zh-CN，源语言检测 CJK→zh-CN）、llmOverride 直连、401 无 token。
+
+> **顺手修复**：`dsh-gateway.sh` 的 `RESEARCH_GATEWAY_URL` 在端口 bump 前导出（指向 3080 GUI
+> 而非 3081 网关），导致 MCP vector_search 的 embedding 调用打错端口——已改为 bump 后导出，
+> vector_search 恢复真实语义检索（paperId 51, score 0.92 实测）。
 
 ## 下一步（Phase 1-2 遗留）
 

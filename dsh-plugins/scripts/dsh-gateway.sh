@@ -43,8 +43,6 @@ start() {
   export RESEARCH_LLM_MODEL="$(grep '^OPENAI_DEFAULT_MODEL=' "$ENV_FILE" | cut -d= -f2- || true)"
   export RESEARCH_EMBEDDING_API_KEY="$RESEARCH_LLM_API_KEY"
   export RESEARCH_EMBEDDING_BASE_URL="$RESEARCH_LLM_BASE_URL"
-  # MCP server env: reach the gateway + ResearchOS DBs from dsh-spawned children
-  export RESEARCH_GATEWAY_URL="http://127.0.0.1:$PORT"
   # Phase 3 research-auth: shared JWT secret (dual-auth with Spring Boot) + MySQL creds
   export JWT_SECRET="$(grep '^JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)"
   export RESEARCH_MYSQL_HOST="${RESEARCH_MYSQL_HOST:-127.0.0.1}"
@@ -64,6 +62,9 @@ start() {
   while lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; do
     PORT=$((PORT + 1))
   done
+  # 2026-08-17 uaenamyf: RESEARCH_GATEWAY_URL 必须在端口 bump 之后导出，否则指向初始端口（3080）而非实际端口
+  # MCP server env: reach the gateway + ResearchOS DBs from dsh-spawned children
+  export RESEARCH_GATEWAY_URL="http://127.0.0.1:$PORT"
   PATCH_FILE="$(mktemp)"
   printf -- '- id: webserver\n  config:\n    host: "127.0.0.1"\n    port: %s\n' "$PORT" > "$PATCH_FILE"
   PATCH="--patch $PATCH_FILE"

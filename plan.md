@@ -121,7 +121,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | FolderController | `research-folder` | ✅ 已实现（2026-08-17）：文件夹 create/tree/children/rename/move/delete/sort，user+project 归属校验，递归删除，防循环移动 |
 | FileController | `research-file` | ✅ 已实现（2026-08-17）：本地文件存储（upload-url presign / multipart 上传 / 下载含 Range / 删除），旧后端已有 PDF 经代理兜底读取；S3 分支未实现（当前 STORAGE_TYPE=local） |
 | ReviewController + ai | `research-review` | 综述生成 → DSH agent + ctx.jobs |
-| WritingController + ai | `research-writing` | 改写/翻译 → DSH agent（llm 走共享网关） |
+| WritingController + ai | `research-writing` | ✅ 已实现（2026-08-17）：写作 Agent（6 动作 LLM 改写走共享网关 + llmOverride 直连/回退 + MyMemory 机器翻译），prompt 与 ai-service 同源 |
 | ExportController / CitationController | `research-export` / `research-citation` | 批量 BibTeX/RIS、参考文献 |
 | SettingsController / SubscriptionController | `research-settings` / `research-subscription` | 用户设置、订阅 |
 | ai-service paper_agent | `research-paper-card`（skill/agent） | Paper Intelligence Card 生成（llm/embedding 走共享网关） |
@@ -174,7 +174,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `research-folder` ✅ 2026-08-17：文件夹 create/tree(嵌套 children)/children/rename/move/delete/sort，user+project 归属校验（越权 404/403 已验），递归删除子树，move 防跨项目/自移/循环。
 - [x] `research-paper` ✅ 2026-08-17：create/import(Crossref 补全)/list(folderId: null=根/-1=全部)/detail/status/card/move/reading/delete；MQ 全链路已验——创建发 paper.analyze 被 ai-service 消费并回调状态，删除发 paper.delete 被 ai-service 清理 chunk；配额开关 ENFORCE_QUOTA；upload-url 501（双认证阶段上传走旧后端）。
 - [x] `research-file` ✅ 2026-08-17：本地文件存储——upload-url presign→multipart 上传→下载(全量+Range 206)→删除（~/.researchos/uploads，路径穿越防护）；旧后端已有 PDF 经代理兜底读取（Clemins.pdf 327KB 真实返回）；**核心文献域 4 bundle 全部完成**。
-- [ ] `research-review` / `research-writing` / `research-paper-card`：AI 域（走共享网关）。
+- [x] `research-writing` ✅ 2026-08-17：写作 Agent bundle——6 动作 LLM 改写（prompt 与 ai-service 同源，走共享网关；llmOverride 直连 + 失败回退系统默认；代码围栏剥离）+ MyMemory 机器翻译（源语言检测/500 字截断/配额检查）；`research-review` / `research-paper-card` 待做。
 - [ ] `research-export` / `research-citation` / `research-settings` / `research-subscription`。
 - [ ] 每个 bundle 完成后：旧 Spring Boot 对应控制器下线、`dsh plugin` 可单独卸载验证。
 - **出口**：业务全量跑在 DSH 进程内，Spring Boot 下线；profile 卸载任一 bundle 不破坏其他功能。
