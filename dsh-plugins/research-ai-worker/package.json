@@ -1,0 +1,25 @@
+{
+  "name": "@researchos/dsh-research-ai-worker",
+  "description": "Phase 5 research-ai-worker: ResearchOS AI pipeline inside DSH (PDF parse + section chunk + embedding via unified gateway + pgvector write + Paper Card + review generation + MySQL status updates). Replaces the MQ -> ai-service -> callback loop so RabbitMQ can be decommissioned.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.23.0"
+  }
+}

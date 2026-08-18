@@ -54,6 +54,13 @@ const JWT_SECRET =
 const MQ_URL = process.env.RESEARCH_RABBITMQ_URL || 'amqp://guest:guest@127.0.0.1:5672'
 const MQ_EXCHANGE = 'researchos.ai.task'
 
+// Phase 5 AI 管道迁入 DSH：RESEARCH_AI_INLINE=1 时创建/删除论文直接调用
+// research-ai-worker bundle（HTTP + X-Internal-Token），不再发 MQ。默认关
+// = 保持现有 MQ 管道；切换需同时挂载 research-ai-worker 并重启 dsh。
+const AI_INLINE = process.env.RESEARCH_AI_INLINE === '1'
+const GATEWAY = (process.env.RESEARCH_GATEWAY_URL || 'http://127.0.0.1:3080').replace(/\/+$/, '')
+const INTERNAL_TOKEN = process.env.RESEARCH_INTERNAL_TOKEN || process.env.INTERNAL_TOKEN || 'dev-internal-token'
+
 // Mirrors backend SubscriptionService (ENFORCE_QUOTA switch, dev default off).
 const ENFORCE_QUOTA = process.env.ENFORCE_QUOTA === 'true'
 const PLAN_LIMITS = { FREE: 10, PRO: 500, RESEARCHER: Number.MAX_SAFE_INTEGER }
@@ -198,6 +205,37 @@ async function publishTask(taskId, type, payload) {
   }
 }
 
+/** Call the research-ai-worker bundle over HTTP (X-Internal-Token). */
+async function callWorker(action, body) {
+  try {
+    const res = await fetch(`${GATEWAY}/research-ai-worker/${action}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Internal-Token': INTERNAL_TOKEN },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(`worker ${action} HTTP ${res.status}: ${j.message || ''}`)
+    }
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+/** Trigger paper analysis: inline worker (RESEARCH_AI_INLINE=1) or MQ. */
+async function triggerAnalyze(paperId, pdfUrl) {
+  if (AI_INLINE) return callWorker('analyze', { paperId })
+  return publishTask(paperId, 'PAPER_ANALYSIS', { paperId, pdfUrl })
+}
+
+/** Trigger paper chunk cleanup: inline worker or MQ paper.delete. */
+async function triggerCleanup(paperId) {
+  if (AI_INLINE) return callWorker('cleanup', { paperId })
+  return publishTask(paperId, 'PAPER_DELETE', { paperId })
+}
+
 /** Crossref metadata resolution, graceful fallback (mirror CrossrefService.resolve). */
 async function resolveDoi(doi) {
   try {
@@ -295,7 +333,7 @@ export function apply(ctx) {
               [projectId, user.id, folderId, String(title).trim(), authors, year, doi || null, pdfUrl, status],
             )
             if (pdfUrl) {
-              const sent = await publishTask(result.insertId, 'PAPER_ANALYSIS', { paperId: result.insertId, pdfUrl })
+              const sent = await triggerAnalyze(result.insertId, pdfUrl)
               if (!sent) {
                 await pool.query('DELETE FROM paper WHERE id = ?', [result.insertId])
                 return fail(res, 500, 'failed to trigger AI analysis')
@@ -330,7 +368,7 @@ export function apply(ctx) {
               'INSERT INTO paper (project_id, user_id, folder_id, title, pdf_url, status, created_time) VALUES (?, ?, ?, ?, ?, \'PROCESSING\', NOW(6))',
               [projectId, user.id, folderId, fileName, s3Key],
             )
-            const sent = await publishTask(result.insertId, 'PAPER_ANALYSIS', { paperId: result.insertId, pdfUrl: s3Key })
+            const sent = await triggerAnalyze(result.insertId, s3Key)
             if (!sent) {
               await pool.query('DELETE FROM paper WHERE id = ?', [result.insertId])
               return fail(res, 500, 'failed to trigger AI analysis')
@@ -451,9 +489,9 @@ export function apply(ctx) {
             return ok(res, null)
           }
 
-          // DELETE /papers/:id — publish paper.delete FIRST, then delete the row (rollback-safe).
+          // DELETE /papers/:id — publish cleanup FIRST (or inline worker), then delete the row (rollback-safe).
           if (method === 'DELETE' && action === undefined) {
-            const sent = await publishTask(paperId, 'PAPER_DELETE', { paperId })
+            const sent = await triggerCleanup(paperId)
             if (!sent) return fail(res, 500, 'failed to publish cleanup task')
             await pool.query('DELETE FROM paper WHERE id = ? AND user_id = ?', [paperId, user.id])
             return ok(res, null)

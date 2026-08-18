@@ -49,6 +49,12 @@ const JWT_SECRET =
 const MQ_URL = process.env.RESEARCH_RABBITMQ_URL || 'amqp://guest:guest@127.0.0.1:5672'
 const MQ_EXCHANGE = 'researchos.ai.task'
 
+// Phase 5 AI 管道迁入 DSH：RESEARCH_AI_INLINE=1 时 generate 直接调用
+// research-ai-worker bundle（HTTP + X-Internal-Token），不再发 MQ。
+const AI_INLINE = process.env.RESEARCH_AI_INLINE === '1'
+const GATEWAY = (process.env.RESEARCH_GATEWAY_URL || 'http://127.0.0.1:3080').replace(/\/+$/, '')
+const INTERNAL_TOKEN = process.env.RESEARCH_INTERNAL_TOKEN || process.env.INTERNAL_TOKEN || 'dev-internal-token'
+
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function readJson(req) {
@@ -150,6 +156,28 @@ async function publishTask(taskId, type, payload, routing) {
   }
 }
 
+/** Trigger review generation: inline worker (RESEARCH_AI_INLINE=1) or MQ. */
+async function triggerReview(taskId, paperIds, topic, llmOverride) {
+  if (AI_INLINE) {
+    try {
+      const res = await fetch(`${GATEWAY}/research-ai-worker/review`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Internal-Token': INTERNAL_TOKEN },
+        body: JSON.stringify({ taskId, paperIds, topic, llmOverride }),
+        signal: AbortSignal.timeout(10000),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(`worker review HTTP ${res.status}: ${j.message || ''}`)
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+  return publishTask(taskId, 'REVIEW_GENERATION', { paperIds, topic, llmOverride }, 'review.generate')
+}
+
 // ── plugin ─────────────────────────────────────────────────────────────────
 
 export function apply(ctx) {
@@ -199,7 +227,7 @@ export function apply(ctx) {
             "INSERT INTO ai_task (user_id, type, status, created_time) VALUES (?, 'REVIEW_GENERATION', 'PENDING', NOW(6))",
             [userId],
           )
-          const sent = await publishTask(result.insertId, 'REVIEW_GENERATION', { paperIds, topic }, 'review.generate')
+          const sent = await triggerReview(result.insertId, paperIds, topic)
           if (!sent) {
             await pool.query('DELETE FROM ai_task WHERE task_id = ?', [result.insertId])
             return fail(res, 500, 'failed to enqueue review task')

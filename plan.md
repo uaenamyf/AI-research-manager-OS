@@ -275,6 +275,37 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - **孤儿 chunk 清理**：PG 存在 paper 30/36/37 的 chunk（MySQL 已无对应 paper）——经正规契约通道修复：向 `researchos.ai.task` / `paper.delete` 发布 3 条消息 → ai-service `_on_paper_delete_message` 清理（30→276、36→53、37→99 个 chunk）→ PG 剩余 chunk 仅含 49/50/51，与 MySQL paper 完全一致。
 - **结论**：双库最终一致达成；bundle 用原生 SQL 直连（无 ORM 迁移需求），表结构无需微调。
 
+### Phase 5 AI 管道迁入 DSH（research-ai-worker）✅ 核心实现 + 独立验证（2026-08-18）
+
+**形态**：新包 `dsh-plugins/research-ai-worker`（bundle + 独立 CLI）——把 ai-service 的 AI 管道原样移植为 TS/Node，直连 MySQL（业务表）+ PG（paper_chunk），LLM/embedding 走统一网关 3080：
+
+```
+lib/parser.js   PDF 解析 + 章节切分 + 滑动窗口（pdf_parser.py 逐字移植，CHUNK_SIZE=512/OVERLAP=64，
+                section 正则同源，references 跳过；pdf-parse 提取 + 控制字符清理）
+lib/embed.js    /v1/embeddings 批量（每批 10、批间 1s、429 指数退避，embedding.py 同款）
+lib/vector.js   PG paper_chunk 写/余弦检索（<=>）/删除（vector_store.py 同款 SQL）
+lib/card.js     Paper Card 生成（PAPER_CARD_SYSTEM 同源 + 容错 JSON 解析）
+lib/llm.js      网关 chat + llmOverride 直连/回退（writing bundle 同款路由）
+lib/analyze.js  analyzePaper：下载 PDF → 切分 → embedding → PG 写入 → Card → MySQL status READY/summary
+lib/review.js   generateReview：metadata → 跨论文 RAG（top 12）→ LLM → ai_task SUCCESS {markdown}
+index.js        bundle 包装：POST /research-ai-worker/{analyze,cleanup,review}（JWT 或 X-Internal-Token）
+cli.js          独立 CLI：node cli.js analyze|cleanup|review（不重启 dsh 即可验证）
+```
+
+**独立验证（CLI 直连真实基础设施，测试数据已还原）**：
+- analyze paper 55（克隆 paper 51 的 Clink.pdf 1.15MB）：PDF 经 backend 下载全量 → **47 chunks（与 Python 管道对同一 PDF 逐字一致）** → 2048 维 embedding → PG 写入 47 行 → 真实 Card（DOI/tags/method）→ paper status READY
+- review task 9（papers=[55], topic=Acoustic classification）：RAG 检索 12 chunks → 真实 Markdown 综述 **10300 字符**（Introduction/Thematic Synthesis/Methodological Comparison/Gaps/Conclusion/References 含 [P1] 引用）
+- cleanup：DELETE paper_chunk 47 行
+- 修复过程中发现并处理：pdf-parse 文本含 NUL 控制字符（PG 拒绝，parser 增加 sanitize）；PG 连接串走 config；**research-file 代理大文件截断 bug（见下）**
+
+**集成（已编码，env 门控默认关 = MQ 管道不变，重启后一键切换）**：
+- `research-paper`：`RESEARCH_AI_INLINE=1` 时 create/import 触发改调 `/research-ai-worker/analyze`、DELETE 改调 `/cleanup`（X-Internal-Token），否则保持 MQ
+- `research-review`：`RESEARCH_AI_INLINE=1` 时 generate 改调 `/research-ai-worker/review`（顺带补上 llmOverride 透传），否则保持 MQ
+- **切换步骤**：`dsh plugin add research-ai-worker` → 设 `RESEARCH_AI_INLINE=1` → 重启 GUI → 验证端到端 → 观察期后移除 RabbitMQ/ai-service MQ 消费（Phase 5 出口）
+- 回退：去掉 env 或卸载 worker 并重启
+
+**已知问题（待下次重启验证）**：research-file 的 legacy 代理（fetch backend 后转发）在经 dsh 进程响应大文件（>300KB）时偶发截断（curl exit 18 / undici terminated，backend 直连无此问题）。worker 已用 **backend 直连优先**规避（与 ai-service 同路径）；research-file 代理健壮性补丁（timeout + connection 控制）与 GUI PDF 查看器（v0.2）一并处理。
+
 ---
 
 ## 5. 验收标准（对应用户三条需求）

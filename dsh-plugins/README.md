@@ -676,3 +676,25 @@ boot 注入 7 个 research UI 条目。
 
 - [ ] 网关限流（per-key QPS/并发）与 key 收口到 DSH `ctx.credentials`
 - [ ] Phase 5：AI 管道迁入 DSH（MQ 下线前置）、可拔插全量回归、`Implementation/` 文档更新、合入 main
+
+## Phase 5：research-ai-worker（AI 管道迁入 DSH）✅ 2026-08-18
+
+**形态**：`dsh-plugins/research-ai-worker/`——ai-service AI 管道（paper.analyze / review.generate /
+paper.delete）的 TS/Node 移植，直连 MySQL + PG，LLM/embedding 走统一网关 3080：
+
+- `lib/parser.js`（pdf_parser.py 移植：章节切分 + 滑动窗口 512/64）、`lib/embed.js`（批量 10/1s/429 退避）、
+  `lib/vector.js`（paper_chunk 写/余弦检索/删除）、`lib/card.js`（Paper Card，prompt 同源）、
+  `lib/llm.js`（网关 + llmOverride 直连/回退）、`lib/analyze.js`（analyze/cleanup 全流程）、
+  `lib/review.js`（RAG + 综述生成）
+- `cli.js`：`node cli.js analyze|cleanup|review` 独立验证（免重启 dsh）；`index.js`：bundle 路由
+  `POST /research-ai-worker/{analyze,cleanup,review}`（JWT 或 X-Internal-Token）
+
+**验证（真实端到端）**：analyze → 47 chunks（与 Python 管道一致）→ PG 写入 → 真实 Card → READY；
+review → 10300 字符 Markdown 综述（[P1] 引用）；cleanup → 删除成功。测试数据已还原。
+
+**集成（env 门控）**：`research-paper` / `research-review` 在 `RESEARCH_AI_INLINE=1` 时改调 worker
+（HTTP + X-Internal-Token），默认关保持 MQ 管道。切换 = `dsh plugin add research-ai-worker` +
+设 env + 重启（见 plan.md Phase 5）。**已知问题**：research-file legacy 代理大文件偶发截断
+（worker 已 backend 直连优先规避；代理补丁随 GUI PDF 查看器处理）。
+
+## 下一步（遗留）
