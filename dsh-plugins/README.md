@@ -28,6 +28,7 @@
 | `ui-research-library` | ✅ Phase 4 v0.1 | 文献库富卡片聊天节点：匹配标准 tool 事件（literature_search → 文献卡片），真实事件重放验证 |
 | `ui-research-paper` | ✅ Phase 4 v0.1 | Paper Card 聊天节点：literature_get → 完整 Paper Intelligence Card（method/finding/limitation/future_work/tags） |
 | `ui-research-citation` | ✅ Phase 4 v0.1 | 引用卡片聊天节点：literature_cite → BibTeX/RIS 等宽渲染 + 复制按钮 |
+| `ui-research-dashboard` | ✅ Phase 4 v0.1 | 统计面板节点：用户消息关键词触发（dashboard/仪表盘/统计）→ 自取数（项目/论文/套餐/最近项目） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -514,6 +515,24 @@ dsh-plugins/ui-research-library/
 
 **浏览器效果**：GUI 中让 agent 执行「为论文 51 生成 BibTeX 引用」（`literature_cite`），
 对话流出现带「复制」按钮的引用卡片。MCP 文献工具驱动的 UI 集合（search/get/cite）完成。
+
+## Phase 4：ui-research-dashboard v0.1（用户消息触发统计面板）✅ 2026-08-17
+
+**新模式验证**：非 MCP 工具页面的触发方式——**用户消息关键词触发**。
+
+```
+用户输入含 dashboard / 仪表盘 / 统计 / stats 的句子 → 触发 research-dashboard 节点
+  → 渲染自取数面板：/research-project（项目数+列表）+ 各项目 /research-paper 计数
+    + /research-auth/me（套餐）
+```
+
+**验证**：触发逻辑（4 个关键词命中、无关消息/其他事件不触发）+ 数据源（真实 token：
+1 项目 / 3 论文 / FREE 套餐）+ boot 注入 5 个 research UI 条目 + client.js 服务。
+
+**浏览器效果**：GUI 中发送「打开仪表盘」→ 对话流出现统计面板（项目数/论文数/套餐/最近项目）。
+
+> 此模式将复用于 `ui-research-writing` / `ui-research-settings` / `ui-research-assistant`
+> 等非工具页面（各自匹配自己的关键词触发）。
 
 ## 下一步（Phase 1-2 遗留）
 

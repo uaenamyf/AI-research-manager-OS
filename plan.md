@@ -198,6 +198,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `ui-research-library` v0.1 ✅ 2026-08-17：文献库富卡片**聊天节点**——匹配标准 `tool/call`+`tool/result` 会话事件（ui-deliverables 同款模式，无需 host 发事件），跟踪 research MCP 文献工具（literature_search/vector_search）的 callId→名称，解析 tool/result JSON 累积论文列表，渲染「📚 ResearchOS 文献库」卡片。验证：boot 注入 + client.js 服务 + **真实会话事件重放**（turn/start→tool/call→tool/result → 节点数据含真实论文 id 50）。
 - [x] `ui-research-paper` v0.1 ✅ 2026-08-17：`literature_get` → 完整 **Paper Intelligence Card 聊天节点**（标题/作者/年份/状态 + abstract/method/finding/limitation/future_work/tags×5）；真实事件重放验证（论文 id 51）。两节点按工具分流（search→library 列表、get→paper 详情），无冗余渲染。
 - [x] `ui-research-citation` v0.1 ✅ 2026-08-17：`literature_cite` → **引用卡片聊天节点**（BibTeX/RIS 等宽渲染 + 复制按钮）；真实事件重放验证（`@article{DenaJ.Clink2019,...}`）。MCP 文献工具（search/get/cite）驱动的 UI 集合完成。
+- [x] `ui-research-dashboard` v0.1 ✅ 2026-08-17：**用户消息关键词触发**（dashboard/仪表盘/统计/stats）→ 自取数统计面板（/research-project 项目数 + 各项目论文数 + /research-auth/me 套餐 + 最近项目列表）。**验证了「用户消息触发」模式**（非工具页面通用），为 writing/settings/assistant 铺路。
 - [ ] `ui-research-literature` / `ui-research-writing` / `ui-research-assistant` / `ui-research-dashboard` / `ui-research-settings`。
 - [ ] Next.js 前端下线，浏览器只访问 `:3080`。
 - **出口**：单一 Web 入口，无 Next.js 残留。
