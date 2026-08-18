@@ -205,9 +205,40 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `ui-research-review` v0.1 ✅ 2026-08-17：**综述生成面板节点**——关键词触发（综述/文献综述/review，消息可带主题预填）→ 主题输入 + 论文勾选列表（调 /research-paper/search 空 q 取用户论文）→ 生成按钮（POST /research-review/generate）→ 轮询任务至 SUCCESS → 展示 Markdown 综述。真实端到端：task 8 PENDING→SUCCESS（真实综述含 Introduction）。
 - [x] `ui-research-upload` v0.1 ✅ 2026-08-17：**上传面板节点**——关键词触发（上传/upload）→ 项目下拉（/research-project）+ 文件夹下拉（/research-folder，可选）+ PDF 选择 → 三步上传（presign → multipart → 建论文触发 MQ 分析）→ 展示 paper id + PROCESSING。三步端点端到端已验证（paper 54 创建后清理还原）。
 - [x] `ui-research-project` v0.1 ✅ 2026-08-17：**项目/文件夹树管理面板**——关键词触发（项目/项目管理/文件夹/目录）→ 新建项目表单 + 项目列表（新建文件夹/删除项目）+ 每项目文件夹树（递归）+ 新建/删除文件夹。CRUD 端到端已验证（建项目 8/文件夹 22 → 树 → 删除还原）。**Phase 4 UI 共 11 包，缺口清零** → 可进入出口评估。
-- [ ] `ui-research-literature` / `ui-research-writing` / `ui-research-assistant` / `ui-research-dashboard` / `ui-research-settings`。
-- [ ] Next.js 前端下线，浏览器只访问 `:3080`。
+- [x] `ui-research-literature` ✅ 2026-08-17（见上，v0.1 已实现）
+- [x] `ui-research-writing` ✅ 2026-08-17（见上，v0.1 已实现）
+- [x] `ui-research-assistant` ✅ 2026-08-17：由 DSH 会话天然承担（聊天即助手），无需专门页面。
+- [x] `ui-research-dashboard` ✅ 2026-08-17（见上，v0.1 已实现）
+- [x] `ui-research-settings` ✅ 2026-08-17（见上，v0.1 已实现）
+- [x] **Phase 4 出口评估** ✅ 2026-08-17：功能覆盖矩阵缺口清零（见下方「Phase 4 出口」章节）。
+- [ ] Next.js 前端下线，浏览器只访问 `:3080`（执行方式待确认，见下方出口章节）。
 - **出口**：单一 Web 入口，无 Next.js 残留。
+
+## Phase 4 出口（执行计划，2026-08-17 定稿）
+
+**覆盖矩阵**（DSH GUI 已覆盖 Next.js 全部核心功能）：
+
+| Next.js 页面 | DSH GUI 节点 | 状态 |
+| --- | --- | --- |
+| /dashboard | ui-research-dashboard | ✅ |
+| /literature | ui-research-literature + library 卡片 | ✅ |
+| /papers/[id]（Paper Card） | ui-research-paper | ✅（PDF 查看器可选） |
+| /writing | ui-research-writing | ✅ |
+| /settings | ui-research-settings | ✅ |
+| /assistant | DSH 会话天然承担 | ✅ |
+| /library 上传 | ui-research-upload | ✅ |
+| /library 项目/文件夹管理 | ui-research-project | ✅ |
+| 综述生成 | ui-research-review | ✅ |
+| 引用生成 | ui-research-citation | ✅ |
+
+**下线步骤**：
+1. 重启 3080 GUI（加载 research profile：15 bundle + 11 UI 包注入 boot）——**会打断当前 GUI 会话**
+2. 停 Next.js 容器：`docker compose --profile app stop frontend`（:3000 下线）
+3. 验证：`:3000` 不可达；3080/3081 各触发词面板正常
+4. **保留** backend + ai-service（双认证 + MQ 管道仍被 DSH bundle 使用，Phase 5 再评估）
+5. **回退**：`docker compose --profile app start frontend`；3080 保持运行（双模式）
+
+> 决策点：① 3080 重启打断会话；② 是否立即停 Next.js vs 保持双模式观察一段时间。
 
 ### Phase 5 — 数据迁移与收尾（1–2 周）
 - [ ] MySQL/PG 数据核对（表结构微调以适配新 ORM）、向量维度与网关 embedding 对齐。
