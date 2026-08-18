@@ -33,6 +33,7 @@
 | `ui-research-settings` | ✅ Phase 4 v0.1 | 设置面板节点：关键词触发（设置/settings/配置）→ 读 /research-settings 表单编辑 + PATCH 保存 |
 | `ui-research-literature` | ✅ Phase 4 v0.1 | 文献检索面板节点：关键词触发 + 查询词预填 → 调 /research-paper/search 结果列表 |
 | `ui-research-review` | ✅ Phase 4 v0.1 | 综述生成面板节点：主题 + 论文勾选 → generate → 轮询任务 → Markdown 综述展示 |
+| `ui-research-upload` | ✅ Phase 4 v0.1 | 上传面板节点：项目/文件夹选择 + PDF → presign → multipart → 建论文（触发分析） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -611,6 +612,26 @@ boot 注入 7 个 research UI 条目。
 
 > **Phase 4 UI 共 9 包落地**：hello 探针 + library/paper/citation/dashboard/writing/
 > settings/literature/review 八个业务节点。下一步：Next.js 下线出口评估（Phase 5 联动）。
+
+## Phase 4：ui-research-upload v0.1（上传面板节点）✅ 2026-08-17
+
+关键词触发（上传/upload/上传文献/上传论文）→ **上传面板**：
+
+```
+项目下拉（/research-project）+ 文件夹下拉（/research-folder 根目录，可选）+ PDF 文件选择
+上传三步：
+  ① POST /research-file/upload-url { fileName, contentType } → { url, fields.key }
+  ② POST { url }（FormData: file + key）→ 文件存储
+  ③ POST /research-paper/projects/:pid/papers { fileName, s3Key, folderId } → { id, PROCESSING }
+     （MQ paper.analyze 已触发，ai-service 自动分析）
+面板日志显示每步状态，最终展示 paper#id（PROCESSING）
+```
+
+**验证**：三步端点端到端（presign → 上传 → 建论文 paper 54 → 删除还原）；boot 注入
+10 个 research UI 条目。
+
+**浏览器效果**：发送「上传文献」→ 选项目 + 选 PDF → 「上传」→ 日志显示三步完成，
+论文进入 AI 分析。
 
 ## 下一步（Phase 1-2 遗留）
 

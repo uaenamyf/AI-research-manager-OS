@@ -202,7 +202,8 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `ui-research-writing` v0.1 ✅ 2026-08-17：**写作面板节点**——用户消息关键词触发（写作/改写/润色/翻译/审稿/cover letter 等），从消息提取动作（翻译→translate、缩写→shorten…）+ 文本预填（剥连接词），渲染面板（文本域+动作下拉+指令+改写按钮）调 `/research-writing/rewrite` 显示结果；端到端已验证（真实润色输出）。
 - [x] `ui-research-settings` v0.1 ✅ 2026-08-17：**设置面板节点**——关键词触发（设置/settings/配置/config）→ 读取 GET /research-settings 展示 LLM/翻译/Knowledge 三段表单，编辑后 PATCH 保存；GET/PATCH 端到端已验证（测试数据还原）。
 - [x] `ui-research-literature` v0.1 ✅ 2026-08-17：**文献检索面板节点**——关键词触发（文献检索/搜文献/literature 等，消息可带查询词预填）→ 搜索框调新增的 `GET /research-paper/search?q=`（user 作用域，title/authors/doi LIKE，空 q 返回近期论文）→ 结果列表（标题/作者/年份/状态）。`ui-research-assistant` 由 DSH 会话天然承担，无需专门页面。
-- [x] `ui-research-review` v0.1 ✅ 2026-08-17：**综述生成面板节点**——关键词触发（综述/文献综述/review，消息可带主题预填）→ 主题输入 + 论文勾选列表（调 /research-paper/search 空 q 取用户论文）→ 生成按钮（POST /research-review/generate）→ 轮询任务至 SUCCESS → 展示 Markdown 综述。真实端到端：task 8 PENDING→SUCCESS（真实综述含 Introduction）。**Phase 4 UI 共 9 包落地**。
+- [x] `ui-research-review` v0.1 ✅ 2026-08-17：**综述生成面板节点**——关键词触发（综述/文献综述/review，消息可带主题预填）→ 主题输入 + 论文勾选列表（调 /research-paper/search 空 q 取用户论文）→ 生成按钮（POST /research-review/generate）→ 轮询任务至 SUCCESS → 展示 Markdown 综述。真实端到端：task 8 PENDING→SUCCESS（真实综述含 Introduction）。
+- [x] `ui-research-upload` v0.1 ✅ 2026-08-17：**上传面板节点**——关键词触发（上传/upload）→ 项目下拉（/research-project）+ 文件夹下拉（/research-folder，可选）+ PDF 选择 → 三步上传（presign → multipart → 建论文触发 MQ 分析）→ 展示 paper id + PROCESSING。三步端点端到端已验证（paper 54 创建后清理还原）。**Phase 4 UI 共 10 包**；剩余缺口：项目/文件夹树管理面板。
 - [ ] `ui-research-literature` / `ui-research-writing` / `ui-research-assistant` / `ui-research-dashboard` / `ui-research-settings`。
 - [ ] Next.js 前端下线，浏览器只访问 `:3080`。
 - **出口**：单一 Web 入口，无 Next.js 残留。
