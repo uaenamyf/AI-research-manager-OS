@@ -76,6 +76,8 @@ window.__ModuleLoader__.load({
 			err: { padding: "6px 12px", fontSize: 12, lineHeight: 18, color: "var(--dsw-alias-state-error-primary, #dc2626)" },
 			// detail panel (content area below the list)
 			detail: { flex: "none", maxHeight: "45%", overflowY: "auto", borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08))", marginTop: 2, padding: "8px 4px 10px", boxSizing: "border-box" },
+			// right-column detail pane (conversation.details.research seat)
+			detailPane: { height: "100%", minHeight: 0, overflowY: "auto", padding: "12px 14px 20px", boxSizing: "border-box" },
 			detailTitle: { fontSize: 13, fontWeight: 600, lineHeight: 1.4, margin: "0 0 4px", color: "var(--dsw-alias-label-primary, #111)" },
 			detailMeta: { fontSize: 12, lineHeight: 18, color: "var(--dsw-alias-label-tertiary, #999)", margin: "0 0 6px" },
 			tag: { display: "inline-block", fontSize: 11, padding: "1px 8px", borderRadius: 999, background: "var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05))", color: "var(--dsw-alias-label-secondary, #666)", margin: "0 4px 4px 0" },
@@ -92,6 +94,22 @@ window.__ModuleLoader__.load({
 			bar: { flex: "none", display: "flex", alignItems: "center", gap: 6, padding: "6px " + INSET, borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08))", boxSizing: "border-box" },
 			barLabel: { flex: 1, minWidth: 0, fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 		};
+
+		// Shared right-column research selection: the region writes it on a
+		// paper click, the `conversation.details.research` seat reads it (both
+		// registers live in this package, so a module-level signal is safe).
+		var researchDetail = { paperId: null };
+		var researchSubs = [];
+		function setResearchDetail(id) {
+			researchDetail.paperId = id;
+			for (var i = 0; i < researchSubs.length; i++) researchSubs[i](id);
+		}
+		function subscribeResearchDetail(fn) {
+			researchSubs.push(fn);
+			return function () {
+				researchSubs = researchSubs.filter(function (x) { return x !== fn; });
+			};
+		}
 
 		// Paper Intelligence Card detail (preview + card + author info).
 		function PaperDetail(props) {
@@ -114,14 +132,30 @@ window.__ModuleLoader__.load({
 			);
 		}
 
+		// Right-column paper detail seat (conversation.details.research): reads
+		// the shared selection, fetches the paper + card, renders the detail.
+		function ResearchDetailPanel(props) {
+			var [paperId, setPaperId] = useState(researchDetail.paperId);
+			var [detail, setDetail] = useState(null);
+			var [card, setCard] = useState(null);
+			useEffect(function () { return subscribeResearchDetail(setPaperId); }, []);
+			useEffect(function () {
+				if (paperId == null) { setDetail(null); setCard(null); return; }
+				setDetail(null); setCard(null);
+				api("/research-paper/papers/" + paperId).then(function (j) { if (ok(j)) setDetail(j.data); });
+				api("/research-paper/papers/" + paperId + "/card").then(function (j) { if (ok(j) && j.data) setCard(j.data); });
+			}, [paperId]);
+			if (paperId == null) return null; // empty seat
+			if (!detail) return React.createElement("div", { style: S.detailPane }, React.createElement("p", { style: S.empty }, "加载论文详情…"));
+			return React.createElement("div", { style: S.detailPane }, React.createElement(PaperDetail, { detail: detail, card: card }));
+		}
+
 		// ── 文献库（唯一功能页）─────────────────────────────────────────
 		function LibraryView(props) {
 			var sel = props.sel, toggleSel = props.toggleSel, focus = props.focus, focused = props.focused;
 			var [q, setQ] = useState("");
 			var [searchOpen, setSearchOpen] = useState(false);
 			var [items, setItems] = useState(null);
-			var [detail, setDetail] = useState(null);
-			var [card, setCard] = useState(null);
 			var [unauth, setUnauth] = useState(false);
 			var [err, setErr] = useState(null);
 			var load = useCallback(function (query) {
@@ -135,12 +169,6 @@ window.__ModuleLoader__.load({
 					.catch(function () { setErr("网络错误"); setItems([]); });
 			}, []);
 			useEffect(function () { load(""); }, [load]);
-			useEffect(function () {
-				if (focused == null) { setDetail(null); setCard(null); return; }
-				setDetail(null); setCard(null);
-				api("/research-paper/papers/" + focused).then(function (j) { if (ok(j)) setDetail(j.data); });
-				api("/research-paper/papers/" + focused + "/card").then(function (j) { if (ok(j) && j.data) setCard(j.data); });
-			}, [focused]);
 			return React.createElement("div", { style: S.root },
 				unauth ? React.createElement("p", { style: S.empty }, "未登录 — 研究功能需要 ResearchOS 账号") : null,
 				// section header: 研究区 title + inline search toggle (workspace style)
@@ -162,14 +190,12 @@ window.__ModuleLoader__.load({
 						: items.map(function (it, idx) {
 							var on = focused === it.id;
 							var rowStyle = Object.assign({}, on ? S.rowOn : S.row, idx > 0 ? { marginTop: 2 } : {});
-							return React.createElement("div", { key: it.id, style: rowStyle, onClick: function () { focus(it.id); } },
+							return React.createElement("div", { key: it.id, style: rowStyle, onClick: function () { focus(it.id); if (props.openDetails) props.openDetails(); } },
 								React.createElement("input", { type: "checkbox", style: S.checkbox, checked: !!sel[it.id], onClick: function (e) { e.stopPropagation(); }, onChange: function (e) { toggleSel(it.id); } }),
 								React.createElement("span", { style: S.rowTitle }, it.title || "(untitled)"),
-								React.createElement("span", { style: S.rowSub }, it.year || ""),
 							);
 						}),
 				),
-				focused != null && detail ? React.createElement(PaperDetail, { detail: detail, card: card }) : null,
 			);
 		}
 
@@ -290,6 +316,7 @@ window.__ModuleLoader__.load({
 			var focus = useCallback(function (id) {
 				setFocused(id);
 				setSel(function (s) { return Object.assign({}, s, { [id]: true }); });
+				setResearchDetail(id); // right-column paper detail
 			}, []);
 			var toggleSel = useCallback(function (id) {
 				setSel(function (s) {
@@ -310,7 +337,7 @@ window.__ModuleLoader__.load({
 					: mode === "review" ? React.createElement(ReviewComposer, { papers: selectedPapers, onBack: function () { setMode(null); } })
 					: mode === "writing" ? React.createElement(WritingComposer, { onBack: function () { setMode(null); } })
 					: React.createElement("div", { style: { display: "flex", flexDirection: "column", minHeight: 0, flex: 1 } },
-						React.createElement(LibraryView, { sel: sel, toggleSel: toggleSel, focus: focus, focused: focused }),
+						React.createElement(LibraryView, { sel: sel, toggleSel: toggleSel, focus: focus, focused: focused, openDetails: props.openDetails }),
 						// bottom action bar: appears after single/multi selection
 						Object.keys(sel).length > 0 ? React.createElement("div", { style: S.bar },
 							React.createElement("span", { style: S.barLabel }, "已选 " + Object.keys(sel).length + " 篇"),
@@ -322,12 +349,22 @@ window.__ModuleLoader__.load({
 			);
 		}
 
-		exports.inject = ["slots"];
+		exports.inject = ["slots", "layout"];
 		exports.apply = function (ctx) {
 			ctx.slots.inject("sidebar.research", function () {
+				return ctx.slots.register({
+					name: "sidebar.research",
+					id: "research-workspace",
+					inject: function () {
+						return { openDetails: function () { ctx.layout.openDetails(); } };
+					},
+				}, ResearchRegion);
+			});
+			// right-column paper detail seat (patched ui-conversation details)
+			ctx.slots.inject("conversation.details.research", function () {
 				return ctx.slots.register(
-					{ name: "sidebar.research", id: "research-workspace" },
-					ResearchRegion,
+					{ name: "conversation.details.research", id: "research-detail" },
+					ResearchDetailPanel,
 				);
 			});
 		};
