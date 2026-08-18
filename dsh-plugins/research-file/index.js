@@ -262,15 +262,24 @@ export function apply(ctx) {
             const proxyPath = key.split('/').map(encodeURIComponent).join('/')
             const upstream = await fetch(`${BACKEND_URL}/api/files/${proxyPath}`, {
               headers: { 'X-Internal-Token': INTERNAL_TOKEN },
+              signal: AbortSignal.timeout(60000),
             })
             if (!upstream.ok) return fail(res, upstream.status, 'file not found')
             const buf = Buffer.from(await upstream.arrayBuffer())
             res.writeHead(upstream.status, {
               'content-type': upstream.headers.get('content-type') || 'application/pdf',
               'content-length': buf.length,
+              // 2026-08-18 uaenamyf: keep-alive 下大响应（>300KB）经本进程单次 res.end(buf) 会被
+              // 截断（连接被提前关闭）；改分块写入 + Connection: close（与本地 serveLocal 的
+              // 流式语义一致，实测 close 连接全量交付）。
+              connection: 'close',
               'content-disposition': `inline; filename="${encodeURIComponent(key.split('/').pop())}"`,
             })
-            res.end(buf)
+            const CHUNK = 64 * 1024
+            for (let i = 0; i < buf.length; i += CHUNK) {
+              res.write(buf.subarray(i, Math.min(i + CHUNK, buf.length)))
+            }
+            res.end()
           } catch (e) {
             ctx.logger.warn(`[research-file] legacy proxy failed: ${e.message}`)
             return fail(res, 502, `file unavailable: ${e.message}`)

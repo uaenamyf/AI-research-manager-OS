@@ -9,6 +9,7 @@
 // Config via env (set in the dsh launch environment):
 //   RESEARCH_LLM_BASE_URL, RESEARCH_LLM_API_KEY, RESEARCH_LLM_MODEL
 //   RESEARCH_EMBEDDING_BASE_URL (fallback LLM base), RESEARCH_EMBEDDING_API_KEY (fallback LLM key)
+//   RESEARCH_GATEWAY_RPM        (per-client rate limit, req/min; 0 = unlimited, default 120)
 // @module @researchos/dsh-llm-gateway
 
 export const name = 'research-llm-gateway'
@@ -21,6 +22,44 @@ const LLM_MODEL = process.env.RESEARCH_LLM_MODEL || process.env.OPENAI_DEFAULT_M
 const EMB_BASE = process.env.RESEARCH_EMBEDDING_BASE_URL || LLM_BASE
 const EMB_KEY = process.env.RESEARCH_EMBEDDING_API_KEY || LLM_KEY
 const EMB_MODEL = process.env.RESEARCH_EMBEDDING_MODEL || process.env.EMBEDDING_MODEL || 'doubao-embedding-vision'
+
+// ── rate limiting (per-key token bucket; 0 = unlimited) ────────────────────
+// 2026-08-18 uaenamyf: Phase 1 遗留「网关限流」落地。按调用方身份（Authorization /
+// X-API-Key 头，缺省回退客户端 IP）做每客户端滑动窗口限流，防止单方打爆上游配额。
+const RPM = Number(process.env.RESEARCH_GATEWAY_RPM || 120)
+const buckets = new Map() // key -> { tokens, ts }
+const WINDOW_MS = 60000
+
+function clientKey(req) {
+  const auth = req.headers.authorization || ''
+  const m = /^Bearer\s+(.+)$/i.exec(auth)
+  if (m) return `k:${m[1].trim()}`
+  const apiKey = req.headers['x-api-key']
+  if (apiKey) return `k:${String(apiKey).trim()}`
+  return `ip:${req.socket?.remoteAddress || 'unknown'}`
+}
+
+function rateLimited(key) {
+  if (!RPM) return false
+  const now = Date.now()
+  let b = buckets.get(key)
+  if (!b) {
+    b = { tokens: RPM, ts: now }
+    buckets.set(key, b)
+  }
+  b.tokens = Math.min(RPM, b.tokens + ((now - b.ts) / WINDOW_MS) * RPM)
+  b.ts = now
+  if (b.tokens < 1) return true
+  b.tokens -= 1
+  return false
+}
+
+const pruneTimer = setInterval(() => {
+  const cutoff = Date.now() - WINDOW_MS * 2
+  for (const [k, b] of buckets) {
+    if (b.ts < cutoff) buckets.delete(k)
+  }
+}, WINDOW_MS).unref?.() ?? null
 
 function readJson(req) {
   return new Promise((resolve, reject) => {
@@ -37,9 +76,24 @@ function readJson(req) {
   })
 }
 
-function json(res, status, obj) {
-  res.writeHead(status, { 'content-type': 'application/json' })
+function json(res, status, obj, extraHeaders = {}) {
+  res.writeHead(status, { 'content-type': 'application/json', ...extraHeaders })
   res.end(JSON.stringify(obj))
+}
+
+function tooMany(req, res) {
+  req.resume() // drain the request body so the socket stays reusable
+  json(
+    res,
+    429,
+    {
+      error: {
+        message: `rate limit exceeded (${RPM} req/min). Retry after a short pause.`,
+        type: 'rate_limit_error',
+      },
+    },
+    { 'retry-after': '5' },
+  )
 }
 
 /** Relay an upstream Response to the client (preserves SSE streaming). */
@@ -78,6 +132,7 @@ export function apply(ctx) {
       if (req.method !== 'POST') {
         return json(res, 405, { error: { message: 'method not allowed', type: 'invalid_request_error' } })
       }
+      if (rateLimited(clientKey(req))) return tooMany(req, res)
       let body
       try {
         body = withModel(await readJson(req), LLM_MODEL)
@@ -107,6 +162,7 @@ export function apply(ctx) {
       if (req.method !== 'POST') {
         return json(res, 405, { error: { message: 'method not allowed', type: 'invalid_request_error' } })
       }
+      if (rateLimited(clientKey(req))) return tooMany(req, res)
       let body
       try {
         body = withModel(await readJson(req), EMB_MODEL)
@@ -127,6 +183,10 @@ export function apply(ctx) {
         })
       }
     },
+  })
+
+  ctx.on?.('dispose', () => {
+    if (pruneTimer) clearInterval(pruneTimer)
   })
 }
 
