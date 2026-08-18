@@ -34,6 +34,12 @@ class TaskConsumer:
 
     async def connect(self):
         """建立 RabbitMQ 连接，并启动队列就绪重试任务。"""
+        # 2026-08-18 uaenamyf: Phase 5 AI 管道迁入 DSH——RABBITMQ_URL 为空（compose 已置空）
+        # 表示 MQ 已下线，跳过消费者（ai-service 保留 HTTP 能力，MQ 消费由 bundle 承担）。
+        if not settings.RABBITMQ_URL:
+            logger.warning("RabbitMQ 已下线（AI 管道迁入 DSH），跳过 MQ 消费者")
+            return
+
         logger.info("连接 RabbitMQ...")
 
         self._connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
@@ -84,6 +90,9 @@ class TaskConsumer:
 
     async def disconnect(self):
         """关闭连接。"""
+        # 2026-08-18 uaenamyf: MQ 下线时无连接可关（与 connect() 的空 URL 跳过对称）
+        if not self._consuming and self._connection is None:
+            return
         self._consuming = False
         if self._retry_task:
             self._retry_task.cancel()
