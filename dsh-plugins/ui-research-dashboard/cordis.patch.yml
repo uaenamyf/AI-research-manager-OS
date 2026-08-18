@@ -1,0 +1,4 @@
+# Phase 4 ui-research-dashboard patch: mounts the ResearchOS dashboard client UI over the profile.
+- insert:
+    - id: ui-research-dashboard
+      name: '@researchos/ui-research-dashboard'

@@ -1,0 +1,4 @@
+# Phase 4 ui-research-review patch: mounts the ResearchOS review panel client UI over the profile.
+- insert:
+    - id: ui-research-review
+      name: '@researchos/ui-research-review'

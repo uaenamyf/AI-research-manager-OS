@@ -1,0 +1,4 @@
+# Phase 3 research-review patch: mounts the ResearchOS review bundle over the profile.
+- insert:
+    - id: research-review
+      name: '@researchos/dsh-research-review'

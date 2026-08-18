@@ -1,0 +1,4 @@
+# Phase 4 ui-research-settings patch: mounts the ResearchOS settings panel client UI over the profile.
+- insert:
+    - id: ui-research-settings
+      name: '@researchos/ui-research-settings'

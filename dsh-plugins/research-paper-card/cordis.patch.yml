@@ -1,0 +1,4 @@
+# Phase 3 research-paper-card patch: mounts the ResearchOS paper card bundle over the profile.
+- insert:
+    - id: research-paper-card
+      name: '@researchos/dsh-research-paper-card'

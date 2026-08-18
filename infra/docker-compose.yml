@@ -39,40 +39,43 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    container_name: researchos-redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redisdata:/data
-    command: ["redis-server", "--appendonly", "yes"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
-    restart: unless-stopped
+  # 2026-08-18 uaenamyf: Redis/RabbitMQ 已随 Phase 5 AI 管道迁入 DSH 下线
+  # （Redis 0 key 无引用；RabbitMQ 消息流已被 research-ai-worker inline 模式取代）。
+  # 如需回退，取消注释并恢复 backend/ai-service 的 depends_on 与环境变量。
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: researchos-redis
+  #   ports:
+  #     - "${REDIS_PORT:-6379}:6379"
+  #   volumes:
+  #     - redisdata:/data
+  #   command: ["redis-server", "--appendonly", "yes"]
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 10
+  #     start_period: 5s
+  #   restart: unless-stopped
 
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    container_name: researchos-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS:-guest}
-    ports:
-      - "${RABBIT_PORT:-5672}:5672"      # AMQP
-      - "${RABBIT_MGMT_PORT:-15672}:15672"  # 管理界面
-    volumes:
-      - rabbitdata:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
-    restart: unless-stopped
+  # rabbitmq:
+  #   image: rabbitmq:3.13-management
+  #   container_name: researchos-rabbitmq
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-guest}
+  #     RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS:-guest}
+  #   ports:
+  #     - "${RABBIT_PORT:-5672}:5672"      # AMQP
+  #     - "${RABBIT_MGMT_PORT:-15672}:15672"  # 管理界面
+  #   volumes:
+  #     - rabbitdata:/var/lib/rabbitmq
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+  #     interval: 10s
+  #     timeout: 10s
+  #     retries: 10
+  #     start_period: 20s
+  #   restart: unless-stopped
 
   # ────────────────────────────────────────────────────────────
   # 应用层（profile=app，按需启用）
@@ -119,12 +122,6 @@ services:
       DB_NAME: ${MYSQL_DB:-researchos}
       DB_USER: ${MYSQL_USER:-researchos}
       DB_PASS: ${MYSQL_PASSWORD:-researchos}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      RABBIT_HOST: rabbitmq
-      RABBIT_PORT: 5672
-      RABBIT_USER: ${RABBIT_USER:-guest}
-      RABBIT_PASS: ${RABBIT_PASS:-guest}
       JWT_SECRET: ${JWT_SECRET:-dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
       AI_SERVICE_URL: http://ai-service:8000
@@ -147,10 +144,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     restart: unless-stopped
     # 本地存储模式下 PDF 落 /app/uploads；命名卷持久化，重建容器不丢文件
     volumes:
@@ -165,8 +158,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-researchos}:${POSTGRES_PASSWORD:-researchos}@postgres:5432/${POSTGRES_DB:-researchos}
       MYSQL_URL: mysql://${MYSQL_USER:-researchos}:${MYSQL_PASSWORD:-researchos}@mysql:3306/${MYSQL_DB:-researchos}
-      REDIS_URL: redis://redis:6379/0
-      RABBITMQ_URL: amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@rabbitmq:5672
+      # 2026-08-18: Redis/RabbitMQ 已下线（AI 管道迁入 DSH）；RABBITMQ_URL 置空以禁用消费者
+      RABBITMQ_URL: ""
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
       BACKEND_URL: http://backend:8080
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
@@ -185,8 +178,6 @@ services:
       postgres:
         condition: service_healthy
       mysql:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
 
@@ -211,6 +202,4 @@ services:
 volumes:
   pgdata:
   mysqldata:
-  redisdata:
-  rabbitdata:
   uploadsdata:

@@ -1,0 +1,23 @@
+{
+  "name": "@researchos/dsh-research-project",
+  "description": "Phase 3 research-project: ResearchOS project CRUD bundle (create/list/detail/delete) against the MySQL research_project table, user_id-filtered, reusing the shared JWT (same secret as research-auth / legacy backend)",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}

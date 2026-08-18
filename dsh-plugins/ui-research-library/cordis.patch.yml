@@ -1,0 +1,4 @@
+# Phase 4 ui-research-library patch: mounts the ResearchOS library client UI over the profile.
+- insert:
+    - id: ui-research-library
+      name: '@researchos/ui-research-library'

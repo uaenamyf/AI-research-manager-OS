@@ -1,0 +1,4 @@
+# Phase 3 research-auth patch: mounts the ResearchOS auth bundle over the profile.
+- insert:
+    - id: research-auth
+      name: '@researchos/dsh-research-auth'

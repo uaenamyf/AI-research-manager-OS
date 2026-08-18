@@ -1,0 +1,20 @@
+{
+  "name": "@researchos/ui-research-project",
+  "description": "Phase 4 ui-research-project (v0.1): out-of-tree client package — a conversation chat node triggered by a user message keyword (项目/项目管理/文件夹/目录) that renders a project & folder tree management panel (create/delete projects, create/delete folders, folder tree view).",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@researchos/dsh-research-review",
+  "description": "Phase 3 research-review: ResearchOS literature review generation bundle (create REVIEW_GENERATION task + MQ review.generate, poll task), mirroring backend ReviewController/AiTaskService; ai-service consumes and calls back the backend to finish the loop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}

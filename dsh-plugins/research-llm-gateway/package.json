@@ -1,0 +1,19 @@
+{
+  "name": "@researchos/dsh-llm-gateway",
+  "description": "Phase 0 LLM gateway spike: OpenAI-compatible /v1/chat/completions backed by ctx.llm (requirement 3 unified API)",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}

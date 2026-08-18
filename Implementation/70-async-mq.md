@@ -1,5 +1,16 @@
 # 70 - 异步任务流（RabbitMQ）
 
+## 融合现状（2026-08-18）
+
+> 本节记录 ResearchOS × DSH 融合后的 MQ 现状；下方 legacy 小节（拓扑 / 消息格式 / 重试与死信 / 回调 / 跨库清理）仍有效、保留。
+
+- **RabbitMQ 拓扑不变**：exchange `researchos.ai.task`（direct）+ `q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` + 死信 `q.ai.dlq`（`researchos.ai.dlx`）；队列声明仍由 backend（Spring Boot :8080，RabbitConfig）负责，ai-service 消费者 `passive=True` 只检查不创建。
+- **消息生产方新增 DSH bundle**：融合后除 backend 外，DSH bundle 也成为生产方——
+  - `research-paper` bundle 发 `paper.analyze`（论文分析）与 `paper.delete`（跨库清理 PG chunk）；
+  - `research-review` bundle 发 `review.generate`（综述生成）。
+  - 消息格式 `{taskId, type, payload}` 与 backend **完全一致**，ai-service 消费与回调逻辑无需改动。
+- **保留/移除决策（Phase 5 评估结论）**：RabbitMQ 保留至 AI 管道完全迁入 DSH（`q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` 仍被 ai-service 消费）；**Redis 未使用（0 key、无引用），可移除**。
+
 ## RabbitMQ 拓扑
 
 ```
@@ -28,6 +39,8 @@ Exchange: researchos.ai.dlx (direct)
 - `type` 取值：`PAPER_ANALYSIS` / `REVIEW_GENERATION` / `PAPER_DELETE`。
 - `payload` 由 backend 在发消息时填充（如 paperId、paperIds、topic）。
 - ai-service 消费时如需 paper 的 `pdf_url`，**由 backend 在 payload 中传入，不自行查库**。
+
+> 2026-08-18 融合现状：`payload` 亦可由 DSH bundle（research-paper / research-review）填充，字段与 backend 一致（见「融合现状」节）。
 
 ## 重试与死信
 

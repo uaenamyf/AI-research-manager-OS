@@ -1,0 +1,20 @@
+{
+  "name": "@researchos/ui-research-settings",
+  "description": "Phase 4 ui-research-settings (v0.1): out-of-tree client package — a conversation chat node triggered by a user message keyword (设置/settings/配置/config) that renders a settings panel over /research-settings (GET to load llm/translation/knowledge, PATCH to save).",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@researchos/dsh-research-auth",
+  "description": "Phase 3 research-auth: ResearchOS user authentication bundle (register/login/logout/me) against the MySQL app_user table, with the same JWT (HS256, shared secret) + httpOnly cookie semantics as the legacy Spring Boot backend for dual-auth compatibility",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}

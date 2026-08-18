@@ -1,0 +1,24 @@
+{
+  "name": "@researchos/dsh-research-file",
+  "description": "Phase 3 research-file: ResearchOS file storage bundle (presign upload-url / local multipart upload / download with Range support / delete) over a local directory, with legacy-backend proxy fallback for already-stored PDFs during the dual phase",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}
