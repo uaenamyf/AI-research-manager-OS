@@ -29,6 +29,7 @@
 | `ui-research-paper` | ✅ Phase 4 v0.1 | Paper Card 聊天节点：literature_get → 完整 Paper Intelligence Card（method/finding/limitation/future_work/tags） |
 | `ui-research-citation` | ✅ Phase 4 v0.1 | 引用卡片聊天节点：literature_cite → BibTeX/RIS 等宽渲染 + 复制按钮 |
 | `ui-research-dashboard` | ✅ Phase 4 v0.1 | 统计面板节点：用户消息关键词触发（dashboard/仪表盘/统计）→ 自取数（项目/论文/套餐/最近项目） |
+| `ui-research-writing` | ✅ Phase 4 v0.1 | 写作面板节点：关键词触发 + 动作/文本提取 → 调 /research-writing/rewrite 显示改写结果 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -533,6 +534,24 @@ dsh-plugins/ui-research-library/
 
 > 此模式将复用于 `ui-research-writing` / `ui-research-settings` / `ui-research-assistant`
 > 等非工具页面（各自匹配自己的关键词触发）。
+
+## Phase 4：ui-research-writing v0.1（写作面板节点）✅ 2026-08-17
+
+用户消息关键词触发（写作/改写/润色/扩写/缩写/翻译/审稿/cover letter 等）→ **写作面板**：
+
+```
+Definition 提取：
+  - 动作：消息含「翻译」→ translate、「缩写/缩短」→ shorten、「润色」→ polish…
+  - 文本：关键词之后的文字预填（剥掉「这段/以下」等连接词）
+渲染器（面板）：
+  - 文本域 + 动作下拉（6 动作）+ 指令输入 + 「改写」按钮
+  - 点击 → POST /research-writing/rewrite → 展示改写结果
+```
+
+**验证**：触发/提取逻辑（4 类消息命中 + 动作识别 + 文本预填 + 无关消息不触发）；
+`/research-writing/rewrite` 端到端（真实润色输出）；boot 注入 6 个 research UI 条目。
+
+**浏览器效果**：发送「润色这段：The results are good.」→ 写作面板预填文本，点「改写」出结果。
 
 ## 下一步（Phase 1-2 遗留）
 
