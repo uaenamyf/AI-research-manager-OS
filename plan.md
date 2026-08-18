@@ -211,8 +211,8 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `ui-research-dashboard` ✅ 2026-08-17（见上，v0.1 已实现）
 - [x] `ui-research-settings` ✅ 2026-08-17（见上，v0.1 已实现）
 - [x] **Phase 4 出口评估** ✅ 2026-08-17：功能覆盖矩阵缺口清零（见下方「Phase 4 出口」章节）。
-- [ ] Next.js 前端下线，浏览器只访问 `:3080`（执行方式待确认，见下方出口章节）。
-- **出口**：单一 Web 入口，无 Next.js 残留。
+- [x] Next.js 前端下线 ✅ 2026-08-18：`docker compose --profile app stop frontend` 执行，`:3000` 连接拒绝；浏览器单一入口 `:3080` 达成（见下方「Phase 4 出口执行结果」）。
+- **出口**：单一 Web 入口，无 Next.js 残留 ✅（3080 GUI 覆盖全部核心功能；回退命令保留）
 
 ## Phase 4 出口（执行计划，2026-08-17 定稿）
 
@@ -232,13 +232,33 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | 引用生成 | ui-research-citation | ✅ |
 
 **下线步骤**：
-1. 重启 3080 GUI（加载 research profile：15 bundle + 11 UI 包注入 boot）——**会打断当前 GUI 会话**
-2. 停 Next.js 容器：`docker compose --profile app stop frontend`（:3000 下线）
-3. 验证：`:3000` 不可达；3080/3081 各触发词面板正常
-4. **保留** backend + ai-service（双认证 + MQ 管道仍被 DSH bundle 使用，Phase 5 再评估）
-5. **回退**：`docker compose --profile app start frontend`；3080 保持运行（双模式）
+1. 重启 3080 GUI（加载 research profile：15 bundle + 11 UI 包注入 boot）——**会打断当前 GUI 会话** ✅ 2026-08-18 已重启（12:13 手动 `pnpm dsh web`，boot 49 条目含 11 个 research UI 包）
+2. 停 Next.js 容器：`docker compose --profile app stop frontend`（:3000 下线）✅ 2026-08-18 已执行
+3. 验证：`:3000` 不可达；3080/3081 各触发词面板正常 ✅ 2026-08-18（见「Phase 4 出口执行结果」）
+4. **保留** backend + ai-service（双认证 + MQ 管道仍被 DSH bundle 使用，Phase 5 再评估）✅ 保持运行
+5. **回退**：`docker compose --profile app start frontend`；3080 保持运行（双模式）——未执行，如需要随时可回退
 
-> 决策点：① 3080 重启打断会话；② 是否立即停 Next.js vs 保持双模式观察一段时间。
+> 决策点：① 3080 重启打断会话——已发生（本次会话即重启后的实例），但**该实例为手动启动未注入网关 env**，见下方遗留；② 是否立即停 Next.js vs 保持双模式——**已执行立即停**（出口验证通过）。
+
+### Phase 4 出口执行结果（2026-08-18）
+
+**执行动作**：
+1. 恢复统一 LLM 网关：`dsh-gateway.sh start 3081`（脚本自动注入 `.env` 的 key/模型 + JWT/MySQL 等全部 env；3080 被 GUI 占用自动 bump 到 3081）——**网关恢复前 3081 无监听，ai-service 的 LLM 调用全链路已死**（`.env` 指向 `host.docker.internal:3081/v1`）。
+2. 停 Next.js：`cd infra && docker compose --env-file ../.env --profile app stop frontend`。
+
+**验证结果（全部通过）**：
+- 网关 3081：`/v1/chat/completions` 真实上游回复（火山引擎）；`/v1/embeddings` 2048 维 doubao-embedding-vision
+- ai-service 容器内真实 OpenAI SDK（走 `OPENAI_BASE_URL` → 3081 网关）：chat 真实回复 + embeddings 2048 维
+- `:3000` 连接拒绝（frontend 容器 Stopped）；backend/ai-service/mysql/pg/rabbitmq/redis 正常
+- 3080 GUI：boot 清单 49 条目含 **11 个 research UI 包**；`/plugins/@researchos/ui-*/client.js` 200 text/javascript
+- 3080 路由：public（research-hello/ping、research-subscription/plans）200；protected（research-project/auth/me/paper/settings）无 token 401（鉴权生效）
+- 3080 真实认证流：register → cookie → `/research-auth/me`、`/research-project`、`/research-settings` 全部 code 0（测试用户已删）
+- 3080 → 网关 LLM 链路：`/research-writing/rewrite`（polish）经 bundle 默认网关 3081 → 真实润色输出（测试用户已删）
+
+**遗留（Phase 5 入口）**：
+- ⚠️ **当前 3080 GUI 为手动启动（无 RESEARCH_\* env）**：其自身 `/v1/*` 网关路由无 key（401）、MCP vector_search 的 embedding 默认打 3080 网关同样 401。**下次按规范重启 GUI 即修复**：`./dsh-plugins/scripts/dsh-gateway.sh start`（注入全部 env + RESEARCH_GATEWAY_URL，MCP/网关/面板全部自洽）；重启会打断 GUI 会话，需用户择时执行。
+- `dsh-gateway.sh` 常驻实例（3081）与 GUI（3080）并存：网关 key/模型收口于脚本注入（仍来自 `.env`），`ctx.credentials` 收口待做（Phase 1 遗留）。
+- 网关限流（per-key QPS/并发）待做（Phase 1 遗留）。
 
 ### Phase 5 — 数据迁移与收尾（1–2 周）
 - [ ] MySQL/PG 数据核对（表结构微调以适配新 ORM）、向量维度与网关 embedding 对齐。

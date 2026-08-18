@@ -654,8 +654,25 @@ boot 注入 7 个 research UI 条目。
 > dashboard/writing/settings/literature/review/upload/project）。下一步：Phase 4 出口评估
 > （覆盖矩阵 + 下线步骤 + 回退方案）→ Next.js 下线。
 
-## 下一步（Phase 1-2 遗留）
+## Phase 4 出口执行（Next.js 下线）✅ 2026-08-18
+
+**动作**：① `dsh-gateway.sh start 3081` 恢复统一网关（此前 3081 无监听，ai-service 的 LLM/embedding 全链路已死）；
+② `cd infra && docker compose --env-file ../.env --profile app stop frontend`（:3000 下线）。
+
+**验证（全部通过）**：
+- 网关 3081：chat 真实回复 + embeddings 2048 维（doubao-embedding-vision）
+- ai-service 容器内真实 SDK：chat + embeddings 经网关正常
+- `:3000` 连接拒绝；backend/ai-service/mysql/pg/rabbitmq/redis 正常
+- 3080 GUI boot 清单 49 条目含 **11 个 research UI 包**；`/plugins/@researchos/ui-*/client.js` 200
+- 3080 路由：public 200 / protected 401（鉴权生效）；真实 register→me→project→settings code 0（测试用户已删）
+- 3080 → 网关 LLM 链路：`/research-writing/rewrite` polish 真实润色输出（测试用户已删）
+
+**遗留**：当前 3080 GUI 为手动启动（无 RESEARCH_\* env）→ 自身 `/v1/*` 网关路由与 MCP vector_search 的
+embedding 会 401；**下次用 `./dsh-plugins/scripts/dsh-gateway.sh start` 规范重启 GUI 即自愈**（会打断 GUI 会话，需择时）。
+网关限流 + key 收口 `ctx.credentials` 仍为 Phase 1 遗留。
+
+## 下一步（遗留）
 
 - [ ] 网关限流（per-key QPS/并发）与 key 收口到 DSH `ctx.credentials`
-- [ ] Phase 3：ResearchOS 后端 TS 重写（bundle 化，MySQL/PG 直连已无架构障碍）
-- [ ] Phase 4：前端 DSH React 重写（浏览器只访问 `:3080`）
+- [ ] 3080 GUI 规范重启（`dsh-gateway.sh start`，注入 env 后自身网关/MCP 自洽）
+- [ ] Phase 5：数据核对、MQ/Redis 移除评估、可拔插回归、文档更新、合入 main
