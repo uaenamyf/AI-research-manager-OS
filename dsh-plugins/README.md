@@ -27,6 +27,7 @@
 | `ui-research-hello` | ✅ Phase 4 可行性证明 | 最小客户端 UI 包：声明 dsh.client + lib/client.js（__ModuleLoader__ 格式），sidebar 底部面板调 /research-project 显示项目数；boot 自动注入 + client.js 服务已验证 |
 | `ui-research-library` | ✅ Phase 4 v0.1 | 文献库富卡片聊天节点：匹配标准 tool 事件（literature_search → 文献卡片），真实事件重放验证 |
 | `ui-research-paper` | ✅ Phase 4 v0.1 | Paper Card 聊天节点：literature_get → 完整 Paper Intelligence Card（method/finding/limitation/future_work/tags） |
+| `ui-research-citation` | ✅ Phase 4 v0.1 | 引用卡片聊天节点：literature_cite → BibTeX/RIS 等宽渲染 + 复制按钮 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -501,6 +502,18 @@ dsh-plugins/ui-research-library/
 
 **浏览器效果**：GUI 中让 agent 执行 `literature_get`（如「读取论文 51 详情」），对话流出现
 完整论文卡片。PDF 查看器（react-pdf）留待 v0.2。
+
+## Phase 4：ui-research-citation v0.1（引用卡片聊天节点）✅ 2026-08-17
+
+`literature_cite` 工具输出（BibTeX/RIS）→ 格式化**引用卡片**节点：等宽渲染 + 复制按钮。
+
+- 与 library/paper 节点同款 Definition 模式（标准 tool 事件匹配），按工具分流：
+  `literature_search`→列表卡、`literature_get`→详情卡、`literature_cite`→引用卡
+- **验证**：boot 注入 4 个 research UI 条目、client.js 服务、真实 cite 事件重放
+  （`@article{DenaJ.Clink2019,...}` 完整产出）
+
+**浏览器效果**：GUI 中让 agent 执行「为论文 51 生成 BibTeX 引用」（`literature_cite`），
+对话流出现带「复制」按钮的引用卡片。MCP 文献工具驱动的 UI 集合（search/get/cite）完成。
 
 ## 下一步（Phase 1-2 遗留）
 
