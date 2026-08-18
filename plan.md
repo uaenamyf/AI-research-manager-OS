@@ -256,9 +256,9 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - 3080 → 网关 LLM 链路：`/research-writing/rewrite`（polish）经 bundle 默认网关 3081 → 真实润色输出（测试用户已删）
 
 **遗留（Phase 5 入口）**：
-- ⚠️ **当前 3080 GUI 为手动启动（无 RESEARCH_\* env）**：其自身 `/v1/*` 网关路由无 key（401）、MCP vector_search 的 embedding 默认打 3080 网关同样 401。**下次按规范重启 GUI 即修复**：`./dsh-plugins/scripts/dsh-gateway.sh start`（注入全部 env + RESEARCH_GATEWAY_URL，MCP/网关/面板全部自洽）；重启会打断 GUI 会话，需用户择时执行。
-- `dsh-gateway.sh` 常驻实例（3081）与 GUI（3080）并存：网关 key/模型收口于脚本注入（仍来自 `.env`），`ctx.credentials` 收口待做（Phase 1 遗留）。
+- ✅ **3080 GUI 已规范重启（2026-08-18）**：单实例合并——杀掉手动实例（无 env）与 3081 网关实例，新实例驻 3080（pid 56141，全量 env 注入：key/JWT/MySQL/RESEARCH_GATEWAY_URL=3080）；`.env` 的 `OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 已从 3081 改为 **3080** 并重建 ai-service（容器内真实 SDK 经 3080 网关回 "Pong!"）。验证：网关 chat/embeddings 200（真实上游、2048 维）、MCP 子进程 env 指向 3080（vector_search 修复）、boot 49 条目含 11 UI 包、writing rewrite 真实润色。**3081 网关实例已退役**（单实例架构：GUI + 网关 + bundle 同驻 3080）。
 - 网关限流（per-key QPS/并发）待做（Phase 1 遗留）。
+- key 收口到 DSH `ctx.credentials`（当前收口于 dsh-gateway.sh 注入的 env，来源 `.env`）待做（Phase 1 遗留）。
 
 ### Phase 5 — 数据迁移与收尾（1–2 周）
 

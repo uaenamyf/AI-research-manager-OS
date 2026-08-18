@@ -667,12 +667,12 @@ boot 注入 7 个 research UI 条目。
 - 3080 路由：public 200 / protected 401（鉴权生效）；真实 register→me→project→settings code 0（测试用户已删）
 - 3080 → 网关 LLM 链路：`/research-writing/rewrite` polish 真实润色输出（测试用户已删）
 
-**遗留**：当前 3080 GUI 为手动启动（无 RESEARCH_\* env）→ 自身 `/v1/*` 网关路由与 MCP vector_search 的
-embedding 会 401；**下次用 `./dsh-plugins/scripts/dsh-gateway.sh start` 规范重启 GUI 即自愈**（会打断 GUI 会话，需择时）。
-网关限流 + key 收口 `ctx.credentials` 仍为 Phase 1 遗留。
+**遗留**：~~当前 3080 GUI 为手动启动（无 RESEARCH_\* env）~~ → **已修复（2026-08-18）**：`dsh-gateway.sh start` 规范重启，
+单实例合并驻 3080（pid 56141），`.env` 的 `OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 改为 3080 并重建 ai-service；
+验证网关 chat/embeddings、MCP vector_search（env 注入 3080）、boot 11 UI 包、writing rewrite 全部通过；
+**3081 网关实例已退役**。网关限流 + key 收口 `ctx.credentials` 仍为 Phase 1 遗留。
 
 ## 下一步（遗留）
 
 - [ ] 网关限流（per-key QPS/并发）与 key 收口到 DSH `ctx.credentials`
-- [ ] 3080 GUI 规范重启（`dsh-gateway.sh start`，注入 env 后自身网关/MCP 自洽）
-- [ ] Phase 5：数据核对、MQ/Redis 移除评估、可拔插回归、文档更新、合入 main
+- [ ] Phase 5：AI 管道迁入 DSH（MQ 下线前置）、可拔插全量回归、`Implementation/` 文档更新、合入 main
