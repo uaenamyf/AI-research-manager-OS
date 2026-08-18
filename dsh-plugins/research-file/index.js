@@ -265,21 +265,34 @@ export function apply(ctx) {
               signal: AbortSignal.timeout(60000),
             })
             if (!upstream.ok) return fail(res, upstream.status, 'file not found')
-            const buf = Buffer.from(await upstream.arrayBuffer())
-            res.writeHead(upstream.status, {
+            // 2026-08-18 uaenamyf: 手动 res.write/end 大响应在 dsh 进程内会被截断
+            // （~320KB 处连接中断；本地 fs.pipe 路径与 backend 直连均无此问题）。
+            // 改用 Readable.fromWeb(...).pipe(res) —— 与已验证可用的 serveLocal 流式
+            // 语义一致，依赖 pipe 的背压处理而非手动写缓冲。
+            const proxyHeaders = {
               'content-type': upstream.headers.get('content-type') || 'application/pdf',
-              'content-length': buf.length,
-              // 2026-08-18 uaenamyf: keep-alive 下大响应（>300KB）经本进程单次 res.end(buf) 会被
-              // 截断（连接被提前关闭）；改分块写入 + Connection: close（与本地 serveLocal 的
-              // 流式语义一致，实测 close 连接全量交付）。
-              connection: 'close',
               'content-disposition': `inline; filename="${encodeURIComponent(key.split('/').pop())}"`,
-            })
-            const CHUNK = 64 * 1024
-            for (let i = 0; i < buf.length; i += CHUNK) {
-              res.write(buf.subarray(i, Math.min(i + CHUNK, buf.length)))
             }
-            res.end()
+            const upstreamCl = upstream.headers.get('content-length')
+            if (upstreamCl) proxyHeaders['content-length'] = upstreamCl
+            res.writeHead(upstream.status, proxyHeaders)
+            if (upstream.body) {
+              const { Readable } = await import('node:stream')
+              await new Promise((resolve, reject) => {
+                const stream = Readable.fromWeb(upstream.body)
+                stream.on('error', reject)
+                res.on('error', reject)
+                stream.pipe(res)
+                stream.on('end', () => res.end())
+                res.on('close', () => {
+                  stream.destroy()
+                  resolve()
+                })
+                res.on('finish', resolve)
+              })
+            } else {
+              res.end()
+            }
           } catch (e) {
             ctx.logger.warn(`[research-file] legacy proxy failed: ${e.message}`)
             return fail(res, 502, `file unavailable: ${e.message}`)
