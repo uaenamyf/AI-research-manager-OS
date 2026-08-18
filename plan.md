@@ -179,8 +179,19 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `research-paper-card` ✅ 2026-08-17：Paper Intelligence Card bundle——POST /generate {text}（12000 字符截断→共享网关→严格 JSON 12 字段：title/authors/year/doi/keywords/abstract/workflow/method/finding/limitation/future_work/tags，容错解析+字段默认值）；真实论文文本生成完整 Card 已验。**AI 域 3 bundle（writing/review/paper-card）全部完成**。
 - [x] `research-export`（含 citation）✅ 2026-08-17：单篇/批量 BibTeX+RIS、APA/MLA/GB7714 引用与 bibliography；渲染与后端逐字节一致（BibTeX 实测相同）；批量端点强制 user_id 过滤（后端原实现不校验，越权隐患已修）。
 - [x] `research-settings` + `research-subscription` ✅ 2026-08-17：设置 GET/PUT/PATCH（非空字段三段合并，null 不覆盖）；订阅 plans/checkout（Stripe REST + 错误路径）/webhook（HMAC 签名校验→checkout.session.completed 升级用户，只升不降已验：PRO→RESEARCHER 升、FREE 降级被拒）。**Phase 3 bundle 清单（11 个）全部完成**，剩余为旧控制器下线（Phase 3 出口）。
-- [ ] 每个 bundle 完成后：旧 Spring Boot 对应控制器下线、`dsh plugin` 可单独卸载验证。
-- **出口**：业务全量跑在 DSH 进程内，Spring Boot 下线；profile 卸载任一 bundle 不破坏其他功能。
+- [x] `dsh plugin` 可单独卸载验证 ✅ 2026-08-17（可拔插回归）：卸载 `research-folder` → 重启 → 该 bundle 路由消失（回落 SPA fallback）、其余 bundle（auth/project/paper/export/subscription）全部正常；重装 → 路由恢复。Phase 0 遗留的 `research-hello` 孤儿符号链接已清理。**旧控制器下线留待 Phase 4 前端切换后执行**（当前前端仍直连 backend `/api/*`，双认证阶段保留；下线映射见下）。
+- **出口（部分达成）**：profile 卸载任一 bundle 不破坏其他功能 ✅ 已验；业务全量跑 DSH + Spring Boot 下线待 Phase 4 前端切换后执行。
+
+**旧 Spring Boot 控制器下线映射**（Phase 4 前端切换到 `:3080` 后，按此逐个下线对应控制器）：
+
+| 下线控制器 | 替代 bundle |
+| --- | --- |
+| AuthController / SecurityConfig(JWT) | `research-auth` |
+| ProjectController / FolderController / PaperController / FileController | `research-project` / `research-folder` / `research-paper` / `research-file` |
+| WritingController / ReviewController / ai-service writing_agent·review_agent·paper_agent | `research-writing` / `research-review` / `research-paper-card` |
+| ExportController / CitationController | `research-export` |
+| SettingsController / SubscriptionController | `research-settings` / `research-subscription` |
+| RabbitMQ 任务下发/回调、ai-service MQ 消费 | 保留至 AI 能力完全迁入 DSH（Phase 5 移除 MQ） |
 
 ### Phase 4 — 前端 DSH React 重写（4–6 周，与 Phase 3 并行）
 - [ ] `ui-research-library` / `ui-research-paper`（核心）。

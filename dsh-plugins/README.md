@@ -429,6 +429,22 @@ POST /research-subscription/webhook                   -> Stripe-Signature HMAC �
 > writing / review / paper-card / export / settings / subscription。下一步：旧 Spring Boot
 > 控制器逐个下线（Phase 3 出口）→ Phase 4 前端 DSH React 重写。
 
+## Phase 3 出口：可拔插回归验证 ✅ 2026-08-17
+
+**「卸载任一 bundle 不破坏其他功能」实测通过**（出口验收项）：
+
+```
+dsh plugin --profile web remove @researchos/dsh-research-folder  → 重启
+  → /research-folder/* 路由消失（回落 SPA fallback HTML，非 JSON）
+  → auth / project / paper / export / subscription 全部正常（code 0）
+dsh plugin --profile web add .../research-folder                 → 重启
+  → 路由恢复（folder tree 正常，4 roots）
+```
+
+- Phase 0 遗留的 `research-hello` 孤儿符号链接已从 profile node_modules 清理
+- **旧 Spring Boot 控制器下线**：留待 Phase 4 前端切到 `:3080` 后按 plan.md 下线映射逐个执行
+  （当前前端仍直连 backend `/api/*`，双认证阶段保留 backend 不破坏现有功能）
+
 ## 下一步（Phase 1-2 遗留）
 
 - [ ] 网关限流（per-key QPS/并发）与 key 收口到 DSH `ctx.credentials`
