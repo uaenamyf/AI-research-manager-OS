@@ -22,6 +22,8 @@
 | `research-review` | ✅ Phase 3 AI 域 | 综述生成 bundle：任务 create + MQ review.generate + 轮询（ai-service 消费→RAG→LLM→回调 backend→SUCCESS 全链路已验） |
 | `research-paper-card` | ✅ Phase 3 AI 域 | Paper Card bundle：POST /generate {text} → 共享网关生成结构化 12 字段 Card（prompt 与 ai-service 同源，JSON 容错解析） |
 | `research-export` | ✅ Phase 3 剩余域 | 导出+引用 bundle：单篇/批量 BibTeX+RIS、APA/MLA/GB7714 引用与参考文献（渲染与后端逐字节一致；批量强制 user_id 过滤） |
+| `research-settings` | ✅ Phase 3 剩余域 | 用户设置 bundle：GET/PUT/PATCH app_user.settings（llm/translation/knowledge 三段，非空字段合并） |
+| `research-subscription` | ✅ Phase 3 剩余域 | 订阅 bundle：plans / Stripe checkout（REST+错误路径）/ webhook（HMAC 签名校验 + 只升不降升级） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -399,6 +401,33 @@ POST /research-export/citation/bibliography { paperIds }?format= -> 参考文献
 - **越权修复**：批量端点强制 `WHERE user_id = ?`（后端原实现 `getById` 不校验、按 id 可导任意论文），
   非本人 id 自动过滤，count 反映实际导出数
 - 单篇越权 404、无 token 401、非法 format 回退 APA
+
+## Phase 3：research-settings + research-subscription bundle ✅ 2026-08-17
+
+**research-settings**（用户设置，直连 `app_user.settings` JSON）：
+```
+GET   /research-settings                  -> settings（llm/translation/knowledge 三段）
+PUT   /research-settings  { settings }    -> 全量替换
+PATCH /research-settings  { patch }       -> 非空字段合并（null 不覆盖，镜像 SettingsServiceImpl）
+```
+
+**research-subscription**（订阅）：
+```
+GET  /research-subscription/plans                     -> 套餐列表（公开）
+POST /research-subscription/checkout  { plan }        -> Stripe Checkout（REST，成功返 {url, sessionId}）
+POST /research-subscription/webhook                   -> Stripe-Signature HMAC 校验 + 事件处理
+```
+
+**关键验证**：
+- settings：PUT 全量替换、PATCH 非空合并（改 temperature 保留 provider）、null 字段不覆盖、401
+- subscription：plans 3 档；checkout 错误路径（FREE/非法 plan 400、未配置 price 500）；
+  webhook 签名校验（坏签名 400 / 自构有效签名通过）→ `checkout.session.completed` 升级用户
+  **只升不降已验**（PRO→RESEARCHER 升级成功、FREE 降级被拒）；未知事件「ignored」
+- Stripe key 当前为占位符，真实支付需配 `STRIPE_SECRET_KEY` + `STRIPE_PRICE_*`
+
+> **Phase 3 bundle 清单全部完成（11 个）**：auth / project / folder / paper / file /
+> writing / review / paper-card / export / settings / subscription。下一步：旧 Spring Boot
+> 控制器逐个下线（Phase 3 出口）→ Phase 4 前端 DSH React 重写。
 
 ## 下一步（Phase 1-2 遗留）
 

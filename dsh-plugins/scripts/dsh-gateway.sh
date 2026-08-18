@@ -56,6 +56,12 @@ start() {
   export RESEARCH_STORAGE_LOCAL_DIR="${RESEARCH_STORAGE_LOCAL_DIR:-$HOME/.researchos/uploads}"
   export RESEARCH_INTERNAL_TOKEN="${RESEARCH_INTERNAL_TOKEN:-$(grep '^INTERNAL_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)}"
   export RESEARCH_BACKEND_URL="${RESEARCH_BACKEND_URL:-http://127.0.0.1:8080}"
+  # Phase 3 research-subscription: Stripe config (checkout + webhook)
+  export RESEARCH_STRIPE_SECRET_KEY="${RESEARCH_STRIPE_SECRET_KEY:-$(grep '^STRIPE_SECRET_KEY=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  export RESEARCH_STRIPE_WEBHOOK_SECRET="${RESEARCH_STRIPE_WEBHOOK_SECRET:-$(grep '^STRIPE_WEBHOOK_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  export RESEARCH_STRIPE_PRICE_PRO="${RESEARCH_STRIPE_PRICE_PRO:-$(grep '^STRIPE_PRICE_PRO=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  export RESEARCH_STRIPE_PRICE_RESEARCHER="${RESEARCH_STRIPE_PRICE_RESEARCHER:-$(grep '^STRIPE_PRICE_RESEARCHER=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  export RESEARCH_FRONTEND_BASE_URL="${RESEARCH_FRONTEND_BASE_URL:-http://localhost:3000}"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.

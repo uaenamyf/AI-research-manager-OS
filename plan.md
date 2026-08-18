@@ -123,7 +123,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | ReviewController + ai | `research-review` | ✅ 已实现（2026-08-17）：综述任务 create + MQ review.generate + 任务轮询（ai-service 消费→RAG→LLM→回调 backend→任务 SUCCESS 全链路已验） |
 | WritingController + ai | `research-writing` | ✅ 已实现（2026-08-17）：写作 Agent（6 动作 LLM 改写走共享网关 + llmOverride 直连/回退 + MyMemory 机器翻译），prompt 与 ai-service 同源 |
 | ExportController / CitationController | `research-export`（含 citation） | ✅ 已实现（2026-08-17）：单篇/批量 BibTeX+RIS 导出、APA/MLA/GB7714 引用与参考文献；渲染与 Java 逐字节一致；批量强制 user_id 过滤（修复后端越权） |
-| SettingsController / SubscriptionController | `research-settings` / `research-subscription` | 用户设置、订阅 |
+| SettingsController / SubscriptionController | `research-settings` / `research-subscription` | ✅ 已实现（2026-08-17）：设置 GET/PUT/PATCH（llm/translation/knowledge 三段非空合并）；订阅 plans/checkout(Stripe REST)/webhook(签名校验+只升不降) |
 | ai-service paper_agent | `research-paper-card`（skill/agent） | ✅ 已实现（2026-08-17）：POST /generate {text} → 共享网关生成结构化 Card（12 字段，prompt 与 ai-service 同源，JSON 容错解析）；skill/agent 形态留待 Phase 4 接入 DSH agent |
 
 > AI 能力（paper/review/writing agent）**保留原有逻辑语义**，以 DSH 的 agent/skill/tool 形态重写，
@@ -177,7 +177,8 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `research-writing` ✅ 2026-08-17：写作 Agent bundle——6 动作 LLM 改写（prompt 与 ai-service 同源，走共享网关；llmOverride 直连 + 失败回退系统默认；代码围栏剥离）+ MyMemory 机器翻译（源语言检测/500 字截断/配额检查）。
 - [x] `research-review` ✅ 2026-08-17：综述生成 bundle——POST /generate（校验论文归属→ai_task PENDING→MQ review.generate，失败回滚）+ GET /:taskId（归属校验）；**全链路已验**：真实生成综述（ai-service 消费→RAG 12 片段→LLM→回调 backend→任务 SUCCESS，markdown 含 [P3] 引用）。
 - [x] `research-paper-card` ✅ 2026-08-17：Paper Intelligence Card bundle——POST /generate {text}（12000 字符截断→共享网关→严格 JSON 12 字段：title/authors/year/doi/keywords/abstract/workflow/method/finding/limitation/future_work/tags，容错解析+字段默认值）；真实论文文本生成完整 Card 已验。**AI 域 3 bundle（writing/review/paper-card）全部完成**。
-- [x] `research-export`（含 citation）✅ 2026-08-17：单篇/批量 BibTeX+RIS、APA/MLA/GB7714 引用与 bibliography；渲染与后端逐字节一致（BibTeX 实测相同）；批量端点强制 user_id 过滤（后端原实现不校验，越权隐患已修）；`research-settings` / `research-subscription` 待做。
+- [x] `research-export`（含 citation）✅ 2026-08-17：单篇/批量 BibTeX+RIS、APA/MLA/GB7714 引用与 bibliography；渲染与后端逐字节一致（BibTeX 实测相同）；批量端点强制 user_id 过滤（后端原实现不校验，越权隐患已修）。
+- [x] `research-settings` + `research-subscription` ✅ 2026-08-17：设置 GET/PUT/PATCH（非空字段三段合并，null 不覆盖）；订阅 plans/checkout（Stripe REST + 错误路径）/webhook（HMAC 签名校验→checkout.session.completed 升级用户，只升不降已验：PRO→RESEARCHER 升、FREE 降级被拒）。**Phase 3 bundle 清单（11 个）全部完成**，剩余为旧控制器下线（Phase 3 出口）。
 - [ ] 每个 bundle 完成后：旧 Spring Boot 对应控制器下线、`dsh plugin` 可单独卸载验证。
 - **出口**：业务全量跑在 DSH 进程内，Spring Boot 下线；profile 卸载任一 bundle 不破坏其他功能。
 

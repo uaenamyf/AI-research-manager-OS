@@ -1,0 +1,4 @@
+# Phase 3 research-settings patch: mounts the ResearchOS settings bundle over the profile.
+- insert:
+    - id: research-settings
+      name: '@researchos/dsh-research-settings'

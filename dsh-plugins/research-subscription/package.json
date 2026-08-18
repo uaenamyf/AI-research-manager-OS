@@ -1,0 +1,23 @@
+{
+  "name": "@researchos/dsh-research-subscription",
+  "description": "Phase 3 research-subscription: ResearchOS subscription bundle (plan list, Stripe Checkout session creation via the Stripe REST API, webhook signature verification + plan upgrade), mirroring backend SubscriptionController/SubscriptionServiceImpl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}
