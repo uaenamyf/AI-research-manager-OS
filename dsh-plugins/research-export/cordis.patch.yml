@@ -1,0 +1,4 @@
+# Phase 3 research-export patch: mounts the ResearchOS export/citation bundle over the profile.
+- insert:
+    - id: research-export
+      name: '@researchos/dsh-research-export'

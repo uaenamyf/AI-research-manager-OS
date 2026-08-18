@@ -21,6 +21,7 @@
 | `research-writing` | ✅ Phase 3 AI 域 | 写作 Agent bundle：6 动作 LLM 改写（走共享网关 + llmOverride 直连/回退）+ MyMemory 机器翻译；prompt 与 ai-service 同源 |
 | `research-review` | ✅ Phase 3 AI 域 | 综述生成 bundle：任务 create + MQ review.generate + 轮询（ai-service 消费→RAG→LLM→回调 backend→SUCCESS 全链路已验） |
 | `research-paper-card` | ✅ Phase 3 AI 域 | Paper Card bundle：POST /generate {text} → 共享网关生成结构化 12 字段 Card（prompt 与 ai-service 同源，JSON 容错解析） |
+| `research-export` | ✅ Phase 3 剩余域 | 导出+引用 bundle：单篇/批量 BibTeX+RIS、APA/MLA/GB7714 引用与参考文献（渲染与后端逐字节一致；批量强制 user_id 过滤） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -380,6 +381,24 @@ method/finding/limitation/future_work/tags×5 带 name+category），method「MF
 
 > skill/agent 形态（供 DSH agent 直接调用）留待 Phase 4 前端接入时注册；
 > 管道集成（MQ 消费 + PG chunk 组装）随 ai-service 下线（Phase 5）迁移。
+
+## Phase 3：research-export bundle（导出 + 引用渲染）✅ 2026-08-17
+
+合并后端 ExportController + CitationController（共享渲染逻辑），直连 MySQL `paper`：
+
+```
+GET  /research-export/papers/:id/export/bibtex | /ris            -> 单篇导出
+POST /research-export/papers/export/bibtex | /ris  { paperIds }  -> 批量导出 { ..., count }
+GET  /research-export/papers/:id/citation?format=APA|MLA|GB_7714 -> 单篇引用
+POST /research-export/citation/bibliography { paperIds }?format= -> 参考文献列表
+```
+
+**关键验证**：
+- 渲染与后端**逐字节一致**：单篇 BibTeX 实测与 `/api/papers/51/export/bibtex` 输出完全相同
+- 三种引用格式（APA/MLA/GB_7714）与 citation key（首作者姓氏+年份）逻辑一致
+- **越权修复**：批量端点强制 `WHERE user_id = ?`（后端原实现 `getById` 不校验、按 id 可导任意论文），
+  非本人 id 自动过滤，count 反映实际导出数
+- 单篇越权 404、无 token 401、非法 format 回退 APA
 
 ## 下一步（Phase 1-2 遗留）
 
