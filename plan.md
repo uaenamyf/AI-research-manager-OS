@@ -201,6 +201,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `ui-research-dashboard` v0.1 ✅ 2026-08-17：**用户消息关键词触发**（dashboard/仪表盘/统计/stats）→ 自取数统计面板（/research-project 项目数 + 各项目论文数 + /research-auth/me 套餐 + 最近项目列表）。**验证了「用户消息触发」模式**（非工具页面通用），为 writing/settings/assistant 铺路。
 - [x] `ui-research-writing` v0.1 ✅ 2026-08-17：**写作面板节点**——用户消息关键词触发（写作/改写/润色/翻译/审稿/cover letter 等），从消息提取动作（翻译→translate、缩写→shorten…）+ 文本预填（剥连接词），渲染面板（文本域+动作下拉+指令+改写按钮）调 `/research-writing/rewrite` 显示结果；端到端已验证（真实润色输出）。
 - [x] `ui-research-settings` v0.1 ✅ 2026-08-17：**设置面板节点**——关键词触发（设置/settings/配置/config）→ 读取 GET /research-settings 展示 LLM/翻译/Knowledge 三段表单，编辑后 PATCH 保存；GET/PATCH 端到端已验证（测试数据还原）。
+- [x] `ui-research-literature` v0.1 ✅ 2026-08-17：**文献检索面板节点**——关键词触发（文献检索/搜文献/literature 等，消息可带查询词预填）→ 搜索框调新增的 `GET /research-paper/search?q=`（user 作用域，title/authors/doi LIKE）→ 结果列表（标题/作者/年份/状态）。**Phase 4 UI 清单全部落地（8 包）**；`ui-research-assistant` 由 DSH 会话天然承担，无需专门页面。
 - [ ] `ui-research-literature` / `ui-research-writing` / `ui-research-assistant` / `ui-research-dashboard` / `ui-research-settings`。
 - [ ] Next.js 前端下线，浏览器只访问 `:3080`。
 - **出口**：单一 Web 入口，无 Next.js 残留。

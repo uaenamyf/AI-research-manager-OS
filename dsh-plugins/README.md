@@ -31,6 +31,7 @@
 | `ui-research-dashboard` | ✅ Phase 4 v0.1 | 统计面板节点：用户消息关键词触发（dashboard/仪表盘/统计）→ 自取数（项目/论文/套餐/最近项目） |
 | `ui-research-writing` | ✅ Phase 4 v0.1 | 写作面板节点：关键词触发 + 动作/文本提取 → 调 /research-writing/rewrite 显示改写结果 |
 | `ui-research-settings` | ✅ Phase 4 v0.1 | 设置面板节点：关键词触发（设置/settings/配置）→ 读 /research-settings 表单编辑 + PATCH 保存 |
+| `ui-research-literature` | ✅ Phase 4 v0.1 | 文献检索面板节点：关键词触发 + 查询词预填 → 调 /research-paper/search 结果列表 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -569,6 +570,26 @@ Definition 提取：
 boot 注入 7 个 research UI 条目。
 
 **浏览器效果**：发送「打开设置」→ 设置面板出现，编辑后点「保存」。
+
+## Phase 4：ui-research-literature v0.1（文献检索面板节点）✅ 2026-08-17
+
+关键词触发（文献检索/搜文献/检索文献/literature/search paper）→ **检索面板**：
+消息带查询词时自动预填并搜索（如「搜文献：gibbon」→ 面板自动检索 gibbon）。
+
+```
+新增端点：GET /research-paper/search?q=&limit=   （research-paper bundle）
+  - user 作用域：title / authors / doi LIKE 查询，created_time DESC
+面板：搜索框 + 检索按钮（Enter 可触发）→ 结果列表（标题/作者/年份/状态）
+```
+
+**验证**：search 端点真实查询（gibbon → 论文 51/50）；触发/查询词提取（搜文献：gibbon
+→ query="gibbon"、无关消息不触发）；boot 注入 8 个 research UI 条目；node --check 通过。
+
+**浏览器效果**：发送「搜文献：gibbon」→ 检索面板自动搜索并列出结果。
+
+> **Phase 4 UI 清单全部落地（8 个包）**：hello 探针 + library/paper/citation/dashboard/
+> writing/settings/literature 七个业务节点。`ui-research-assistant` 由 DSH 会话天然承担，
+> 无需专门页面。下一步：Next.js 下线出口评估（Phase 5 联动）。
 
 ## 下一步（Phase 1-2 遗留）
 

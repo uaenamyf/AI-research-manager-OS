@@ -372,6 +372,27 @@ export function apply(ctx) {
         return fail(res, 405, 'method not allowed')
       }
 
+      // ── search: GET /research-paper/search?q=&limit= (user-scoped, title/authors/doi LIKE) ──
+      if (seg[0] === 'search' && method === 'GET') {
+        const qs = url.searchParams
+        const q = String(qs.get('q') || '').trim()
+        const limit = Math.max(1, Math.min(50, parseInt(qs.get('limit') || '20', 10) || 20))
+        if (!q) return ok(res, { items: [], total: 0 })
+        try {
+          const like = `%${q}%`
+          const [rows] = await pool.query(
+            `SELECT id, project_id, user_id, folder_id, title, authors, year, doi, pdf_url, summary, status, reading_status, star_rating, created_time FROM paper
+             WHERE user_id = ? AND (title LIKE ? OR authors LIKE ? OR doi LIKE ?)
+             ORDER BY created_time DESC LIMIT ?`,
+            [user.id, like, like, like, limit],
+          )
+          return ok(res, { items: rows.map(toListItem), total: rows.length })
+        } catch (e) {
+          ctx.logger.warn(`[research-paper] search error: ${e.message}`)
+          return fail(res, 500, `search failed: ${e.message}`)
+        }
+      }
+
       // ── papers/:id[...] ──
       if (seg[0] === 'papers' && seg[1]) {
         const paperId = Number(seg[1])

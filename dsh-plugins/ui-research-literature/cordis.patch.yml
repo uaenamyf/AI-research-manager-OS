@@ -1,0 +1,4 @@
+# Phase 4 ui-research-literature patch: mounts the ResearchOS literature search panel client UI over the profile.
+- insert:
+    - id: ui-research-literature
+      name: '@researchos/ui-research-literature'
