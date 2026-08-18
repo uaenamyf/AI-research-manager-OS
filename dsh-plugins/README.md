@@ -19,6 +19,7 @@
 | `research-paper` | ✅ Phase 3 文献域 | 论文管理 bundle：create/import(Crossref)/list(文件夹过滤)/detail/status/card/move/reading/delete 直连 MySQL paper，MQ 触发+清理（paper.analyze/paper.delete 全链路已验），配额开关 |
 | `research-file` | ✅ Phase 3 文献域 | 文件存储 bundle：upload-url presign / multipart 上传 / 下载(全量+Range) / 删除（~/.researchos/uploads，路径穿越防护），旧后端 PDF 代理兜底读取 |
 | `research-writing` | ✅ Phase 3 AI 域 | 写作 Agent bundle：6 动作 LLM 改写（走共享网关 + llmOverride 直连/回退）+ MyMemory 机器翻译；prompt 与 ai-service 同源 |
+| `research-review` | ✅ Phase 3 AI 域 | 综述生成 bundle：任务 create + MQ review.generate + 轮询（ai-service 消费→RAG→LLM→回调 backend→SUCCESS 全链路已验） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -339,6 +340,26 @@ POST /research-writing/translate-machine
 > **顺手修复**：`dsh-gateway.sh` 的 `RESEARCH_GATEWAY_URL` 在端口 bump 前导出（指向 3080 GUI
 > 而非 3081 网关），导致 MCP vector_search 的 embedding 调用打错端口——已改为 bump 后导出，
 > vector_search 恢复真实语义检索（paperId 51, score 0.92 实测）。
+
+## Phase 3：research-review bundle（综述生成，MQ 全链路）✅ 2026-08-17
+
+AI 域第二个 bundle，替代 backend ReviewController + AiTaskService，直连 MySQL `ai_task` +
+发共享 MQ（`researchos.ai.task` / `review.generate`），ai-service 消费后回调**旧 backend**
+更新同一任务行——bundle 无缝接入既有管道：
+
+```
+POST /research-review/generate   { paperIds: number[], topic: string } -> { taskId }   (JWT)
+GET  /research-review/:taskId                                           -> task        (JWT, 归属校验)
+```
+
+**全链路（真实端到端已验）**：generate（校验每篇论文归属 → ai_task PENDING → MQ review.generate，
+发失败回滚删行）→ ai-service「收到综述生成任务：taskId=7」→ review_agent（papers=3,
+检索片段=12 RAG）→ LLM 生成 Markdown → 回调 backend PATCH /internal/task/7/result →
+任务 SUCCESS，result.markdown 完整综述（含 [P3] 等引用标注）。负例：越权 404 / 无效
+paperIds 404 / 空数组 400 / 无 token 401。
+
+> llmOverride：backend 从用户设置构建后随 MQ payload 携带（`research-settings` bundle
+> 落地后本 bundle 同步支持）。
 
 ## 下一步（Phase 1-2 遗留）
 
