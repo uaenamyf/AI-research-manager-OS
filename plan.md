@@ -134,7 +134,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | --- | --- | --- |
 | /dashboard | `ui-research-dashboard` | 统计卡片 |
 | /library（项目+论文库+上传+删除） | `ui-research-library` | ✅ v0.1（2026-08-17）：文献检索结果富卡片聊天节点（匹配标准 tool 事件，无需 host 改动）；完整项目/文件夹树/上传页待做 |
-| /papers/[id]（PDF + Paper Card） | `ui-research-paper` | PdfViewer 保留（react-pdf） |
+| /papers/[id]（PDF + Paper Card） | `ui-research-paper` | ✅ v0.1（2026-08-17）：literature_get → 完整 Paper Card 聊天节点（metadata + method/finding/limitation/future_work/tags）；PDF 查看器（react-pdf）待做 |
 | /literature（文献检索） | `ui-research-literature` | 经 MCP 工具或 `ctx.remote.research.*` 调用 |
 | /assistant / /writing / /settings | `ui-research-{assistant,writing,settings}` | 写作/助手/设置 |
 - 通过 DSH `ConversationNodeDefinition` / `ui-*` 组件体系接入侧边栏与会话流。
@@ -195,7 +195,8 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 
 ### Phase 4 — 前端 DSH React 重写（4–6 周，与 Phase 3 并行）
 - [x] **可行性证明** ✅ 2026-08-17：`@researchos/ui-research-hello`（最小 out-of-tree 客户端包）——声明 `dsh.client` + `exports["./client"]` + 手写 `lib/client.js`（`__ModuleLoader__.load` 格式），注册 `sidebar.footer.action` 面板调用 `/research-project` 显示项目数；**机制已验证**：boot 清单自动注入新条目（39 条目中出现 `@researchos/ui-research-hello`）、`/plugins/<id>/client.js` 正常服务（content-type text/javascript，rev 命中）。结论：**out-of-tree UI 包无需重建 web app**，`dsh plugin add` + 重启即被浏览器 GUI 加载。渲染效果待浏览器查看 `http://127.0.0.1:3081` 侧边栏底部。
-- [x] `ui-research-library` v0.1 ✅ 2026-08-17：文献库富卡片**聊天节点**——匹配标准 `tool/call`+`tool/result` 会话事件（ui-deliverables 同款模式，无需 host 发事件），跟踪 research MCP 文献工具（literature_search/get/vector_search）的 callId→名称，解析 tool/result JSON 累积论文列表，渲染「📚 ResearchOS 文献库」卡片。验证：boot 注入 + client.js 服务 + **真实会话事件重放**（turn/start→tool/call→tool/result → 节点数据含真实论文 id 50）。`ui-research-paper` 待做。
+- [x] `ui-research-library` v0.1 ✅ 2026-08-17：文献库富卡片**聊天节点**——匹配标准 `tool/call`+`tool/result` 会话事件（ui-deliverables 同款模式，无需 host 发事件），跟踪 research MCP 文献工具（literature_search/vector_search）的 callId→名称，解析 tool/result JSON 累积论文列表，渲染「📚 ResearchOS 文献库」卡片。验证：boot 注入 + client.js 服务 + **真实会话事件重放**（turn/start→tool/call→tool/result → 节点数据含真实论文 id 50）。
+- [x] `ui-research-paper` v0.1 ✅ 2026-08-17：`literature_get` → 完整 **Paper Intelligence Card 聊天节点**（标题/作者/年份/状态 + abstract/method/finding/limitation/future_work/tags×5）；真实事件重放验证（论文 id 51）。两节点按工具分流（search→library 列表、get→paper 详情），无冗余渲染。
 - [ ] `ui-research-literature` / `ui-research-writing` / `ui-research-assistant` / `ui-research-dashboard` / `ui-research-settings`。
 - [ ] Next.js 前端下线，浏览器只访问 `:3080`。
 - **出口**：单一 Web 入口，无 Next.js 残留。

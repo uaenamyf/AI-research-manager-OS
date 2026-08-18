@@ -1,0 +1,20 @@
+{
+  "name": "@researchos/ui-research-paper",
+  "description": "Phase 4 ui-research-paper (v0.1): out-of-tree client package — a conversation chat node that renders a full Paper Intelligence Card when the agent reads a paper via the research MCP literature_get tool. Matches the standard tool/call + tool/result events (no host-side event emission).",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}

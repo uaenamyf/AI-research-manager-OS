@@ -18,7 +18,6 @@ window.__ModuleLoader__.load({
 
 		var RESEARCH_TOOLS = [
 			"mcp__research__literature_search",
-			"mcp__research__literature_get",
 			"mcp__research__literature_vector_search",
 		];
 
@@ -69,8 +68,6 @@ window.__ModuleLoader__.load({
 				if (toolName.indexOf("literature_search") !== -1) {
 					var list = parsed.results || [];
 					for (var j = 0; j < list.length; j++) results.push(list[j]);
-				} else if (toolName.indexOf("literature_get") !== -1 && parsed.id != null) {
-					results.push(parsed);
 				}
 				return { turn: context.state.turn, calls: context.state.calls, results: results };
 			},

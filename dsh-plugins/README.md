@@ -25,7 +25,8 @@
 | `research-settings` | ✅ Phase 3 剩余域 | 用户设置 bundle：GET/PUT/PATCH app_user.settings（llm/translation/knowledge 三段，非空字段合并） |
 | `research-subscription` | ✅ Phase 3 剩余域 | 订阅 bundle：plans / Stripe checkout（REST+错误路径）/ webhook（HMAC 签名校验 + 只升不降升级） |
 | `ui-research-hello` | ✅ Phase 4 可行性证明 | 最小客户端 UI 包：声明 dsh.client + lib/client.js（__ModuleLoader__ 格式），sidebar 底部面板调 /research-project 显示项目数；boot 自动注入 + client.js 服务已验证 |
-| `ui-research-library` | ✅ Phase 4 v0.1 | 文献库富卡片聊天节点：匹配标准 tool 事件（research MCP 工具结果 → 文献卡片），真实事件重放验证 |
+| `ui-research-library` | ✅ Phase 4 v0.1 | 文献库富卡片聊天节点：匹配标准 tool 事件（literature_search → 文献卡片），真实事件重放验证 |
+| `ui-research-paper` | ✅ Phase 4 v0.1 | Paper Card 聊天节点：literature_get → 完整 Paper Intelligence Card（method/finding/limitation/future_work/tags） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -487,6 +488,19 @@ dsh-plugins/ui-research-library/
 
 **浏览器效果**：在 GUI（`http://127.0.0.1:3081`）让 agent 执行 `literature_search` 检索后，
 对话流中会出现文献库卡片。完整项目/文件夹树/上传页面（v0.2+）后续按此模式扩展。
+
+## Phase 4：ui-research-paper v0.1（Paper Card 聊天节点）✅ 2026-08-17
+
+论文详情 UI：`literature_get` 工具结果 → 完整 **Paper Intelligence Card** 节点
+（标题/作者/年份/状态 + Abstract/Method/Finding/Limitation/Future Work + Tags）。
+
+- 与 ui-research-library 同款 Definition 模式（标准 tool 事件匹配），**按工具分流**：
+  `literature_search` → 文献库列表卡（library 节点）、`literature_get` → 论文详情卡（paper 节点）
+- **验证**：boot 注入 3 个 research UI 条目（hello/library/paper）、client.js 服务、
+  **真实 literature_get 事件重放**（论文 id 51 → metadata + method/finding/limitation/future_work + 5 tags 完整产出）
+
+**浏览器效果**：GUI 中让 agent 执行 `literature_get`（如「读取论文 51 详情」），对话流出现
+完整论文卡片。PDF 查看器（react-pdf）留待 v0.2。
 
 ## 下一步（Phase 1-2 遗留）
 
