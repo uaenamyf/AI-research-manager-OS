@@ -25,6 +25,7 @@
 | `research-settings` | ✅ Phase 3 剩余域 | 用户设置 bundle：GET/PUT/PATCH app_user.settings（llm/translation/knowledge 三段，非空字段合并） |
 | `research-subscription` | ✅ Phase 3 剩余域 | 订阅 bundle：plans / Stripe checkout（REST+错误路径）/ webhook（HMAC 签名校验 + 只升不降升级） |
 | `ui-research-hello` | ✅ Phase 4 可行性证明 | 最小客户端 UI 包：声明 dsh.client + lib/client.js（__ModuleLoader__ 格式），sidebar 底部面板调 /research-project 显示项目数；boot 自动注入 + client.js 服务已验证 |
+| `ui-research-library` | ✅ Phase 4 v0.1 | 文献库富卡片聊天节点：匹配标准 tool 事件（research MCP 工具结果 → 文献卡片），真实事件重放验证 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -466,6 +467,26 @@ dsh-plugins/ui-research-hello/
 **查看效果**：打开 `http://127.0.0.1:3081` 侧边栏底部（📚 ResearchOS · N projects）。
 后端 bundle 的 `/research-project` 等接口已就绪，后续 `ui-research-library` 等页面
 按此机制逐个构建（组件需遵循 slot/props 规范，见 DSH `packages/client/AGENTS.md`）。
+
+## Phase 4：ui-research-library v0.1（文献库聊天节点）✅ 2026-08-17
+
+文献库 UI 的第一个落地形态：**聊天内的富文献卡片节点**。
+
+```
+dsh-plugins/ui-research-library/
+  lib/client.js  ConversationNodeDefinition「research-library」：
+    - match 标准 turn/start + tool/call + tool/result 会话事件（ui-deliverables 同款模式，
+      无需 host 发自定义事件）
+    - tool/call 时按 callId 记录 research MCP 工具名（literature_search/get/vector_search）
+    - tool/result 时解析对应工具的 JSON 结果，累积论文列表
+    - buildViewNode 产出「📚 ResearchOS 文献库」卡片（标题/作者/年份/状态）
+```
+
+**验证**：boot 清单注入 + client.js 服务 + **真实会话事件重放**（turn/start→tool/call
+(literature_search)→tool/result → 节点数据含真实论文 id 50/标题/2021/READY）。
+
+**浏览器效果**：在 GUI（`http://127.0.0.1:3081`）让 agent 执行 `literature_search` 检索后，
+对话流中会出现文献库卡片。完整项目/文件夹树/上传页面（v0.2+）后续按此模式扩展。
 
 ## 下一步（Phase 1-2 遗留）
 
