@@ -34,6 +34,7 @@
 | `ui-research-literature` | ✅ Phase 4 v0.1 | 文献检索面板节点：关键词触发 + 查询词预填 → 调 /research-paper/search 结果列表 |
 | `ui-research-review` | ✅ Phase 4 v0.1 | 综述生成面板节点：主题 + 论文勾选 → generate → 轮询任务 → Markdown 综述展示 |
 | `ui-research-upload` | ✅ Phase 4 v0.1 | 上传面板节点：项目/文件夹选择 + PDF → presign → multipart → 建论文（触发分析） |
+| `ui-research-project` | ✅ Phase 4 v0.1 | 项目管理面板节点：新建/删除项目 + 文件夹树 + 新建/删除文件夹 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -632,6 +633,26 @@ boot 注入 7 个 research UI 条目。
 
 **浏览器效果**：发送「上传文献」→ 选项目 + 选 PDF → 「上传」→ 日志显示三步完成，
 论文进入 AI 分析。
+
+## Phase 4：ui-research-project v0.1（项目管理面板节点）✅ 2026-08-17
+
+关键词触发（项目/项目管理/文件夹/目录）→ **项目 & 文件夹树管理面板**：
+
+```
+新建项目表单（名称/领域）→ POST /research-project
+项目列表：名称/描述/领域 + 「文件夹」「删除项目」
+每项目：文件夹树（GET /research-folder/projects/:pid/folders/tree 递归渲染）
+        + 新文件夹输入 → POST /research-folder/folders + 每文件夹「删除」
+```
+
+**验证**：触发分离（项目/文件夹命中，检索/上传不触发）；CRUD 端到端（建项目/文件夹 →
+树 → 删除 → DB 还原）；boot 注入 **11 个 research UI 条目**。
+
+**浏览器效果**：发送「项目管理」→ 面板展示项目列表 + 文件夹树，可新建/删除。
+
+> **Phase 4 UI 共 11 包，缺口清零**：hello 探针 + 10 个业务节点（library/paper/citation/
+> dashboard/writing/settings/literature/review/upload/project）。下一步：Phase 4 出口评估
+> （覆盖矩阵 + 下线步骤 + 回退方案）→ Next.js 下线。
 
 ## 下一步（Phase 1-2 遗留）
 
