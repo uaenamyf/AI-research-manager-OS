@@ -713,8 +713,8 @@ ai-service 零 MQ 消息；回退 = 置 0 重启。**已知问题**：research-f
 1. **DSH shell 受控补丁**（`dsh-plugins/patches/ui-sidebar-research.patch`，应用于 vendored
    `packages/client/ui-sidebar`，需重建 bundle `pnpm --filter @deepseek-ai/dsh-client-ui-sidebar bundle`）：
    - `contract/slots.ts`：新增 `sidebar.research` 坑位（single/root，owner 同 workspaces）
-   - `SidebarRoot.tsx`：New Session 下方新增「工作区 | 研究区」分段切换器（wide 模式），
-     regionArea 按状态渲染 `sidebar.workspaces` 或 `sidebar.research`
+   - `SidebarRoot.tsx`：regionArea 上下堆叠渲染 `sidebar.workspaces`（上半，工作区）与
+     `sidebar.research`（下半，研究区），中间 1px 分隔线（用户需求：同一区域上下排布，非 tab 切换）
    - 补丁持久化于本仓库（checkout 被 gitignore，重装 checkout 后需重新 apply）
 2. **新 out-of-tree 包 `ui-research-workspace`**（`dsh.client`）：
    - 注册 `sidebar.research`（`ctx.slots.inject('sidebar.research', ...)`）

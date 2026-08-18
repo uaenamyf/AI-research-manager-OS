@@ -267,7 +267,8 @@ agent 协作部分（MCP 工具 + 聊天节点）保留。
 
 **实现**（详见 `dsh-plugins/README.md`）：
 1. DSH shell 受控补丁（`dsh-plugins/patches/ui-sidebar-research.patch`）：ui-sidebar 新增 `sidebar.research`
-   坑位 + 「工作区|研究区」分段切换器（需重建 ui-sidebar bundle；补丁随 checkout 重装需重新 apply）
+   坑位，regionArea 上下堆叠工作区（上）与研究区（下）（用户需求：同一区域上下排布；需重建
+   ui-sidebar bundle；补丁随 checkout 重装需重新 apply）
 2. 新 out-of-tree 包 `ui-research-workspace`：注册 `sidebar.research`，研究区外壳（认证门 +
    文献库/综述/写作/设置 四页，调 /research-* API）
 3. 验证：boot 50 条目含 12 researchos UI，无加载错误；浏览器视觉效果待确认
