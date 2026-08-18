@@ -720,10 +720,10 @@ ai-service 零 MQ 消息；回退 = 置 0 重启。**已知问题**：research-f
    - 注册 `sidebar.research`（`ctx.slots.inject('sidebar.research', ...)`）
    - **无登录/订阅 UI**：区域挂载先解析认证（/me → 401 时调 `GET /research-auth/anon` 静默引导）
      再渲染页面（避免 401 竞态）；样式对齐工作区浏览器（section header/13px/DSW tokens）
-   - 文献库：/research-paper/search（列表+检索）+ /papers/:id（详情）+ /card（Paper Card 摘要）
-   - 综述：/research-review/generate + 轮询任务 → Markdown
-   - 写作：/research-writing/rewrite（6 动作 + 指令）
-   - 设置：/research-settings GET/PATCH
+   - **交互（用户定稿）**：区域标题「研究区」，仅提供文献库——检索 + 多选勾选列表；
+     点击文献 → 内容区显示预览 + Paper Intelligence Card（abstract/method/finding/limitation/
+     future_work/tags）+ 作者/年份/DOI；单选或多选后底部栏出现「综述」「写作」入口
+     （综述：用已选论文生成；写作：6 动作改写）
    - 全部走共享 JWT cookie；agent 侧聊天节点（ui-research-*）保持不变
 3. **research-auth 匿名引导端点**（dev-only）：`GET /research-auth/anon`——`RESEARCH_ANON_ENABLED=1`
    时签发真实 JWT cookie：配置 `RESEARCH_ANON_USER_ID`（如 4）则映射该已有用户（研究区直接呈现
