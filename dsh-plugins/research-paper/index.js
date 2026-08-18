@@ -377,8 +377,16 @@ export function apply(ctx) {
         const qs = url.searchParams
         const q = String(qs.get('q') || '').trim()
         const limit = Math.max(1, Math.min(50, parseInt(qs.get('limit') || '20', 10) || 20))
-        if (!q) return ok(res, { items: [], total: 0 })
         try {
+          // Empty query = recent papers list (used by UI panels to build paper pickers).
+          if (!q) {
+            const [rows] = await pool.query(
+              `SELECT id, project_id, user_id, folder_id, title, authors, year, doi, pdf_url, summary, status, reading_status, star_rating, created_time FROM paper
+               WHERE user_id = ? ORDER BY created_time DESC LIMIT ?`,
+              [user.id, limit],
+            )
+            return ok(res, { items: rows.map(toListItem), total: rows.length })
+          }
           const like = `%${q}%`
           const [rows] = await pool.query(
             `SELECT id, project_id, user_id, folder_id, title, authors, year, doi, pdf_url, summary, status, reading_status, star_rating, created_time FROM paper

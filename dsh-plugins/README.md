@@ -32,6 +32,7 @@
 | `ui-research-writing` | ✅ Phase 4 v0.1 | 写作面板节点：关键词触发 + 动作/文本提取 → 调 /research-writing/rewrite 显示改写结果 |
 | `ui-research-settings` | ✅ Phase 4 v0.1 | 设置面板节点：关键词触发（设置/settings/配置）→ 读 /research-settings 表单编辑 + PATCH 保存 |
 | `ui-research-literature` | ✅ Phase 4 v0.1 | 文献检索面板节点：关键词触发 + 查询词预填 → 调 /research-paper/search 结果列表 |
+| `ui-research-review` | ✅ Phase 4 v0.1 | 综述生成面板节点：主题 + 论文勾选 → generate → 轮询任务 → Markdown 综述展示 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -590,6 +591,26 @@ boot 注入 7 个 research UI 条目。
 > **Phase 4 UI 清单全部落地（8 个包）**：hello 探针 + library/paper/citation/dashboard/
 > writing/settings/literature 七个业务节点。`ui-research-assistant` 由 DSH 会话天然承担，
 > 无需专门页面。下一步：Next.js 下线出口评估（Phase 5 联动）。
+
+## Phase 4：ui-research-review v0.1（综述生成面板节点）✅ 2026-08-17
+
+关键词触发（综述/文献综述/review，消息可带主题预填）→ **综述生成面板**：
+
+```
+主题输入 + 论文勾选列表（调 /research-paper/search 空 q 取用户近期论文，默认全选）
+生成 → POST /research-review/generate {paperIds, topic} → taskId
+轮询 → GET /research-review/:taskId（每 3s）→ SUCCESS 展示 Markdown 综述 / FAILED 显示错误
+```
+
+**验证**：触发/主题提取（「生成综述：Acoustic classification」→ topic 预填）；**真实端到端**
+（task 8：PENDING→SUCCESS，真实综述含 Introduction）；论文选择数据源（空 q 返回 3 篇）。
+**同时修复**：`/research-paper/search` 空 q 原来返回空，现改为返回近期论文列表（供面板选论文）。
+
+**浏览器效果**：发送「生成综述：Acoustic classification of gibbon females」→ 面板预填主题、
+列出论文（全选）→ 点「生成综述」→ 30-60s 后展示 Markdown 综述。
+
+> **Phase 4 UI 共 9 包落地**：hello 探针 + library/paper/citation/dashboard/writing/
+> settings/literature/review 八个业务节点。下一步：Next.js 下线出口评估（Phase 5 联动）。
 
 ## 下一步（Phase 1-2 遗留）
 

@@ -1,0 +1,20 @@
+{
+  "name": "@researchos/ui-research-review",
+  "description": "Phase 4 ui-research-review (v0.1): out-of-tree client package — a conversation chat node triggered by a user message keyword (综述/文献综述/review) that renders a review generation panel: topic input + paper checkboxes (from /research-paper/search) + generate button → POST /research-review/generate → polls the task until SUCCESS → shows the markdown review.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}
