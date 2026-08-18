@@ -703,3 +703,28 @@ ai-service 零 MQ 消息；回退 = 置 0 重启。**已知问题**：research-f
 偶发截断（worker 已 backend 直连优先规避；代理补丁随 GUI PDF 查看器处理）。
 
 ## 下一步（遗留）
+
+## Phase 5+：研究区（Research Workspace）独立区域 ✅ 2026-08-18
+
+**需求修正**：ResearchOS 不完全融入 agent 会话——部分能力交给 agent（MCP 工具 + 聊天节点，
+保留），文献查看/综述生成等独立成**左侧菜单「研究区」**，与「工作区」并列。
+
+**实现**：
+1. **DSH shell 受控补丁**（`dsh-plugins/patches/ui-sidebar-research.patch`，应用于 vendored
+   `packages/client/ui-sidebar`，需重建 bundle `pnpm --filter @deepseek-ai/dsh-client-ui-sidebar bundle`）：
+   - `contract/slots.ts`：新增 `sidebar.research` 坑位（single/root，owner 同 workspaces）
+   - `SidebarRoot.tsx`：New Session 下方新增「工作区 | 研究区」分段切换器（wide 模式），
+     regionArea 按状态渲染 `sidebar.workspaces` 或 `sidebar.research`
+   - 补丁持久化于本仓库（checkout 被 gitignore，重装 checkout 后需重新 apply）
+2. **新 out-of-tree 包 `ui-research-workspace`**（`dsh.client`）：
+   - 注册 `sidebar.research`（`ctx.slots.inject('sidebar.research', ...)`）
+   - 区域外壳：认证门（/research-auth 登录/注册表单）+ 内部导航（文献库/综述/写作/设置）
+   - 文献库：/research-paper/search（列表+检索）+ /papers/:id（详情）+ /card（Paper Card 摘要）
+   - 综述：/research-review/generate + 轮询任务 → Markdown
+   - 写作：/research-writing/rewrite（6 动作 + 指令）
+   - 设置：/research-settings GET/PATCH
+   - 全部走共享 JWT cookie；agent 侧聊天节点（ui-research-*）保持不变
+3. **验证**：boot 50 条目含 12 researchos UI；两个 bundle 的 client.js 正常服务且含新代码；
+   dsh 日志无加载错误。**浏览器视觉效果待确认**（切到「研究区」→ 登录 → 各页）。
+
+**后续**：上传/项目文件夹管理页、样式打磨、浏览器视觉回归。
