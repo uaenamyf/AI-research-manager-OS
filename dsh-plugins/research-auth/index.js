@@ -21,6 +21,7 @@
 //   JWT_ACCESS_TTL    (optional, e.g. 7d, default 7d)
 // @module @researchos/dsh-research-auth
 
+import { randomBytes } from 'node:crypto'
 import mysql from 'mysql2/promise'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -228,6 +229,53 @@ export function apply(ctx) {
     } catch (e) {
       ctx.logger.warn(`[research-auth] me error: ${e.message}`)
       return fail(res, 500, `load user failed: ${e.message}`)
+    }
+  })
+
+  // 2026-08-18 uaenamyf: 研究区无登录 UI 时的静默引导端点（dev-only）。
+  // RESEARCH_ANON_ENABLED=1 时：若配置 RESEARCH_ANON_USER_ID，则直接为指定已有用户签发
+  // JWT cookie（显式授权——dev 单用户场景下研究区直接呈现该用户数据，权限模型不变：
+  // 真实 JWT + user_id 过滤）；未配置则确保 RESEARCH_ANON_EMAIL 账号存在（不存在以随机
+  // 密码自动注册）后签发。生产保持开关关闭（端点 404，研究区显示「未登录」提示）。
+  register('/research-auth/anon', async (req, res) => {
+    if (req.method !== 'GET') return fail(res, 405, 'method not allowed')
+    if (process.env.RESEARCH_ANON_ENABLED !== '1') return fail(res, 404, 'not found')
+    try {
+      const anonUserId = Number(process.env.RESEARCH_ANON_USER_ID || 0)
+      let user
+      if (anonUserId > 0) {
+        const [rows] = await pool.query(
+          'SELECT id, email, plan, created_time FROM app_user WHERE id = ?',
+          [anonUserId],
+        )
+        if (!rows.length) return fail(res, 404, 'anon user id not found')
+        user = rows[0]
+      } else {
+        const email = String(process.env.RESEARCH_ANON_EMAIL || 'research@local').trim()
+        let [rows] = await pool.query(
+          'SELECT id, email, plan, created_time FROM app_user WHERE email = ?',
+          [email],
+        )
+        if (!rows.length) {
+          const password = randomBytes(24).toString('hex')
+          const hash = await bcrypt.hash(password, 10)
+          await pool.query(
+            'INSERT INTO app_user (email, password, plan, settings) VALUES (?, ?, ?, ?)',
+            [email, hash, 'FREE', JSON.stringify({})],
+          )
+          ;[rows] = await pool.query(
+            'SELECT id, email, plan, created_time FROM app_user WHERE email = ?',
+            [email],
+          )
+          ctx.logger.info(`[research-auth] anon account provisioned: ${email}`)
+        }
+        user = rows[0]
+      }
+      setAuthCookie(res, signToken(user))
+      return ok(res, { user: toDto(user), anon: true })
+    } catch (e) {
+      ctx.logger.warn(`[research-auth] anon error: ${e.message}`)
+      return fail(res, 500, `anon bootstrap failed: ${e.message}`)
     }
   })
 

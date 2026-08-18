@@ -718,12 +718,17 @@ ai-service 零 MQ 消息；回退 = 置 0 重启。**已知问题**：research-f
    - 补丁持久化于本仓库（checkout 被 gitignore，重装 checkout 后需重新 apply）
 2. **新 out-of-tree 包 `ui-research-workspace`**（`dsh.client`）：
    - 注册 `sidebar.research`（`ctx.slots.inject('sidebar.research', ...)`）
-   - 区域外壳：认证门（/research-auth 登录/注册表单）+ 内部导航（文献库/综述/写作/设置）
+   - **无登录/订阅 UI**：区域挂载先解析认证（/me → 401 时调 `GET /research-auth/anon` 静默引导）
+     再渲染页面（避免 401 竞态）；样式对齐工作区浏览器（section header/13px/DSW tokens）
    - 文献库：/research-paper/search（列表+检索）+ /papers/:id（详情）+ /card（Paper Card 摘要）
    - 综述：/research-review/generate + 轮询任务 → Markdown
    - 写作：/research-writing/rewrite（6 动作 + 指令）
    - 设置：/research-settings GET/PATCH
    - 全部走共享 JWT cookie；agent 侧聊天节点（ui-research-*）保持不变
+3. **research-auth 匿名引导端点**（dev-only）：`GET /research-auth/anon`——`RESEARCH_ANON_ENABLED=1`
+   时签发真实 JWT cookie：配置 `RESEARCH_ANON_USER_ID`（如 4）则映射该已有用户（研究区直接呈现
+   其数据，权限模型不变：真实 JWT + user_id 过滤）；未配置则自动注册 `RESEARCH_ANON_EMAIL` 账号。
+   生产开关关闭 → 端点 404，研究区显示「未登录」提示。
 3. **验证**：boot 50 条目含 12 researchos UI；两个 bundle 的 client.js 正常服务且含新代码；
    dsh 日志无加载错误。**浏览器视觉效果待确认**（切到「研究区」→ 登录 → 各页）。
 

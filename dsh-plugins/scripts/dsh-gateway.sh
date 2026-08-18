@@ -64,6 +64,10 @@ start() {
   export RESEARCH_FRONTEND_BASE_URL="${RESEARCH_FRONTEND_BASE_URL:-http://localhost:3000}"
   # Phase 5 AI 管道迁入 DSH 开关（research-paper/review 直调 research-ai-worker，不发 MQ）
   export RESEARCH_AI_INLINE="$(grep '^RESEARCH_AI_INLINE=' "$ENV_FILE" | cut -d= -f2- || true)"
+  # 研究区无登录 UI 的静默引导（dev-only；RESEARCH_ANON_ENABLED != 1 时 /research-auth/anon 404）
+  export RESEARCH_ANON_ENABLED="$(grep '^RESEARCH_ANON_ENABLED=' "$ENV_FILE" | cut -d= -f2- || true)"
+  export RESEARCH_ANON_EMAIL="$(grep '^RESEARCH_ANON_EMAIL=' "$ENV_FILE" | cut -d= -f2- || true)"
+  export RESEARCH_ANON_USER_ID="$(grep '^RESEARCH_ANON_USER_ID=' "$ENV_FILE" | cut -d= -f2- || true)"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.
