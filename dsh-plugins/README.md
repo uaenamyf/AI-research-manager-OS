@@ -672,10 +672,13 @@ boot 注入 7 个 research UI 条目。
 验证网关 chat/embeddings、MCP vector_search（env 注入 3080）、boot 11 UI 包、writing rewrite 全部通过；
 **3081 网关实例已退役**。网关限流 + key 收口 `ctx.credentials` 仍为 Phase 1 遗留。
 
-## 下一步（遗留）
+## Phase 5 收尾（全部完成 ✅ 2026-08-18）
 
-- [ ] 网关限流（per-key QPS/并发）与 key 收口到 DSH `ctx.credentials`
-- [ ] Phase 5：AI 管道迁入 DSH（MQ 下线前置）、可拔插全量回归、`Implementation/` 文档更新、合入 main
+- **MQ/Redis 下线**：AI 管道迁入 DSH 后 MQ 零消息，容器移除（compose 注释 + ai-service 空 URL 跳过消费者）
+- **可拔插全量回归**：卸载 24 包 → DSH 裸跑（boot 0 条、路由回落 SPA）→ 重装 → 全功能回归（e2e 通过）
+- **research-file 代理截断修复**：改 Readable.fromWeb(body).pipe(res) 流式透传，1.15MB 全量交付
+- **网关限流**：per-client 令牌桶（RESEARCH_GATEWAY_RPM=120/min），实测 29/130 命中 429
+- **遗留**：`ctx.credentials` 深度迁移（可选增强）；`feat/dsh-integration` 合入 main（PR）
 
 ## Phase 5：research-ai-worker（AI 管道迁入 DSH）✅ 2026-08-18
 

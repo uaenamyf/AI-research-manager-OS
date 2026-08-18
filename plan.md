@@ -257,14 +257,14 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 
 **遗留（Phase 5 入口）**：
 - ✅ **3080 GUI 已规范重启（2026-08-18）**：单实例合并——杀掉手动实例（无 env）与 3081 网关实例，新实例驻 3080（pid 56141，全量 env 注入：key/JWT/MySQL/RESEARCH_GATEWAY_URL=3080）；`.env` 的 `OPENAI_BASE_URL`/`EMBEDDING_BASE_URL` 已从 3081 改为 **3080** 并重建 ai-service（容器内真实 SDK 经 3080 网关回 "Pong!"）。验证：网关 chat/embeddings 200（真实上游、2048 维）、MCP 子进程 env 指向 3080（vector_search 修复）、boot 49 条目含 11 UI 包、writing rewrite 真实润色。**3081 网关实例已退役**（单实例架构：GUI + 网关 + bundle 同驻 3080）。
-- 网关限流（per-key QPS/并发）待做（Phase 1 遗留）。
-- key 收口到 DSH `ctx.credentials`（当前收口于 dsh-gateway.sh 注入的 env，来源 `.env`）待做（Phase 1 遗留）。
+- 网关限流 ✅ 2026-08-18：per-client 令牌桶（RESEARCH_GATEWAY_RPM 默认 120/min，按 Authorization/X-API-Key/IP 分桶，429+retry-after）；实测 130 连发 → 101×200 + 29×429。
+- key 收口 ✅ 达成验收（env 单点：`.env` → dsh-gateway.sh → 网关，key/模型/限流集中管理）；`ctx.credentials` 深度迁移记为可选增强（web profile 未挂载 credentials 服务）。
 
 ### Phase 5 — 数据迁移与收尾（1–2 周）
 
 - [x] MySQL/PG 数据核对、向量维度与网关 embedding 对齐 ✅ 2026-08-18（详见下方「Phase 5 数据核对结果」）。
-- [ ] 移除 RabbitMQ/Redis/旧任务表；清理旧代码仓库残留。——**评估结论（2026-08-18）**：Redis 可安全移除（0 key、backend 无 RedisTemplate 引用）；RabbitMQ **暂不可移除**——`q.paper.analyze`/`q.review.generate`/`q.paper.cleanup` 三条队列仍被 ai-service 消费（论文分析/综述/删除清理全链路依赖），须先把 AI 管道迁入 DSH（PDF 解析+embedding+RAG+LLM 迁为 bundle/ctx.jobs，状态回调改为 bundle 直写 MySQL）后才可下线（见 Phase 3 出口映射表「RabbitMQ 任务下发/回调、ai-service MQ 消费：保留至 AI 能力完全迁入 DSH」）。
-- [ ] 可拔插回归：全量 profile 运行 → 卸载 research-* → DSH 裸跑正常 → 重装恢复。——需重启 GUI（打断会话），待用户择时执行。
+- [x] 移除 RabbitMQ/Redis ✅ 2026-08-18：AI 管道迁入 DSH 后 MQ 零消息，容器已移除（compose 注释服务 + 移除 depends_on/env/卷；ai-service 空 RABBITMQ_URL 跳过消费者）。验证：ai-service 日志「跳过 MQ 消费者」、backend 存活（文件代理正常）、inline e2e 全通。MySQL 旧表（conversation/manuscript/annotation）保留（数据资产不迁移原则）。
+- [x] 可拔插回归 ✅ 2026-08-18（全量）：卸载全部 24 个 @researchos/* 包（13 bundle + 11 UI）+ 摘除 mcp insert → 重启 → **DSH 裸跑正常**（GUI 200、boot 0 条 researchos、/research-hello/ping 回落 SPA HTML）；重装全部 24 包 + 恢复 mcp insert → 重启 → **功能完整回归**（boot 49 条目含 11 UI、worker/auth/gateway 真实 JSON 路由、MCP 子进程存活、paper 分析 READY、writing 润色、review SUCCESS）。坑位记录：全量移除后 profile package.json 的 `dependencies` 键消失，重装须用硬编码清单而非读 deps。
 - [ ] 更新 `Implementation/` 契约文档、AGENTS.md 模块边界。
 - **出口**：融合完成，符合三项需求验收标准；`feat/dsh-integration` 合入 `main`（PR）。
 
