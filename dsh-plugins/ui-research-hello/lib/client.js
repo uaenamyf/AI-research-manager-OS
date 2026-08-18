@@ -49,7 +49,7 @@ window.__ModuleLoader__.load({
 		exports.apply = function (ctx) {
 			ctx.slots.inject("sidebar.footer.action", function () {
 				return ctx.slots.register(
-					{ name: "sidebar.footer.action" },
+					{ name: "sidebar.footer.action", id: "research-probe", order: 0 },
 					ResearchProbe,
 				);
 			});
