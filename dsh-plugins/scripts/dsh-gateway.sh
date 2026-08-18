@@ -54,6 +54,10 @@ start() {
   export RESEARCH_MYSQL_DATABASE="${RESEARCH_MYSQL_DATABASE:-${MYSQL_DB:-researchos}}"
   # Phase 3 research-paper: RabbitMQ URL for AI task publish (researchos.ai.task exchange)
   export RESEARCH_RABBITMQ_URL="${RESEARCH_RABBITMQ_URL:-amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@127.0.0.1:${RABBIT_PORT:-5672}}"
+  # Phase 3 research-file: local storage dir + internal token + legacy backend proxy
+  export RESEARCH_STORAGE_LOCAL_DIR="${RESEARCH_STORAGE_LOCAL_DIR:-$HOME/.researchos/uploads}"
+  export RESEARCH_INTERNAL_TOKEN="${RESEARCH_INTERNAL_TOKEN:-$(grep '^INTERNAL_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  export RESEARCH_BACKEND_URL="${RESEARCH_BACKEND_URL:-http://127.0.0.1:8080}"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.

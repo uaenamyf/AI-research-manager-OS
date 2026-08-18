@@ -17,6 +17,7 @@
 | `research-project` | ✅ Phase 3 文献域 | 项目 CRUD bundle：create/list(分页)/detail/delete 直连 MySQL research_project，严格 user_id 过滤（越权 404 已验），认证复用共享 JWT |
 | `research-folder` | ✅ Phase 3 文献域 | 文件夹树 CRUD bundle：create/tree/children/rename/move/delete/sort 直连 MySQL folder，user+project 归属校验，递归删除，move 防循环/跨项目 |
 | `research-paper` | ✅ Phase 3 文献域 | 论文管理 bundle：create/import(Crossref)/list(文件夹过滤)/detail/status/card/move/reading/delete 直连 MySQL paper，MQ 触发+清理（paper.analyze/paper.delete 全链路已验），配额开关 |
+| `research-file` | ✅ Phase 3 文献域 | 文件存储 bundle：upload-url presign / multipart 上传 / 下载(全量+Range) / 删除（~/.researchos/uploads，路径穿越防护），旧后端 PDF 代理兜底读取 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -287,6 +288,30 @@ reading 更新 readingStatus/starRating；越权 404；无 token 401；配额开
 
 > 双认证阶段说明：上传（upload-url + 文件读写）仍由旧后端承担（`research-file` bundle 将接手），
 > 本 bundle 创建论文时直接以旧后端签发的存储 key 作为 pdfUrl。
+
+## Phase 3：research-file bundle（本地文件存储 + 旧 PDF 代理兜底）✅ 2026-08-17
+
+文献域收尾 bundle，DSH 原生文件存储（镜像后端 FileController + LocalStorageService 契约），
+存储目录 `RESEARCH_STORAGE_LOCAL_DIR`（默认 `~/.researchos/uploads`），key 布局
+`papers/{uuid}/{fileName}`：
+
+```
+POST   /research-file/upload-url            { fileName, contentType } -> { url, fields:{ key } }   (JWT，一次性 token)
+POST   /research-file/local-upload/:token   multipart(file+key)       -> { key }                    (JWT + token 校验)
+GET    /research-file/files/{key...}        全量 / Range(206) 下载     -> 本地，缺则代理旧后端          (JWT 或 X-Internal-Token)
+DELETE /research-file/files/{key...}        删除本地文件（顺带清空目录）                               (JWT)
+```
+
+**关键验证**：
+- 全链路：presign → multipart 上传 → 下载字节一致 → Range 206 → 删除
+- 一次性 token：重复使用同一 upload URL → 400「invalid upload token」
+- 路径穿越防护：`resolveKey` 强制 key 落在 uploadDir 内（同后端 startsWith 检查）
+- **旧 PDF 代理兜底**：本地无此文件时带 `X-Internal-Token` 转后端 `/api/files/{key}`——真实返回
+  后端存储的论文 PDF（Clemins.pdf 327KB，200）→ 双认证阶段前端可经 DSH 统一读取新旧 PDF
+- 鉴权：无 token 下载/删除 401；`/research-auth` 签发的 token 直接可用
+
+> 双认证阶段说明：新上传走本 bundle 本地目录，旧后端已有 PDF 走代理兜底（macOS 下 docker 卷
+> 对宿主机不可直接读，故不直读）。S3 分支未实现（当前 `STORAGE_TYPE=local`，与后端一致）。
 
 ## 下一步（Phase 1-2 遗留）
 
