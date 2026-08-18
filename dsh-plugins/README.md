@@ -24,6 +24,7 @@
 | `research-export` | ✅ Phase 3 剩余域 | 导出+引用 bundle：单篇/批量 BibTeX+RIS、APA/MLA/GB7714 引用与参考文献（渲染与后端逐字节一致；批量强制 user_id 过滤） |
 | `research-settings` | ✅ Phase 3 剩余域 | 用户设置 bundle：GET/PUT/PATCH app_user.settings（llm/translation/knowledge 三段，非空字段合并） |
 | `research-subscription` | ✅ Phase 3 剩余域 | 订阅 bundle：plans / Stripe checkout（REST+错误路径）/ webhook（HMAC 签名校验 + 只升不降升级） |
+| `ui-research-hello` | ✅ Phase 4 可行性证明 | 最小客户端 UI 包：声明 dsh.client + lib/client.js（__ModuleLoader__ 格式），sidebar 底部面板调 /research-project 显示项目数；boot 自动注入 + client.js 服务已验证 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -444,6 +445,27 @@ dsh plugin --profile web add .../research-folder                 → 重启
 - Phase 0 遗留的 `research-hello` 孤儿符号链接已从 profile node_modules 清理
 - **旧 Spring Boot 控制器下线**：留待 Phase 4 前端切到 `:3080` 后按 plan.md 下线映射逐个执行
   （当前前端仍直连 backend `/api/*`，双认证阶段保留 backend 不破坏现有功能）
+
+## Phase 4：UI 可行性证明（out-of-tree 客户端包）✅ 2026-08-17
+
+**核心结论：out-of-tree DSH 客户端 UI 包免重建 web app**，机制已验证：
+
+```
+dsh-plugins/ui-research-hello/
+  package.json     dsh.client: {platform:"web"} + exports["./client"] → lib/client.js
+  lib/index.js     node half（空 apply，使包成为 loader 条目）
+  lib/client.js    浏览器 half：window.__ModuleLoader__.load({id, factory}) 格式，
+                   注册 sidebar.footer.action 面板 → fetch /research-project 显示项目数
+```
+
+`dsh plugin add` + 重启后，`dsh-client-modules` 自动扫描 → boot 清单注入新条目
+（`@researchos/ui-research-hello → /plugins/.../client.js?rev=...`）→ 浏览器 GUI 自动加载。
+已验证：boot 39 条目包含新包、client.js 以 text/javascript 正常服务、rev 命中 200、
+其余 bundle 不受影响。
+
+**查看效果**：打开 `http://127.0.0.1:3081` 侧边栏底部（📚 ResearchOS · N projects）。
+后端 bundle 的 `/research-project` 等接口已就绪，后续 `ui-research-library` 等页面
+按此机制逐个构建（组件需遵循 slot/props 规范，见 DSH `packages/client/AGENTS.md`）。
 
 ## 下一步（Phase 1-2 遗留）
 

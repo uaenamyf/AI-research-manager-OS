@@ -194,6 +194,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | RabbitMQ 任务下发/回调、ai-service MQ 消费 | 保留至 AI 能力完全迁入 DSH（Phase 5 移除 MQ） |
 
 ### Phase 4 — 前端 DSH React 重写（4–6 周，与 Phase 3 并行）
+- [x] **可行性证明** ✅ 2026-08-17：`@researchos/ui-research-hello`（最小 out-of-tree 客户端包）——声明 `dsh.client` + `exports["./client"]` + 手写 `lib/client.js`（`__ModuleLoader__.load` 格式），注册 `sidebar.footer.action` 面板调用 `/research-project` 显示项目数；**机制已验证**：boot 清单自动注入新条目（39 条目中出现 `@researchos/ui-research-hello`）、`/plugins/<id>/client.js` 正常服务（content-type text/javascript，rev 命中）。结论：**out-of-tree UI 包无需重建 web app**，`dsh plugin add` + 重启即被浏览器 GUI 加载。渲染效果待浏览器查看 `http://127.0.0.1:3081` 侧边栏底部。
 - [ ] `ui-research-library` / `ui-research-paper`（核心）。
 - [ ] `ui-research-literature` / `ui-research-writing` / `ui-research-assistant` / `ui-research-dashboard` / `ui-research-settings`。
 - [ ] Next.js 前端下线，浏览器只访问 `:3080`。

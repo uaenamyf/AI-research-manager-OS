@@ -1,0 +1,5 @@
+# Phase 4 feasibility proof: mounts the minimal ResearchOS client UI bundle over the profile.
+# Node half (empty) makes it a loader entry; dsh.client drives the browser boot entry.
+- insert:
+    - id: ui-research-hello
+      name: '@researchos/ui-research-hello'
