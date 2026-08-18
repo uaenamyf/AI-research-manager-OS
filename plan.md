@@ -260,6 +260,18 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - 网关限流 ✅ 2026-08-18：per-client 令牌桶（RESEARCH_GATEWAY_RPM 默认 120/min，按 Authorization/X-API-Key/IP 分桶，429+retry-after）；实测 130 连发 → 101×200 + 29×429。
 - key 收口 ✅ 达成验收（env 单点：`.env` → dsh-gateway.sh → 网关，key/模型/限流集中管理）；`ctx.credentials` 深度迁移记为可选增强（web profile 未挂载 credentials 服务）。
 
+### Phase 5+：研究区独立区域（用户需求修正，2026-08-18）
+
+**需求**：ResearchOS 不完全融入 agent 会话——文献查看/综述生成等独立成左侧菜单「研究区」，与「工作区」并列；
+agent 协作部分（MCP 工具 + 聊天节点）保留。
+
+**实现**（详见 `dsh-plugins/README.md`）：
+1. DSH shell 受控补丁（`dsh-plugins/patches/ui-sidebar-research.patch`）：ui-sidebar 新增 `sidebar.research`
+   坑位 + 「工作区|研究区」分段切换器（需重建 ui-sidebar bundle；补丁随 checkout 重装需重新 apply）
+2. 新 out-of-tree 包 `ui-research-workspace`：注册 `sidebar.research`，研究区外壳（认证门 +
+   文献库/综述/写作/设置 四页，调 /research-* API）
+3. 验证：boot 50 条目含 12 researchos UI，无加载错误；浏览器视觉效果待确认
+
 ### Phase 5 — 数据迁移与收尾（1–2 周）
 
 - [x] MySQL/PG 数据核对、向量维度与网关 embedding 对齐 ✅ 2026-08-18（详见下方「Phase 5 数据核对结果」）。
