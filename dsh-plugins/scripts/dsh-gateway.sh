@@ -62,6 +62,8 @@ start() {
   export RESEARCH_STRIPE_PRICE_PRO="${RESEARCH_STRIPE_PRICE_PRO:-$(grep '^STRIPE_PRICE_PRO=' "$ENV_FILE" | cut -d= -f2- || true)}"
   export RESEARCH_STRIPE_PRICE_RESEARCHER="${RESEARCH_STRIPE_PRICE_RESEARCHER:-$(grep '^STRIPE_PRICE_RESEARCHER=' "$ENV_FILE" | cut -d= -f2- || true)}"
   export RESEARCH_FRONTEND_BASE_URL="${RESEARCH_FRONTEND_BASE_URL:-http://localhost:3000}"
+  # Phase 5 AI 管道迁入 DSH 开关（research-paper/review 直调 research-ai-worker，不发 MQ）
+  export RESEARCH_AI_INLINE="$(grep '^RESEARCH_AI_INLINE=' "$ENV_FILE" | cut -d= -f2- || true)"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.

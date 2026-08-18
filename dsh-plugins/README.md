@@ -693,8 +693,10 @@ paper.delete）的 TS/Node 移植，直连 MySQL + PG，LLM/embedding 走统一�
 review → 10300 字符 Markdown 综述（[P1] 引用）；cleanup → 删除成功。测试数据已还原。
 
 **集成（env 门控）**：`research-paper` / `research-review` 在 `RESEARCH_AI_INLINE=1` 时改调 worker
-（HTTP + X-Internal-Token），默认关保持 MQ 管道。切换 = `dsh plugin add research-ai-worker` +
-设 env + 重启（见 plan.md Phase 5）。**已知问题**：research-file legacy 代理大文件偶发截断
-（worker 已 backend 直连优先规避；代理补丁随 GUI PDF 查看器处理）。
+（HTTP + X-Internal-Token），默认关保持 MQ 管道。**✅ 已切换并端到端验证（2026-08-18）**：
+worker 装进 profile + `.env` 设 `RESEARCH_AI_INLINE=1`（dsh-gateway.sh 新增导出）→ 重启 →
+create/analyze（47 chunks→READY）、review（SUCCESS 综述）、delete（chunk 清理）全通，
+ai-service 零 MQ 消息；回退 = 置 0 重启。**已知问题**：research-file legacy 代理大文件
+偶发截断（worker 已 backend 直连优先规避；代理补丁随 GUI PDF 查看器处理）。
 
 ## 下一步（遗留）

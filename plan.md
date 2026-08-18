@@ -301,7 +301,13 @@ cli.js          独立 CLI：node cli.js analyze|cleanup|review（不重启 dsh 
 **集成（已编码，env 门控默认关 = MQ 管道不变，重启后一键切换）**：
 - `research-paper`：`RESEARCH_AI_INLINE=1` 时 create/import 触发改调 `/research-ai-worker/analyze`、DELETE 改调 `/cleanup`（X-Internal-Token），否则保持 MQ
 - `research-review`：`RESEARCH_AI_INLINE=1` 时 generate 改调 `/research-ai-worker/review`（顺带补上 llmOverride 透传），否则保持 MQ
-- **切换步骤**：`dsh plugin add research-ai-worker` → 设 `RESEARCH_AI_INLINE=1` → 重启 GUI → 验证端到端 → 观察期后移除 RabbitMQ/ai-service MQ 消费（Phase 5 出口）
+- **切换步骤（✅ 2026-08-18 已执行并验证）**：`dsh plugin add research-ai-worker` → `.env` 设 `RESEARCH_AI_INLINE=1`（dsh-gateway.sh 新增导出）→ 重启 GUI → 端到端验证全部通过：
+  - paper 56 create → inline worker 分析（日志 47 chunks → READY，真实 Card 落库）→ PG 47 chunks
+  - review task 10-21 全部 SUCCESS（7.5K-10.5K 字符真实综述，RAG 12 chunks）
+  - paper delete → inline cleanup → PG chunks 清零
+  - **ai-service 日志零 MQ 消息**（分析/综述均绕过 RabbitMQ，0 条）→ 观察期后可移除 RabbitMQ/ai-service MQ 消费（Phase 5 出口）
+  - 测试数据（用户/项目/论文/任务）已全部还原
+- 回退：`RESEARCH_AI_INLINE=0` 重启即回 MQ 管道（ai-service 消费者仍在线）
 - 回退：去掉 env 或卸载 worker 并重启
 
 **已知问题（待下次重启验证）**：research-file 的 legacy 代理（fetch backend 后转发）在经 dsh 进程响应大文件（>300KB）时偶发截断（curl exit 18 / undici terminated，backend 直连无此问题）。worker 已用 **backend 直连优先**规避（与 ai-service 同路径）；research-file 代理健壮性补丁（timeout + connection 控制）与 GUI PDF 查看器（v0.2）一并处理。
