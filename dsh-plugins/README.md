@@ -30,6 +30,7 @@
 | `ui-research-citation` | ✅ Phase 4 v0.1 | 引用卡片聊天节点：literature_cite → BibTeX/RIS 等宽渲染 + 复制按钮 |
 | `ui-research-dashboard` | ✅ Phase 4 v0.1 | 统计面板节点：用户消息关键词触发（dashboard/仪表盘/统计）→ 自取数（项目/论文/套餐/最近项目） |
 | `ui-research-writing` | ✅ Phase 4 v0.1 | 写作面板节点：关键词触发 + 动作/文本提取 → 调 /research-writing/rewrite 显示改写结果 |
+| `ui-research-settings` | ✅ Phase 4 v0.1 | 设置面板节点：关键词触发（设置/settings/配置）→ 读 /research-settings 表单编辑 + PATCH 保存 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -552,6 +553,22 @@ Definition 提取：
 `/research-writing/rewrite` 端到端（真实润色输出）；boot 注入 6 个 research UI 条目。
 
 **浏览器效果**：发送「润色这段：The results are good.」→ 写作面板预填文本，点「改写」出结果。
+
+## Phase 4：ui-research-settings v0.1（设置面板节点）✅ 2026-08-17
+
+关键词触发（设置/settings/配置/config）→ **设置面板**：
+
+```
+加载：GET /research-settings → 三段表单（LLM 配置 / 翻译配置 / Knowledge-RAG）
+编辑：Provider / Base URL / 默认模型 / 温度 / 默认模式 / 目标语言 / 机器翻译商 / top_k
+保存：PATCH /research-settings（仅非空字段）→ 「已保存 ✓」
+```
+
+**验证**：触发逻辑（设置/settings/配置 命中、无关消息不触发）；GET/PATCH 端到端
+（llm.baseUrl/defaultModel + knowledge.retrieveTopK 保存成功，测试数据已还原）；
+boot 注入 7 个 research UI 条目。
+
+**浏览器效果**：发送「打开设置」→ 设置面板出现，编辑后点「保存」。
 
 ## 下一步（Phase 1-2 遗留）
 
