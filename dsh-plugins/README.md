@@ -20,6 +20,7 @@
 | `research-file` | ✅ Phase 3 文献域 | 文件存储 bundle：upload-url presign / multipart 上传 / 下载(全量+Range) / 删除（~/.researchos/uploads，路径穿越防护），旧后端 PDF 代理兜底读取 |
 | `research-writing` | ✅ Phase 3 AI 域 | 写作 Agent bundle：6 动作 LLM 改写（走共享网关 + llmOverride 直连/回退）+ MyMemory 机器翻译；prompt 与 ai-service 同源 |
 | `research-review` | ✅ Phase 3 AI 域 | 综述生成 bundle：任务 create + MQ review.generate + 轮询（ai-service 消费→RAG→LLM→回调 backend→SUCCESS 全链路已验） |
+| `research-paper-card` | ✅ Phase 3 AI 域 | Paper Card bundle：POST /generate {text} → 共享网关生成结构化 12 字段 Card（prompt 与 ai-service 同源，JSON 容错解析） |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -360,6 +361,25 @@ paperIds 404 / 空数组 400 / 无 token 401。
 
 > llmOverride：backend 从用户设置构建后随 MQ payload 携带（`research-settings` bundle
 > 落地后本 bundle 同步支持）。
+
+## Phase 3：research-paper-card bundle（Paper Intelligence Card 生成）✅ 2026-08-17
+
+AI 域收尾 bundle，替代 ai-service paper_agent 的 Card 生成，prompt 与
+`app/agents/prompts/paper_card.py` 同源，LLM 走**共享网关**（需求 3）：
+
+```
+POST /research-paper-card/generate   { text } -> card   (JWT)
+```
+
+**生成逻辑（镜像 paper_agent）**：文本截断 12000 字符 → PAPER_CARD_SYSTEM（严格 JSON 约束）→
+共享网关 → 容错解析（剥 markdown 围栏/JSON 边界提取）→ 字段默认值填充。
+
+**验证**：真实论文文本 → 完整 12 字段 Card（title/authors/year/doi/keywords×8/abstract/workflow/
+method/finding/limitation/future_work/tags×5 带 name+category），method「MFCC+SVM 半自动声纹
+流水线」、finding「99.5% 个体识别准确率」等真实内容；空文本 400、无 token 401。
+
+> skill/agent 形态（供 DSH agent 直接调用）留待 Phase 4 前端接入时注册；
+> 管道集成（MQ 消费 + PG chunk 组装）随 ai-service 下线（Phase 5）迁移。
 
 ## 下一步（Phase 1-2 遗留）
 

@@ -124,7 +124,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | WritingController + ai | `research-writing` | ✅ 已实现（2026-08-17）：写作 Agent（6 动作 LLM 改写走共享网关 + llmOverride 直连/回退 + MyMemory 机器翻译），prompt 与 ai-service 同源 |
 | ExportController / CitationController | `research-export` / `research-citation` | 批量 BibTeX/RIS、参考文献 |
 | SettingsController / SubscriptionController | `research-settings` / `research-subscription` | 用户设置、订阅 |
-| ai-service paper_agent | `research-paper-card`（skill/agent） | Paper Intelligence Card 生成（llm/embedding 走共享网关） |
+| ai-service paper_agent | `research-paper-card`（skill/agent） | ✅ 已实现（2026-08-17）：POST /generate {text} → 共享网关生成结构化 Card（12 字段，prompt 与 ai-service 同源，JSON 容错解析）；skill/agent 形态留待 Phase 4 接入 DSH agent |
 
 > AI 能力（paper/review/writing agent）**保留原有逻辑语义**，以 DSH 的 agent/skill/tool 形态重写，
 > LLM/embedding 调用统一指向共享网关（需求 2+3 的结合点）。
@@ -175,7 +175,8 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 - [x] `research-paper` ✅ 2026-08-17：create/import(Crossref 补全)/list(folderId: null=根/-1=全部)/detail/status/card/move/reading/delete；MQ 全链路已验——创建发 paper.analyze 被 ai-service 消费并回调状态，删除发 paper.delete 被 ai-service 清理 chunk；配额开关 ENFORCE_QUOTA；upload-url 501（双认证阶段上传走旧后端）。
 - [x] `research-file` ✅ 2026-08-17：本地文件存储——upload-url presign→multipart 上传→下载(全量+Range 206)→删除（~/.researchos/uploads，路径穿越防护）；旧后端已有 PDF 经代理兜底读取（Clemins.pdf 327KB 真实返回）；**核心文献域 4 bundle 全部完成**。
 - [x] `research-writing` ✅ 2026-08-17：写作 Agent bundle——6 动作 LLM 改写（prompt 与 ai-service 同源，走共享网关；llmOverride 直连 + 失败回退系统默认；代码围栏剥离）+ MyMemory 机器翻译（源语言检测/500 字截断/配额检查）。
-- [x] `research-review` ✅ 2026-08-17：综述生成 bundle——POST /generate（校验论文归属→ai_task PENDING→MQ review.generate，失败回滚）+ GET /:taskId（归属校验）；**全链路已验**：真实生成综述（ai-service 消费→RAG 12 片段→LLM→回调 backend→任务 SUCCESS，markdown 含 [P3] 引用）；`research-paper-card` 待做。
+- [x] `research-review` ✅ 2026-08-17：综述生成 bundle——POST /generate（校验论文归属→ai_task PENDING→MQ review.generate，失败回滚）+ GET /:taskId（归属校验）；**全链路已验**：真实生成综述（ai-service 消费→RAG 12 片段→LLM→回调 backend→任务 SUCCESS，markdown 含 [P3] 引用）。
+- [x] `research-paper-card` ✅ 2026-08-17：Paper Intelligence Card bundle——POST /generate {text}（12000 字符截断→共享网关→严格 JSON 12 字段：title/authors/year/doi/keywords/abstract/workflow/method/finding/limitation/future_work/tags，容错解析+字段默认值）；真实论文文本生成完整 Card 已验。**AI 域 3 bundle（writing/review/paper-card）全部完成**。
 - [ ] `research-export` / `research-citation` / `research-settings` / `research-subscription`。
 - [ ] 每个 bundle 完成后：旧 Spring Boot 对应控制器下线、`dsh plugin` 可单独卸载验证。
 - **出口**：业务全量跑在 DSH 进程内，Spring Boot 下线；profile 卸载任一 bundle 不破坏其他功能。
