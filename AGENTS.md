@@ -10,6 +10,44 @@
 
 ---
 
+## 0. 融合现状（2026-08-18）
+
+> ResearchOS 已融入 DeepSeek Harness（DSH）：融合方案见根 `plan.md`，bundle 实现记录见 `dsh-plugins/README.md`，开发分支 `feat/dsh-integration`（`dev` 保持原工程可运行状态，作为回退基线）。
+
+### 0.1 当前形态
+
+- **DSH 单实例驻 `127.0.0.1:3080`**（`dsh-plugins/scripts/dsh-gateway.sh` 启动，自动注入 `.env` 的 key / JWT / MySQL 等环境变量），单个 DSH 进程承载：
+  - **统一 LLM 网关 `research-llm-gateway`**（plan.md 中称 `dsh-llm-gateway`）：OpenAI 兼容直连代理，`POST /v1/chat/completions` + `POST /v1/embeddings`；上游 key/模型单点收口（chat `ark-code-latest` / embedding `doubao-embedding-vision`，来源 `.env`）。
+  - **12 个 `research-*` 业务 bundle**：auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway；经 `ctx.webServer` 暴露 `/research-*` 路由，直连 MySQL（业务表）+ PG（`paper_chunk` 向量）。
+  - **`research-mcp`**：stdio MCP server（`research-mcp/server.js`，由 dsh mcp-client 拉起），工具 `literature_search` / `literature_get` / `literature_cite` / `vector_search`，向 DSH agent 暴露文献检索/读取/引用/向量检索。
+  - **11 个 `ui-research-*` UI 包**（hello 探针 + 10 个业务节点）：聊天节点（library / paper / citation）+ 关键词触发面板（dashboard / writing / settings / literature / review / upload / project 等），遵循 DSH `ConversationNodeDefinition` / slot / props 规范接入浏览器 GUI。
+- **前端 = DSH GUI**：Next.js（:3000）已停（`docker compose --profile app stop frontend`），可随时回退（`start frontend`）。
+- **backend（Spring Boot :8080）与 ai-service（FastAPI :8000）仍在运行**：处于双认证 + MQ 管道过渡期；RabbitMQ 保留至 AI 管道迁入 DSH（`q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` 仍被 ai-service 消费）；Redis 未使用（0 key、无引用）可移除。
+
+### 0.2 契约要点
+
+- 统一响应 `{ code, message, data }`，分页 `?page=&size=`（沿用 §3）。
+- **双认证**：bundle 与旧 Spring Boot 共享同一 `JWT_SECRET`（HS256，`sub/email/plan/iat/exp` + bcrypt），token 双向互通，前端切换无需重新登录。
+- 内部调用带 `X-Internal-Token`（bundle ↔ backend 代理兜底等）。
+- **bundle 查询强制 `user_id` 过滤**（越权 404），沿用 §3 / §10 铁律。
+
+### 0.3 委派规则更新（§4 基础上新增）
+
+| 任务关键词 | 委派给 |
+| --- | --- |
+| DSH bundle 开发/验证（research-\* 业务域、llm-gateway、research-mcp） | dsh 域 agent |
+
+- 改动 DSH 插件（`dsh-plugins/`）必须遵循 `dsh-plugins/README.md` 的包结构规范：`package.json` 声明 `dsh.bundle`（插件）或 `dsh.client`（客户端 UI 包）、`cordis.patch.yml` 自挂载（`- insert:` 行）、`index.js` `export function apply(ctx)`（Cordis 插件形态）。
+- UI 包遵循 DSH `packages/client/AGENTS.md` 的 slot / props 规范（`ConversationNodeDefinition` 等）。
+- 安装/启停/卸载走 `dsh plugin --profile web add|remove`；「可拔插」（卸载不破坏其余功能）是验收项。
+
+### 0.4 适用范围
+
+- 本文档 §1-§10 仍适用于**仍在运行的 legacy 三服务**（backend / ai-service 开发；frontend 仅回退场景）。
+- 融合相关新工作（bundle / MCP / 网关 / UI 包）以本章节 + `plan.md` + `dsh-plugins/README.md` 为准；契约变更同步更新 `Implementation/` 与 `plan.md`。
+
+---
+
 ## 目录
 
 1. [协作模型总览](#1-协作模型总览)
@@ -26,6 +64,8 @@
 ---
 
 # 1. 协作模型总览
+
+> ⚠️ 融合现状见 §0：前端已切换为 DSH GUI（:3080），backend / ai-service 仍在运行；本节描述的三服务架构适用于仍在运行的 legacy 服务。
 
 本项目是 **monorepo + 三服务**架构：
 
@@ -50,6 +90,8 @@
 # 2. 三个服务及其 Agent 角色
 
 ## 2.1 frontend（Next.js）
+
+> （融合现状见 §0：Next.js :3000 已停，当前前端 = DSH GUI，可回退）
 
 - **定位**：用户交互层，纯展示 + 状态管理。
 - **开发 agent 角色**：前端工程师。

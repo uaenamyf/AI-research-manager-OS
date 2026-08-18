@@ -1,5 +1,45 @@
 # 10 - 前端实现（Next.js）
 
+## 融合现状（2026-08-18）
+
+> **本小节描述融合后的实际状态（以此为准）。下方原 Next.js 内容为 legacy 参考（该工程已下线，仅作历史参考）。**
+
+### 浏览器单一入口：DSH GUI（:3080）
+
+- **Next.js 前端（:3000）已下线**：2026-08-18 执行 `docker compose --profile app stop frontend`，`:3000` 连接拒绝（容器 Stopped）。
+- **回退**：`docker compose --profile app start frontend` 可随时恢复（回退命令保留，未执行）。
+- **浏览器单一入口改为 DSH GUI**：`http://127.0.0.1:3080`（DSH 单实例，`dsh-plugins/scripts/dsh-gateway.sh` 启动，自动注入 `.env` 的 LLM key/模型 + `JWT_SECRET` + MySQL/RabbitMQ/Stripe env + `RESEARCH_GATEWAY_URL=http://127.0.0.1:3080`）。
+- 原 Next.js 页面功能已由 **11 个 `ui-research-*` 客户端包**覆盖（覆盖矩阵见根 `plan.md`「Phase 4 出口」）。
+
+### ui-research-\* 客户端包清单（11 个）
+
+客户端 UI 包 = 聊天节点 / 关键词触发面板，经 DSH `ConversationNodeDefinition` 体系接入浏览器 GUI 会话流：
+
+| 包 | 形态 | 触发方式 |
+| --- | --- | --- |
+| `ui-research-hello` | 最小探针（sidebar 底部面板） | 常驻显示（无需触发） |
+| `ui-research-library` | 文献库富卡片聊天节点 | 标准 tool 事件匹配：`literature_search`（MCP 工具） |
+| `ui-research-paper` | Paper Intelligence Card 聊天节点 | 标准 tool 事件匹配：`literature_get` |
+| `ui-research-citation` | 引用卡片聊天节点（BibTeX/RIS + 复制按钮） | 标准 tool 事件匹配：`literature_cite` |
+| `ui-research-dashboard` | 统计面板节点（自取数） | 用户消息关键词：dashboard / 仪表盘 / 统计 / stats |
+| `ui-research-writing` | 写作面板节点（6 动作改写） | 用户消息关键词：写作 / 改写 / 润色 / 扩写 / 缩写 / 翻译 / 审稿 / cover letter 等 |
+| `ui-research-settings` | 设置面板节点（LLM/翻译/Knowledge 三段表单） | 用户消息关键词：设置 / settings / 配置 / config |
+| `ui-research-literature` | 文献检索面板节点（查询词预填） | 用户消息关键词：文献检索 / 搜文献 / 检索文献 / literature / search paper |
+| `ui-research-review` | 综述生成面板节点（主题 + 选论文 + 轮询） | 用户消息关键词：综述 / 文献综述 / review |
+| `ui-research-upload` | 上传面板节点（三步上传） | 用户消息关键词：上传 / upload / 上传文献 / 上传论文 |
+| `ui-research-project` | 项目/文件夹树管理面板节点 | 用户消息关键词：项目 / 项目管理 / 文件夹 / 目录 |
+
+> 工具类节点（library/paper/citation）按 MCP 文献工具分流渲染；面板类节点（dashboard/writing/settings/literature/review/upload/project）按用户消息关键词触发。`ui-research-assistant` 由 DSH 会话天然承担，无需专门页面。
+
+### boot 清单 49 条目机制（out-of-tree 客户端包注入）
+
+- 客户端 UI 包是 **out-of-tree 包**（`dsh-plugins/ui-research-*`，不进 DSH 官方仓库）：`package.json` 声明 `dsh.client`（`{platform:"web"}`）+ `exports["./client"]` → `lib/client.js`（浏览器 half，`window.__ModuleLoader__.load` 格式）+ `lib/index.js`（node half，空 apply）。
+- `dsh plugin add` + 重启后，`dsh-client-modules` 自动扫描 → **boot 清单注入新条目**（当前 **49 条目**，含 11 个 research UI 包）：`@researchos/ui-* → /plugins/<id>/client.js?rev=...`。
+- 浏览器 GUI 启动时按清单加载 `/plugins/<id>/client.js`（content-type `text/javascript`，rev 命中 200）→ 节点自动注册。
+- **关键结论：out-of-tree 客户端包注入无需重建 web app**，`dsh plugin add` + 重启即被 GUI 加载；卸载即移除（可拔插）。
+
+> 注：以下为 legacy 描述（Next.js 工程已下线，仅作历史参考，不再维护）。
+
 > **实现状态**：API 客户端层、类型定义、布局/业务组件、7 Feature 页面骨架均已生成。工程配置文件（package.json/tailwind.config/next.config 等）待用脚手架初始化。
 
 ## 目录结构

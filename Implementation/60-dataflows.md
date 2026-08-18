@@ -1,5 +1,58 @@
 # 60 - 核心数据流
 
+## 融合现状（2026-08-18）
+
+> ResearchOS 已融入 DeepSeek Harness（DSH）：业务能力由 12 个 research bundles（auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway）+ research-mcp（stdio MCP server）承载，统一 LLM 网关为 research-llm-gateway（驻 127.0.0.1:3080，OpenAI 兼容 `/v1/chat/completions` + `/v1/embeddings`）。前端 = DSH GUI（Next.js :3000 已停，可回退）。
+> 本节补充 DSH 侧四条数据流；下方 6.1 / 6.4 / 6.5（上传分析 / Review / 删除论文）等 legacy 链路仍有效、保留。
+
+### ① Bundle CRUD 流（同步 REST）
+
+```
+[DSH Web GUI / 外部客户端]
+    ↓ HTTP（JWT 双认证：DSH 与 backend 共享 JWT_SECRET，HS256，token 互通）
+[ctx.webServer 前缀路由 /research-*]
+    ↓
+[research-auth / research-project / research-folder / research-paper bundle]
+    ├── mysql2 直连 MySQL 业务表（app_user / research_project / folder / paper）
+    └── 返回统一契约 {code, message, data}（分页 ?page=&size=）
+```
+
+- 认证走共享 `JWT_SECRET`（HS256）双认证，token 与 backend 双向互通；内部调用带 `X-Internal-Token`；bundle 查询强制 `user_id` 过滤（越权 404）。
+
+### ② MQ 异步流（不变）
+
+- DSH bundle 仍将异步任务发到 RabbitMQ exchange `researchos.ai.task`（消息 `{taskId, type, payload}`），由 ai-service（:8000）消费处理，完成后 HTTP 回调 backend（:8080）更新 paper / ai_task 状态。
+- 与融合前一致，仅消息**生产方**新增 DSH bundle（research-paper / research-review），拓扑与格式见 `70-async-mq.md`。
+
+### ③ MCP 文献流
+
+```
+[DSH agent（LLM）]
+    ↓ 调用 ctx.tools 中注册的 MCP 工具（research-mcp 由 dsh mcp-client 拉起，stdio）
+[research-mcp（stdio MCP server）]
+    ├── mcp__research__literature_search           文献检索（MySQL paper 表）
+    ├── mcp__research__literature_get              按 id 读取文献元数据 + 摘要
+    ├── mcp__research__literature_cite             生成引用（bibtex / ris）
+    └── mcp__research__literature_vector_search    向量语义检索（PG paper_chunk）
+    ↓
+[DSH UI 聊天节点渲染检索 / 引用结果]
+```
+
+### ④ 统一 LLM 网关流
+
+```
+[research-writing / research-review / research-paper-card bundle]
+    │
+    ├─ POST http://127.0.0.1:3080/v1/chat/completions（chat 模型 ark-code-latest）
+    └─ POST http://127.0.0.1:3080/v1/embeddings（embedding 模型 doubao-embedding-vision，2048 维）
+[ai-service（FastAPI :8000）]  ← 同样走 127.0.0.1:3080/v1 网关（RESEARCH_GATEWAY_URL=http://127.0.0.1:3080）
+```
+
+- 统一网关 = research-llm-gateway bundle（驻 3080），OpenAI 兼容直连代理，上游 `RESEARCH_LLM_UPSTREAM_BASE_URL=https://ark.cn-beijing.volces.com/api/coding/v3`，key/模型单点收口于 `.env`。
+- DSH 单实例驻 127.0.0.1:3080（`dsh-plugins/scripts/dsh-gateway.sh` 启动），自动注入 LLM key/模型 + JWT_SECRET + MySQL / RabbitMQ / Stripe env + `RESEARCH_GATEWAY_URL`。
+
+> 融合前三条核心链路（上传分析 / Chat / Review）语义不变、保留：上传分析见 6.1，Review 生成见 6.4，删除论文跨库清理见 6.5；Chat（RAG 流式）沿用 backend → ai-service `/rag/chat/stream`（SSE）链路（见根 `AGENTS.md` §3.2 / §6）。
+
 ## 6.1 上传论文 -> AI 分析（异步）
 
 ```

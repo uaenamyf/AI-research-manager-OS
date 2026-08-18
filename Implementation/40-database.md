@@ -1,5 +1,14 @@
 # 40 - 数据库 schema 与迁移
 
+## 融合现状（2026-08-18）
+
+> 本节记录 ResearchOS × DSH 融合后的数据库访问现状；下方 legacy 小节（连接配置 / 建表脚本 / 数据迁移）仍有效，作为历史实现与契约依据保留。
+
+- **双库架构不变**：MySQL（researchos）仍为业务数据源（app_user / research_project / folder / paper / ai_task），PostgreSQL 仍为向量库（仅 `paper_chunk`）。
+- **访问方变更（Java/Python → DSH bundle）**：除 backend（JDBC + MyBatis-Plus）与 ai-service（asyncpg）外，融合后新增 DSH bundle 直连——`research-auth` / `research-project` / `research-folder` / `research-paper` 等 bundle 用 **mysql2** 直连 MySQL 业务表、用 **pg** 直连 PG `paper_chunk`（向量读写），连接配置由 `dsh-gateway.sh` 注入 `.env` 环境变量。backend（:8080）与 ai-service（:8000）仍运行，原连接保留。
+- **embedding 维度对齐（已实测）**：`paper_chunk.embedding` 现为 **vector(2048)**，与统一 LLM 网关（research-llm-gateway，127.0.0.1:3080，`POST /v1/embeddings`）的 embedding 模型 **doubao-embedding-vision（2048 维）** 对齐，已实测通过（见「PostgreSQL 向量表」节纠错说明）。
+- **跨库一致性不变**：双库仍无物理外键（`paper_chunk.paper_id` 为逻辑外键），删除论文仍走 MQ `paper.delete` 由 ai-service 清理 PG chunk。2026-08-18 实际清理过 **3 篇已删论文的 428 个孤儿 chunk**（PG `paper_chunk` 569 → 141），清理后与 MySQL `paper` 论文集合完全一致。
+
 ## 双库架构（最终决定）
 
 **业务数据放 MySQL，AI 向量数据放 PostgreSQL（pgvector）**：
@@ -26,6 +35,9 @@ MySQL (researchos)                    PostgreSQL (researchos)
   - `DATABASE_URL=postgresql+asyncpg://researchos:researchos@localhost:5432/researchos`（向量池）
   - `MYSQL_URL=mysql://researchos:researchos@localhost:3306/researchos`（元数据池，只读 paper 等）
 - **Flyway 已禁用**（`spring.flyway.enabled: false`）：schema 由 `db/migration-mysql/V1__init.sql` 手工执行，避免与旧 PG 迁移混用。
+
+> 2026-08-18 融合现状：以上 JDBC / asyncpg 连接为 backend / ai-service 的 legacy 连接（两者仍运行）。
+> 融合后 DSH bundle 直连 MySQL / PG 的配置由 DSH 实例（127.0.0.1:3080，`dsh-gateway.sh` 注入 `.env`）侧提供，见「融合现状」节。
 
 ## MySQL 业务表（db/migration-mysql/V1__init.sql）
 
@@ -129,7 +141,7 @@ CREATE TABLE paper_chunk (
     paper_id  BIGINT NOT NULL,      -- 逻辑外键 → MySQL paper.id（无物理约束）
     section   VARCHAR(64),          -- abstract/intro/methods/results/discussion/references
     content   TEXT,
-    embedding vector(1536)          -- 对应 embedding 模型输出维度
+    embedding vector(2048)          -- 2026-08-18 融合后：统一网关 doubao-embedding-vision 2048 维（历史 1536 见下）
 );
 CREATE INDEX idx_chunk_paper ON paper_chunk(paper_id);
 CREATE INDEX idx_chunk_section ON paper_chunk(section);
@@ -138,6 +150,11 @@ CREATE INDEX idx_chunk_section ON paper_chunk(section);
 > 注意：embedding 维度须与 `EMBEDDING_DIM` 对齐。当前 `.env` 为 **1536**（`text-embedding-3-small`）；
 > 若换 doubao-embedding-vision（2048 维），需同步修改本表定义。MVP 不做向量索引
 > （1536 维可建 ivfflat/hnsw，但数据量小时全表扫描 + `paper_id` 过滤即可）。
+>
+> ⚠️ 2026-08-18 融合现状（纠错）：上述 1536（`text-embedding-3-small`）为融合前的 legacy 配置。
+> 融合后 embedding 统一走 research-llm-gateway 的 `doubao-embedding-vision`（**2048 维**），
+> `paper_chunk.embedding` 已实测为 **vector(2048)** 并与网关输出维度对齐；向量检索仍为
+> `paper_id` 过滤 + 全表扫描（MVP 不建索引）。
 
 ## 关键设计点
 
@@ -145,6 +162,7 @@ CREATE INDEX idx_chunk_section ON paper_chunk(section);
 - **paper_chunk.section**：RAG 按论文结构切分的关键，检索时可按 section 过滤。
 - **所有业务表带 user_id**：多租户隔离的物理基础（即使能从 project 推导，也冗余存 user_id 加速鉴权查询）。
 - **跨库一致性**：`paper_chunk.paper_id` 无物理外键。删除论文流程 = backend 删 MySQL `paper` 行 + 发 MQ `paper.delete` 通知 ai-service 清理 PG `paper_chunk`（见 `70-async-mq.md`，2026-08-15 已实现）。
+  - 2026-08-18 融合现状：消息生产方除 backend 外新增 DSH `research-paper` bundle（同样发 `paper.delete`）；当日实际清理 3 篇已删论文的 428 个孤儿 chunk（PG `paper_chunk` 569 → 141），与 MySQL `paper` 论文集合一致。
 - **ivfflat**：MVP 不建向量索引（数据量小，`paper_id` 过滤 + 全表扫描即可）。
 
 ## 数据迁移（PG → MySQL）

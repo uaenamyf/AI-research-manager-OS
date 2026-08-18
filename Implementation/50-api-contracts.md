@@ -1,6 +1,61 @@
 # 50 - 关键 API 契约
 
+## 融合现状（2026-08-18）
+
+> ResearchOS 已融入 DeepSeek Harness（DSH）：Web 入口统一为 DSH GUI（`127.0.0.1:3080`），
+> Next.js 前端已下线（`:3000` 已停，回退命令 `docker compose --profile app start frontend`）。
+> **本节为当前生效契约**；下方各节为 legacy 契约描述，保留作回退基线与历史对照。
+
+### DSH GUI 聊天节点 -> research-* bundle（当前生效的对外契约）
+
+前端不再调用 backend `/api/*`，改为 DSH GUI 中的聊天节点（11 个 `ui-research-*` UI 包，
+关键词触发面板 + MCP 工具事件卡片）调用 **bundle 前缀路由**：
+
+| bundle | 前缀路由 | 说明 |
+| --- | --- | --- |
+| research-auth | `/research-auth` | register / login / logout / me |
+| research-project | `/research-project` | 项目 CRUD |
+| research-folder | `/research-folder` | 文件夹树 CRUD |
+| research-paper | `/research-paper` | 论文 create/import/search/status/card/move/reading/delete |
+| research-file | `/research-file` | 本地文件存储（upload-url / multipart / 下载含 Range / 删除） |
+| research-writing | `/research-writing` | 写作 Agent（rewrite / translate-machine） |
+| research-review | `/research-review` | 综述生成任务 create + 轮询 |
+| research-paper-card | `/research-paper-card` | Paper Intelligence Card 生成 |
+| research-export | `/research-export` | BibTeX/RIS 导出 + APA/MLA/GB7714 引用 |
+| research-settings | `/research-settings` | 用户设置 GET / PUT / PATCH |
+| research-subscription | `/research-subscription` | 套餐 / Stripe checkout / webhook |
+
+- **响应契约沿用 `{code, message, data}`**（与原 backend 逐字段一致，可无缝替换）。
+- **认证**：JWT **httpOnly cookie 与 `Authorization: Bearer` 双通道**；`research-auth` 与旧
+  Spring Boot **共享同一 `JWT_SECRET`（HS256）**，两边签发的 token 双向互通，前端切换无需
+  重新登录（详见 `80-security.md`）。
+- **内部链路不变**：bundle 的异步任务仍发 RabbitMQ `researchos.ai.task`
+  （`paper.analyze` / `review.generate` / `paper.delete`），由 ai-service 消费；backend ↔
+  ai-service 内部契约（`X-Internal-Token`、`PATCH /internal/paper/{id}/result`、
+  `PATCH /internal/task/{id}/result`）原样保留（backend `:8080` 与 ai-service `:8000`
+  仍在运行，双认证 + MQ 管道阶段）。
+
+### 统一 LLM 网关契约（research-llm-gateway bundle，驻 3080）
+
+新增 OpenAI 兼容统一网关，ResearchOS AI（ai-service / bundle 内 LLM 调用）与 DSH 共用同一入口：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/v1/chat/completions` | OpenAI 格式（JSON / SSE 流式透传），chat 模型默认 `ark-code-latest` |
+| POST | `/v1/embeddings` | 返回 2048 维向量，embedding 模型 `doubao-embedding-vision` |
+
+- **请求侧 key 不校验**：网关为直连上游的 OpenAI 兼容代理，上游 `Authorization` 由网关
+  单点注入（`RESEARCH_LLM_API_KEY` / `RESEARCH_EMBEDDING_API_KEY` 等，来自仓库根 `.env`，
+  经 `dsh-gateway.sh` 注入启动环境），请求侧传不传 key 均可。
+- **上游**：`RESEARCH_LLM_UPSTREAM_BASE_URL`（真实上游，当前
+  `https://ark.cn-beijing.volces.com/api/coding/v3`）。
+- **调用方**：ai-service（`OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` 指向网关）、
+  research-writing / research-paper-card bundle、research-mcp 的 vector_search。
+
 ## frontend -> backend（对外 API，统一前缀 `/api`）
+
+> ⚠️ 过时注（2026-08-18）：本节为 **legacy 契约**——Next.js 前端已下线，当前 DSH GUI 改调
+> 上方「融合现状」的 bundle 前缀路由；本节保留作回退基线与后端契约的历史记录。
 
 ### 认证
 
