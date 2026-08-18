@@ -16,6 +16,7 @@
 | `research-auth` | ✅ Phase 3 首域起步 | 认证 bundle：register/login/logout/me 直连 MySQL app_user；与旧 Spring Boot 共享 JWT_SECRET 双认证（token 双向互通已验）；响应沿用 `{code,message,data}` 契约 |
 | `research-project` | ✅ Phase 3 文献域 | 项目 CRUD bundle：create/list(分页)/detail/delete 直连 MySQL research_project，严格 user_id 过滤（越权 404 已验），认证复用共享 JWT |
 | `research-folder` | ✅ Phase 3 文献域 | 文件夹树 CRUD bundle：create/tree/children/rename/move/delete/sort 直连 MySQL folder，user+project 归属校验，递归删除，move 防循环/跨项目 |
+| `research-paper` | ✅ Phase 3 文献域 | 论文管理 bundle：create/import(Crossref)/list(文件夹过滤)/detail/status/card/move/reading/delete 直连 MySQL paper，MQ 触发+清理（paper.analyze/paper.delete 全链路已验），配额开关 |
 | `scripts/dsh-gateway.sh` | ✅ 已验证 | dsh 常驻启动/停止脚本（自动注入 ResearchOS .env 的网关 key、自动端口、JWT/MySQL 配置） |
 
 **一键常驻启动**（Phase 1 正式切换的前置）：
@@ -258,6 +259,34 @@ DELETE /research-folder/folders/:folderId                 -> 递归删除该文�
 > 行为对齐说明：① 根级同名允许（MySQL UNIQUE 对 NULL parent_id 判等绕过，旧后端同依赖 DB
 > 约束，行为一致）；② 跨用户文件夹访问本 bundle 返回 404（旧后端 403）——统一为 404 更安全
 > （不泄露资源存在性），与 research-project 一致。
+
+## Phase 3：research-paper bundle（论文管理 + MQ 全链路）✅ 2026-08-17
+
+文献域第三个业务 bundle。直连 MySQL `paper`，经 `ctx.webServer` 前缀路由 `/research-paper` 暴露，
+复用共享 JWT 认证：
+
+```
+POST   /research-paper/projects/:pid/papers             { fileName, s3Key, folderId? } -> { id, status } + MQ paper.analyze
+POST   /research-paper/projects/:pid/papers/import      { doi?, title?, authors?, year?, folderId?, pdfUrl? } -> paper（Crossref 补全，有 pdf 才触发分析）
+POST   /research-paper/projects/:pid/papers/upload-url  -> 501（双认证阶段上传仍走旧后端）
+GET    /research-paper/projects/:pid/papers?folderId=&page=&size=  -> 分页列表（folderId: 空=根 / -1=全部 / 其他=指定）
+GET    /research-paper/papers/:id | /status | /card
+PUT    /research-paper/papers/:id/move { folderId }  |  /reading { readingStatus?, starRating? }
+DELETE /research-paper/papers/:id                     -> 删除 + MQ paper.delete
+```
+
+**MQ 异步链路（关键验证，与旧 backend→ai-service 契约一致）**：
+- 创建论文 → 发 `researchos.ai.task` / `paper.analyze`，消息 `{taskId, type, payload}` → **ai-service 真实消费**
+  （日志「收到论文分析任务：paperId=52」）→ 处理后回调 backend 更新状态（bogus pdf 404 → 回调 FAILED，状态闭环）
+- 删除论文 → 发 `paper.delete` → **ai-service 真实清理 chunk**（日志「论文删除清理完成：paper_id=52, 删除 0 个 chunk」）
+- MQ 发失败时回滚（删除刚插入的 paper 行 / 不删除原行），保持 DB 一致
+
+**其它验证**：import 用真实 DOI 经 Crossref 补全 title/authors/year（无 pdf → UPLOADED 不触发分析）；
+list 的 folderId 三种语义（根/全部/指定）正确；move 可移入文件夹/移回根（显式 SET NULL）；
+reading 更新 readingStatus/starRating；越权 404；无 token 401；配额开关 `ENFORCE_QUOTA`（默认关，镜像后端 dev 开关）。
+
+> 双认证阶段说明：上传（upload-url + 文件读写）仍由旧后端承担（`research-file` bundle 将接手），
+> 本 bundle 创建论文时直接以旧后端签发的存储 key 作为 pdfUrl。
 
 ## 下一步（Phase 1-2 遗留）
 

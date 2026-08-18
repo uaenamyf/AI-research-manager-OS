@@ -1,0 +1,4 @@
+# Phase 3 research-paper patch: mounts the ResearchOS paper management bundle over the profile.
+- insert:
+    - id: research-paper
+      name: '@researchos/dsh-research-paper'

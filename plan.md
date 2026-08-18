@@ -117,7 +117,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 | --- | --- | --- |
 | AuthController/AuthService | `research-auth` | ✅ 已实现（2026-08-17）：bundle 自持 JWT 认证（与旧后端**共享同一 JWT_SECRET**，HS256 双认证），不并入 DSH session（DSH web 显式无用户认证，见 §7 开放问题 3 结论）；前端经 apiproxy/HTTP 调用 |
 | ProjectController | `research-project` | ✅ 已实现（2026-08-17）：项目 create/list/detail/delete，严格 user_id 过滤（越权 404），认证复用共享 JWT（research-auth 同款） |
-| PaperController | `research-paper` | 上传（presigned）/创建/详情/列表/状态/删除/阅读状态 |
+| PaperController | `research-paper` | ✅ 已实现（2026-08-17）：create/import(Crossref)/list(文件夹过滤)/detail/status/card/move/reading/delete，MQ 触发与清理（paper.analyze/paper.delete 对齐 ai-service），upload-url 双认证阶段暂留旧后端 |
 | FolderController | `research-folder` | ✅ 已实现（2026-08-17）：文件夹 create/tree/children/rename/move/delete/sort，user+project 归属校验，递归删除，防循环移动 |
 | FileController | `research-file` | 本地/S3 文件读写（PDF 存储逻辑保留） |
 | ReviewController + ai | `research-review` | 综述生成 → DSH agent + ctx.jobs |
@@ -171,7 +171,8 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 ### Phase 3 — 后端 TS 重写（需求 1/4 主体，4–8 周，按域拆分）
 - [x] `research-auth`：DSH 内认证 bundle（首域起步）。✅ 2026-08-17：`dsh-plugins/research-auth` 连接 MySQL `app_user`，经 `ctx.webServer` 暴露 `/research-auth/{register,login,logout,me}`；JWT HS256 与旧 Spring Boot **共享同一 `JWT_SECRET`**（双认证），bcrypt 校验同款；响应沿用 `{code,message,data}` 契约。验证：注册→登录→me 全通；**token 双向互通**——bundle 签发的 token 被真实后端 `/api/auth/me` 接受（Bearer+cookie 均通过），后端同款 token 亦被 bundle 接受；负例（错密码/重复邮箱/无 token/坏 token/短密码）全部正确 4xx。装进 web profile（`dsh plugin add`），可随 profile 卸载。
 - [x] `research-project` ✅ 2026-08-17：项目 create/list(分页)/detail/delete，所有查询 `WHERE user_id=?` 归属校验（跨用户访问/删除返回 404 已验）。
-- [x] `research-folder` ✅ 2026-08-17：文件夹 create/tree(嵌套 children)/children/rename/move/delete/sort，user+project 归属校验（越权 404/403 已验），递归删除子树，move 防跨项目/自移/循环；`research-paper` / `research-file` 待做。
+- [x] `research-folder` ✅ 2026-08-17：文件夹 create/tree(嵌套 children)/children/rename/move/delete/sort，user+project 归属校验（越权 404/403 已验），递归删除子树，move 防跨项目/自移/循环。
+- [x] `research-paper` ✅ 2026-08-17：create/import(Crossref 补全)/list(folderId: null=根/-1=全部)/detail/status/card/move/reading/delete；MQ 全链路已验——创建发 paper.analyze 被 ai-service 消费并回调状态，删除发 paper.delete 被 ai-service 清理 chunk；配额开关 ENFORCE_QUOTA；upload-url 501（双认证阶段上传走旧后端）；`research-file` 待做。
 - [ ] `research-review` / `research-writing` / `research-paper-card`：AI 域（走共享网关）。
 - [ ] `research-export` / `research-citation` / `research-settings` / `research-subscription`。
 - [ ] 每个 bundle 完成后：旧 Spring Boot 对应控制器下线、`dsh plugin` 可单独卸载验证。

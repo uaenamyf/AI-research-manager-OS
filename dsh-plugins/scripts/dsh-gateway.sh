@@ -52,6 +52,8 @@ start() {
   export RESEARCH_MYSQL_USER="${RESEARCH_MYSQL_USER:-${MYSQL_USER:-researchos}}"
   export RESEARCH_MYSQL_PASSWORD="${RESEARCH_MYSQL_PASSWORD:-$(grep '^MYSQL_PASSWORD=' "$ENV_FILE" | cut -d= -f2- || true)}"
   export RESEARCH_MYSQL_DATABASE="${RESEARCH_MYSQL_DATABASE:-${MYSQL_DB:-researchos}}"
+  # Phase 3 research-paper: RabbitMQ URL for AI task publish (researchos.ai.task exchange)
+  export RESEARCH_RABBITMQ_URL="${RESEARCH_RABBITMQ_URL:-amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@127.0.0.1:${RABBIT_PORT:-5672}}"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.

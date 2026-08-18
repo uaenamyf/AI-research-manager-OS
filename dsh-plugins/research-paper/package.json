@@ -1,0 +1,24 @@
+{
+  "name": "@researchos/dsh-research-paper",
+  "description": "Phase 3 research-paper: ResearchOS paper management bundle (create/import/list/detail/status/card/move/reading/delete) against the MySQL paper table, user-ownership enforced, triggering/cleaning AI tasks via RabbitMQ (researchos.ai.task), reusing the shared JWT",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": { "default": "./index.js" },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}
