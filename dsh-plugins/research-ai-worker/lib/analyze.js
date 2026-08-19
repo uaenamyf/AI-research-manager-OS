@@ -28,7 +28,19 @@ export async function downloadPdf(pdfUrl) {
   if (existsSync(pdfUrl)) return readFileSync(pdfUrl)
 
   if (/^https?:\/\//i.test(pdfUrl)) {
-    const res = await fetch(pdfUrl, { signal: AbortSignal.timeout(60000) })
+    // 2026-08-19 myf: 带上浏览器 UA / referer，避免 Wiley、EuropePMC 等外部源
+    // 因反爬（裸 fetch 无 UA）拒绝下载 —— 与 research-external-search 代理一致。
+    const upstreamHost = new URL(pdfUrl).host
+    const res = await fetch(pdfUrl, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        accept: 'application/pdf,application/octet-stream,*/*',
+        'accept-language': 'en-US,en;q=0.9',
+        referer: `https://${upstreamHost}/`,
+      },
+      signal: AbortSignal.timeout(60000),
+    })
     if (res.ok) return Buffer.from(await res.arrayBuffer())
     throw new Error(`pdf download HTTP ${res.status}`)
   }

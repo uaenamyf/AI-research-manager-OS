@@ -190,7 +190,7 @@ window.__ModuleLoader__.load({
 				".dsh-rr-tabs { display: flex; align-items: center; gap: 2px; margin: 0 0 8px; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12)); }",
 				".dsh-rr-tab { flex: none; padding: 8px 12px 7px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-tab:hover { color: var(--dsw-alias-label-primary, #111); }",
-				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill, #2563eb); font-weight: 500; }",
+				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill); font-weight: 500; }",
 
 				// Right-edge activity rail (ResearchOS, registered into dsh's
 				// 'activitybar' column — the window's far-right icon rail, mirroring
@@ -199,7 +199,7 @@ window.__ModuleLoader__.load({
 				".dsh-rr-railbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-railbtn:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); color: var(--dsw-alias-label-primary, #111); }",
 				".dsh-rr-railbtn.dsh-rr-railbtn-on { color: var(--dsw-alias-label-primary, #111); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)); }",
-				".dsh-rr-railbtn.dsh-rr-railbtn-on::before { content: \"\"; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--dsw-alias-button-primary-fill, #2563eb); }",
+				".dsh-rr-railbtn.dsh-rr-railbtn-on::before { content: \"\"; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--dsw-alias-button-primary-fill); }",
 				".dsh-rr-rail-tip { position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); z-index: 80; padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-3, #333); color: var(--dsw-alias-label-on-color, #fff); font-size: 11px; line-height: 16px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms var(--ds-ease-in-out, ease); }",
 				".dsh-rr-railbtn:hover .dsh-rr-rail-tip { opacity: 1; }",
 				// Modal overlay + card (mirrors primitives Modal family)
@@ -252,7 +252,7 @@ window.__ModuleLoader__.load({
 			rowOn: { display: "flex", alignItems: "center", height: 32, boxSizing: "border-box", borderRadius: 8, cursor: "pointer", background: "var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05))", color: "var(--dsw-alias-label-primary, #111)", fontSize: 13, lineHeight: "20px" },
 			rowTitle: { flex: 1, minWidth: 0, margin: "0 6px 0 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 13, lineHeight: "20px" },
 			rowSub: { flex: "none", fontSize: 12, lineHeight: "17px", color: "var(--dsw-alias-label-tertiary, #999)" },
-			checkbox: { flex: "none", width: 16, height: 16, margin: 0, cursor: "pointer", accentColor: "var(--dsw-alias-button-primary-fill, #2563eb)" },
+			checkbox: { flex: "none", width: 16, height: 16, margin: 0, cursor: "pointer", accentColor: "var(--dsw-alias-button-primary-fill)" },
 			// empty / status text (workspace .empty / .searchStatus)
 			empty: { padding: "10px 12px", fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-label-tertiary, #999)" },
 			err: { padding: "6px 12px", fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-state-error-primary, #dc2626)" },
@@ -279,9 +279,10 @@ window.__ModuleLoader__.load({
 			input: { boxSizing: "border-box", width: "100%", height: 36, padding: "7px 14px", border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", borderRadius: 18, outline: "none", background: "transparent", fontSize: 13, lineHeight: "18px", color: "var(--dsw-alias-label-primary, #111)" },
 			textarea: { boxSizing: "border-box", width: "100%", minHeight: 80, padding: "7px 14px", border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", borderRadius: 14, outline: "none", background: "transparent", fontSize: 13, lineHeight: "18px", color: "var(--dsw-alias-label-primary, #111)", resize: "vertical" },
 			btn: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--dsw-alias-button-elevated-fill, #fff)", color: "var(--dsw-alias-label-primary, #111)", boxShadow: "0 0 0 1px var(--dsw-alias-border-l2, rgba(0,0,0,.12))", cursor: "pointer" },
-			btnPrimary: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--dsw-alias-button-primary-fill, #2563eb)", color: "var(--dsw-alias-label-primary-foreground, #fff)", cursor: "pointer" },
-			// 2026-08-19 myf: 批量删除操作按钮（危险色）
-			btnDanger: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "#dc2626", color: "#fff", cursor: "pointer" },
+			// 2026-08-19 myf: 主按钮颜色完全走主题变量（对齐官方 Button .primary 无回退写法），去掉硬编码回退色
+			btnPrimary: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--dsw-alias-button-primary-fill)", color: "var(--dsw-alias-label-primary-foreground)", cursor: "pointer" },
+			// 2026-08-19 myf: 批量删除操作按钮（危险色，走主题 error 变量）
+			btnDanger: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--dsw-alias-state-error-primary, #dc2626)", color: "var(--dsw-alias-label-on-color, #fff)", cursor: "pointer" },
 			select: { padding: "5px 10px", border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", borderRadius: 8, fontSize: 13, background: "transparent", color: "var(--dsw-alias-label-primary, #111)", outline: "none" },
 			field: { marginBottom: 6 },
 			// bottom action bar (right inset aligned to the tree's S.root
@@ -343,8 +344,13 @@ window.__ModuleLoader__.load({
 		// result set here; the details seat renders it when no paper is focused.
 		var researchSearch = { state: null }; // { query, results, loading } | null
 		var researchSearchSubs = [];
+		// 2026-08-19 myf: 记录「在线文献检索」域内最后停留的视图：'search'（结果列表）
+		// 或 'preview'（外部预览详情）。从 preview 切到其他 tab 再切回时恢复 preview，
+		// 而不是回到结果列表。
+		var researchSearchView = "search";
 		function setResearchSearch(state) {
 			researchSearch.state = state;
+			researchSearchView = "search";
 			// 2026-08-19 myf: 设置搜索时切到「在线文献检索」tab。
 			setResearchPanelTab("search");
 			for (var i = 0; i < researchSearchSubs.length; i++) researchSearchSubs[i](state);
@@ -379,6 +385,7 @@ window.__ModuleLoader__.load({
 		function setResearchPreview(paper) {
 			researchPreview.paper = paper;
 			// 2026-08-19 myf: 切到「外部预览」tab（论文来源是检索结果时使用）。
+			researchSearchView = "preview";
 			setResearchPanelTab("preview");
 			for (var i = 0; i < researchPreviewSubs.length; i++) researchPreviewSubs[i](paper);
 		}
@@ -947,11 +954,20 @@ window.__ModuleLoader__.load({
 				];
 				return React.createElement("div", { className: "dsh-rr-tabs" },
 					items.map(function (it) {
+						// 2026-08-19 myf: preview 详情属于「在线文献检索」域：高亮 search tab；
+						// 点击时若上次停留在 preview 详情则恢复 preview，而不是回到结果列表。
+						var on = it.key === tab || (it.key === "search" && tab === "preview");
 						return React.createElement("button", {
 							type: "button",
 							key: it.key,
-							className: "dsh-rr-tab" + (it.key === tab ? " dsh-rr-tab-on" : ""),
-							onClick: function () { setResearchPanelTab(it.key); },
+							className: "dsh-rr-tab" + (on ? " dsh-rr-tab-on" : ""),
+							onClick: function () {
+								if (it.key === "search" && researchSearchView === "preview" && researchPreview.paper) {
+									setResearchPanelTab("preview");
+								} else {
+									setResearchPanelTab(it.key);
+								}
+							},
 						}, it.label);
 					}),
 				);
@@ -1013,6 +1029,9 @@ window.__ModuleLoader__.load({
 								React.createElement("p", { style: S.rsTitle }, p.title || "(untitled)"),
 								React.createElement("p", { style: S.rsMeta }, sourceLabel(p.source) ? sourceLabel(p.source) + " · " : "" + (p.year ? p.year + " · " : "") + (p.doi ? "DOI: " + p.doi : "")),
 							),
+							// 2026-08-19 myf: 返回结果列表改为 ← 图标按钮，置于论文标题右侧；
+							// 同时把 search 域视图重置为结果列表，下次切回时不再自动恢复 preview。
+							React.createElement("button", { type: "button", title: "返回结果列表", style: Object.assign({}, S.iconBtn, { borderRadius: 6, fontSize: 16 }), onClick: function () { researchSearchView = "search"; setResearchPanelTab("search"); } }, "←"),
 						),
 						React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
 						innerTab === "card" ? React.createElement(ExternalPaperCard, { paper: p })
@@ -1021,8 +1040,8 @@ window.__ModuleLoader__.load({
 						React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" } },
 							p.url ? React.createElement("a", { key: "src", href: p.url, target: "_blank", rel: "noopener", style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "打开原文 ↗") : null,
 							p.pdf_url ? React.createElement("a", { key: "dl", href: proxyPdfUrl(p), download: pdfDownloadLabel(p), style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "下载 PDF") : null,
-							React.createElement("button", { key: "imp", type: "button", style: S.btnPrimary, onClick: function () { setResearchImport(p); } }, "导入到研究区"),
-							React.createElement("button", { key: "back", type: "button", style: S.btn, onClick: function () { setResearchPanelTab("search"); } }, "返回结果列表"),
+							// 2026-08-19 myf: 导入到研究区按钮样式与「下载 PDF」保持一致（btn 而非 btnPrimary）
+							React.createElement("button", { key: "imp", type: "button", style: S.btn, onClick: function () { setResearchImport(p); } }, "导入到研究区"),
 						),
 					);
 				}
@@ -1092,7 +1111,8 @@ window.__ModuleLoader__.load({
 			if (tab === "preview") return React.createElement("span", null, "外部预览");
 			if (tab === "search") return React.createElement("span", null, "在线文献检索");
 			if (tab === "review") return React.createElement("span", null, "综述");
-			if (tab === "writing") return React.createElement("span", null, "写作助手");
+			// 2026-08-19 myf: 右窗栏标题与 tab 名保持一致（写作助手 → 写作）
+			if (tab === "writing") return React.createElement("span", null, "写作");
 			// 2026-08-19 myf: 右窗栏竖栏常驻后，空态标题显示「研究区」而非 dsh 默认「详情」
 			return React.createElement("span", null, "研究区");
 		}
@@ -1112,7 +1132,7 @@ window.__ModuleLoader__.load({
 		}
 		function dotColor(st) {
 			if (st === "READY") return "var(--dsw-alias-state-success-primary, #16a34a)";
-			if (st === "PROCESSING") return "var(--dsw-alias-button-primary-fill, #2563eb)";
+			if (st === "PROCESSING") return "var(--dsw-alias-button-primary-fill)";
 			if (st === "FAILED") return "var(--dsw-alias-state-error-primary, #dc2626)";
 			return "var(--dsw-alias-label-tertiary, #9ca3af)";
 		}
@@ -1210,7 +1230,9 @@ window.__ModuleLoader__.load({
 					var pid = Number(importProjectId);
 					if (!pid) { setMsg("请选择导入到哪个项目"); return; }
 					var ext = d.paper || {};
-					req = { method: "POST", url: "/research-paper/projects/" + pid + "/papers/import", body: { doi: ext.doi || "", title: ext.title || "", authors: ext.authors || [], year: ext.year || null } };
+					// 2026-08-19 myf: 携带 pdf_url，后端将标记 PROCESSING 并触发 AI worker
+					// 下载 PDF 解析（之前只传元数据，导入后只有标题没有实质 PDF 文件）。
+					req = { method: "POST", url: "/research-paper/projects/" + pid + "/papers/import", body: { doi: ext.doi || "", title: ext.title || "", authors: ext.authors || [], year: ext.year || null, pdfUrl: ext.pdf_url || null } };
 				} else if (kind === "renameProject") {
 					if (!text.trim()) { setMsg("请输入项目名称"); return; }
 					req = { method: "PUT", url: "/research-project/" + d.project.id + "/rename", body: { name: text.trim() } };
@@ -1705,7 +1727,7 @@ window.__ModuleLoader__.load({
 						// 状态色走主题变量（深色主题自动提亮），fallback 保持原浅色值
 						var color = it.state === "error" ? "var(--dsw-alias-state-error-primary, #dc2626)"
 							: it.state === "done" ? "var(--dsw-alias-state-success-primary, #16a34a)"
-								: "var(--dsw-alias-button-primary-fill, #2563eb)";
+								: "var(--dsw-alias-button-primary-fill)";
 						var barWidth = it.state === "analyzing" ? "40%" : (it.state === "error" || it.state === "done" ? "100%" : (it.progress || 0) + "%");
 						var barAnim = it.state === "analyzing" ? { animation: "dshUploadSlide 1.4s linear infinite" } : {};
 						return React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } },
@@ -1851,7 +1873,8 @@ window.__ModuleLoader__.load({
 						React.createElement("input", { style: S.input, placeholder: "如：Acoustic classification of gibbon vocalizations", value: topic, onChange: function (e) { setTopic(e.target.value); } }),
 					),
 					err ? React.createElement("p", { style: S.err, padding: 0 }, err) : null,
-					React.createElement("button", { style: S.btnPrimary, onClick: generate, disabled: taskId != null }, taskId != null ? "生成中…" : "生成综述"),
+					// 2026-08-19 myf: 生成综述按钮样式与「下载 PDF」保持一致（btn 而非 btnPrimary）
+					React.createElement("button", { style: S.btn, onClick: generate, disabled: taskId != null }, taskId != null ? "生成中…" : "生成综述"),
 					taskId != null ? React.createElement("p", { style: S.empty }, "任务 #" + taskId + " 处理中…") : null,
 				),
 				markdown ? React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 12px" } },
@@ -1882,17 +1905,15 @@ window.__ModuleLoader__.load({
 					.finally(function () { setBusy(false); });
 			};
 			return React.createElement("div", { style: S.root, paddingTop: 2 },
-				// 2026-08-19 myf: 移除返回按钮（顶部 tab 行可切换），保留「写作助手」标题
-				React.createElement("div", { style: S.header },
-					React.createElement("span", { style: S.label }, "写作助手"),
-				),
+				// 2026-08-19 myf: 移除「写作助手」标题（顶部 tab 行可切换）
 				React.createElement("div", { style: { padding: "0 12px" } },
 					React.createElement("textarea", { style: S.textarea, placeholder: "粘贴要处理的文本…", value: text, onChange: function (e) { setText(e.target.value); } }),
 					React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", margin: "8px 0" } },
 						React.createElement("select", { style: S.select, value: action, onChange: function (e) { setAction(e.target.value); } },
 							ACTIONS.map(function (a) { return React.createElement("option", { key: a[0], value: a[0] }, a[1]); }),
 						),
-						React.createElement("button", { style: S.btnPrimary, onClick: rewrite, disabled: busy }, busy ? "处理中…" : "改写"),
+						// 2026-08-19 myf: 改写按钮样式与「下载 PDF」保持一致（btn 而非 btnPrimary）
+						React.createElement("button", { style: S.btn, onClick: rewrite, disabled: busy }, busy ? "处理中…" : "改写"),
 					),
 					React.createElement("input", { style: S.input, placeholder: "附加指令（可选）", value: instruction, onChange: function (e) { setInstruction(e.target.value); } }),
 					err ? React.createElement("p", { style: S.err, padding: 0 }, err) : null,
