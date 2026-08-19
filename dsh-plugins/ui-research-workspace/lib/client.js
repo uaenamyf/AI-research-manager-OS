@@ -191,16 +191,16 @@ window.__ModuleLoader__.load({
 				".dsh-rr-tab { flex: none; padding: 8px 12px 7px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-tab:hover { color: var(--dsw-alias-label-primary, #111); }",
 				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill, #2563eb); font-weight: 500; }",
-				// Right-column activity bar (vertical icon nav, VS Code style):
-				// sits on the left edge of the research seat, always visible so
-				// the user can reopen the tab content even after collapsing it.
-				".dsh-rr-actbar { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px; padding: 6px 0; box-sizing: border-box; border-right: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12)); }",
-				".dsh-rr-act { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
-				".dsh-rr-act:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); color: var(--dsw-alias-label-primary, #111); }",
-				".dsh-rr-act.dsh-rr-act-on { color: var(--dsw-alias-label-primary, #111); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)); }",
-				".dsh-rr-act.dsh-rr-act-on::before { content: \"\"; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--dsw-alias-button-primary-fill, #2563eb); }",
-				".dsh-rr-act-tip { position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); z-index: 80; padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-3, #333); color: var(--dsw-alias-label-on-color, #fff); font-size: 11px; line-height: 16px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms var(--ds-ease-in-out, ease); }",
-				".dsh-rr-act:hover .dsh-rr-act-tip { opacity: 1; }",
+				// Right-edge activity rail (ResearchOS, registered into dsh's
+				// 'activitybar' column — the window's far-right icon rail, mirroring
+				// VS Code's left activity bar / IDEA's right tool-window rail).
+				".dsh-rr-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; height: 100%; padding: 8px 0; box-sizing: border-box; }",
+				".dsh-rr-railbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
+				".dsh-rr-railbtn:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); color: var(--dsw-alias-label-primary, #111); }",
+				".dsh-rr-railbtn.dsh-rr-railbtn-on { color: var(--dsw-alias-label-primary, #111); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)); }",
+				".dsh-rr-railbtn.dsh-rr-railbtn-on::before { content: \"\"; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--dsw-alias-button-primary-fill, #2563eb); }",
+				".dsh-rr-rail-tip { position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); z-index: 80; padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-3, #333); color: var(--dsw-alias-label-on-color, #fff); font-size: 11px; line-height: 16px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms var(--ds-ease-in-out, ease); }",
+				".dsh-rr-railbtn:hover .dsh-rr-rail-tip { opacity: 1; }",
 				// Modal overlay + card (mirrors primitives Modal family)
 				".dsh-rr-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: var(--dsw-alias-bg-mask-1, rgba(0,0,0,.5)); }",
 				".dsh-rr-modal { width: 320px; max-width: calc(100vw - 32px); padding: 16px; border-radius: 12px; background: var(--dsw-alias-bg-layer-2, #fff); box-shadow: 0 16px 48px rgba(0,0,0,.2); }",
@@ -955,30 +955,9 @@ window.__ModuleLoader__.load({
 					}),
 				);
 			}
-			// 右窗栏功能竖栏（activity bar，VS Code 风格）：常驻右窗栏左侧。
-			// 当前只有「研究区」；未来在此追加更多功能 icon（写作台、设置等）。
-			// 点击研究区 = toggle：有 tab 内容则收起（回到空态），空态再点恢复
-			// 上次停留的 tab（lastKind）。
-			var activityItems = [
-				{ key: "research", label: "研究区", title: "研究区：论文详细 / 在线文献检索 / 综述 / 写作", icon: IconResearch },
-			];
-			function activityBar() {
-				return React.createElement("div", { className: "dsh-rr-actbar" }, activityItems.map(function (it) {
-					return React.createElement("button", {
-						type: "button",
-						key: it.key,
-						className: "dsh-rr-act" + (tab ? " dsh-rr-act-on" : ""),
-						title: it.title,
-						onClick: function () {
-							if (tab) setResearchPanelTab(null);
-							else setResearchPanelTab(researchPanelTab.lastKind || "paper");
-						},
-					},
-						React.createElement(it.icon, { size: 16 }),
-						React.createElement("span", { className: "dsh-rr-act-tip" }, it.label),
-					);
-				}));
-			}
+			// 外层：研究区 tab 内容直接铺满 details 列；竖栏入口已上移为窗口
+			// 最右侧 activity rail（ResearchActivityBar，见 apply 注册）。
+			// tab=null 时显示空态提示（details 列仍可被最右竖栏/左侧论文打开）。
 			function tabContent() {
 				if (tab === "review") {
 					// 2026-08-19 myf: 综述 composer。papers 来自 region 同步的 selection
@@ -1047,13 +1026,54 @@ window.__ModuleLoader__.load({
 				}
 				return null;
 			}
-			// 外层：竖栏常驻，内容区由 tab 驱动。tab=null 时显示空态提示（竖栏
-			// 仍在，点「研究区」恢复 lastKind）。
-			return React.createElement("div", { style: { display: "flex", minHeight: 0, flex: 1 } },
-				activityBar(),
-				React.createElement("div", { style: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" } },
-					tab ? tabContent()
-						: React.createElement("p", { style: S.empty }, "点击左侧「研究区」或选择研究区论文，打开论文详细 / 在线文献检索"),
+			// 外层：研究区 tab 内容直接铺满 details 列；竖栏入口已上移为窗口
+			// 最右侧 activity rail（ResearchActivityBar，见 apply 注册）。
+			// tab=null 时显示空态提示（details 列仍可被最右竖栏/左侧论文打开）。
+			if (!tab) return React.createElement("div", { style: S.rsRoot },
+				React.createElement("p", { style: S.empty }, "点击最右侧「研究区」或选择研究区论文，打开论文详细 / 在线文献检索"),
+			);
+			return tabContent();
+		}
+
+		// 2026-08-19 myf: 窗口最右侧活动栏（'activitybar' slot，一级菜单入口，
+		// 类似 VS Code 左侧活动栏 / IDEA 右侧工具窗口栏）。当前只有「研究区」
+		// 一个入口：点击 toggle 右窗栏（details 列）开/关；active 高亮跟随
+		// details 列实际宽度（ResizeObserver 同步，外部点击论文也会点亮）。
+		// 未来在此追加更多功能 icon（写作台、设置等）。
+		function ResearchActivityBar(props) {
+			var [open, setOpen] = useState(false);
+			useEffect(function () {
+				function findCol() { return document.querySelector("[class*=\"detailsCol\"]"); }
+				function update() {
+					var col = findCol();
+					if (col) setOpen(col.getBoundingClientRect().width > 2);
+				}
+				update();
+				var col = findCol();
+				var ro = null;
+				if (col && typeof ResizeObserver !== "undefined") {
+					ro = new ResizeObserver(update);
+					ro.observe(col);
+				}
+				return function () { if (ro) ro.disconnect(); };
+			}, []);
+			return React.createElement("div", { className: "dsh-rr-rail" },
+				React.createElement("button", {
+					type: "button",
+					className: "dsh-rr-railbtn" + (open ? " dsh-rr-railbtn-on" : ""),
+					title: "研究区：论文详细 / 在线文献检索 / 综述 / 写作",
+					onClick: function () {
+						if (open) { if (props.closeDetails) props.closeDetails(); }
+						else {
+							// 打开右窗栏并恢复上次停留的 tab（默认论文详细），
+							// 让用户直接看到论文详细 / 在线文献检索等 tab 条。
+							if (props.openDetails) props.openDetails();
+							setResearchPanelTab(researchPanelTab.lastKind || "paper");
+						}
+					},
+				},
+					React.createElement(IconResearch, { size: 18 }),
+					React.createElement("span", { className: "dsh-rr-rail-tip" }, "研究区"),
 				),
 			);
 		}
@@ -1908,6 +1928,18 @@ window.__ModuleLoader__.load({
 					ResearchDetailTitle,
 				);
 			});
+			// 窗口最右侧活动栏（'activitybar' slot，由 dsh ui-layout 新增的第 4 列
+			// 承载）：一级菜单入口，点击 toggle 右窗栏（details 列）开/关。
+			ctx.slots.register({
+				name: "activitybar",
+				id: "research-activitybar",
+				inject: function () {
+					return {
+						openDetails: function () { ctx.layout.openDetails(); },
+						closeDetails: function () { ctx.layout.closeDetails(); },
+					};
+				},
+			}, ResearchActivityBar);
 		};
 
 		return module.exports;
