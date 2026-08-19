@@ -1545,10 +1545,9 @@ window.__ModuleLoader__.load({
 				]);
 			}
 			function openProjectMenu(e, p) {
+				// 2026-08-19 myf: 用户不需要在菜单里新建文件夹（仅保留一级文件夹，
+				// 新建入口不再暴露；文件夹随项目结构由后端/导入流程管理）。
 				openMenuAt(e, { kind: "project", project: p }, [
-					// 2026-08-19 myf: 补上「新建文件夹」入口（此前 newFolder 对话框
-					// 无触发按钮），选中论文也能从「移动到…」归入该文件夹。
-					{ id: "newFolder", label: "新建文件夹", icon: IconFolderAdd },
 					{ id: "rename", label: "重命名", icon: IconEdit },
 					{ id: "delete", label: "删除项目", icon: IconTrash, danger: true },
 				]);
@@ -1576,8 +1575,7 @@ window.__ModuleLoader__.load({
 					return;
 				}
 				if (target.kind === "project") {
-					if (id === "newFolder") setDialog({ kind: "newFolder", projectId: target.project.id });
-					else if (id === "rename") setDialog({ kind: "renameProject", project: target.project, initial: target.project.name });
+					if (id === "rename") setDialog({ kind: "renameProject", project: target.project, initial: target.project.name });
 					else if (id === "delete") setDialog({ kind: "deleteProject", project: target.project });
 				} else if (target.kind === "folder") {
 					if (id === "rename") setDialog({ kind: "renameFolder", folder: target.folder, initial: target.folder.name });
