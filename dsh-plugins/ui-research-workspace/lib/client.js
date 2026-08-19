@@ -1385,12 +1385,34 @@ window.__ModuleLoader__.load({
 			var [importProjectId, setImportProjectId] = useState("");
 			var [busy, setBusy] = useState(false);
 			var [msg, setMsg] = useState(null);
+			// 2026-08-19 myf: 批量移动弹窗打开时主动拉一次每个所属项目的文件夹树，
+			// 避免依赖 treeMeta 缓存（用户在 LibraryView 刚新建文件夹后立刻点
+			// 批量移动时，弹窗应能看到最新文件夹）。
+			var [freshFolders, setFreshFolders] = useState({});
 			useEffect(function () {
 				setText(dialog && dialog.initial ? dialog.initial : "");
 				setText2("");
 				setTargetFolder(dialog && dialog.kind === "movePapers" ? "" : "root");
 				setImportProjectId("");
 				setBusy(false); setMsg(null);
+				if (dialog && dialog.kind === "movePapers") {
+					var pids = {};
+					(dialog.papers || []).forEach(function (p) { if (p.projectId != null) pids[p.projectId] = true; });
+					var pidList = Object.keys(pids).map(function (k) { return Number(k); });
+					if (!pidList.length) { setFreshFolders({}); return; }
+					setFreshFolders({});
+					Promise.all(pidList.map(function (pid) {
+						return api("/research-folder/projects/" + pid + "/folders/tree").then(function (j) {
+							return { pid: pid, folders: (ok(j) && j.data) ? j.data : [] };
+						}).catch(function () { return { pid: pid, folders: [] }; });
+					})).then(function (rs) {
+						var n = {};
+						rs.forEach(function (r) { n[r.pid] = r.folders; });
+						setFreshFolders(n);
+					});
+				} else {
+					setFreshFolders({});
+				}
 			}, [dialog]);
 			var kind = dialog ? dialog.kind : null;
 			var title = kind === "newProject" ? "新建项目"
@@ -1506,24 +1528,29 @@ window.__ModuleLoader__.load({
 				if (kind === "movePapers") {
 					// 2026-08-19 myf: 把选中论文涉及的 (projectId, projectName, folderId, folderName) 拍平成
 					// 单个下拉选项；value = "projectId:root|folderId"，便于 submit 直接分组。
+					// 文件夹来源优先用 freshFolders（弹窗打开时主动拉一次），保证新文件夹可见；
+					// 拉取未完成前用 props.foldersByProject 兜底。
 					var papers2 = dialog.papers || [];
 					var projName = {};
 					(props.projects || []).forEach(function (pp) { projName[pp.id] = pp.name || ("#" + pp.id); });
 					var seenPids = {};
 					papers2.forEach(function (p) { if (p.projectId != null) seenPids[p.projectId] = true; });
 					var optionKeys = Object.keys(seenPids).map(function (k) { return Number(k); });
-					// 若选中论文所属项目在 treeMeta 中找不到，给出"#"占位
 					optionKeys.sort(function (a, b) { return (projName[a] || "").localeCompare(projName[b] || ""); });
+					function foldersFor(pid) {
+						if (Object.prototype.hasOwnProperty.call(freshFolders, pid)) return freshFolders[pid] || [];
+						return (props.foldersByProject && props.foldersByProject[pid]) || [];
+					}
 					var row = function (pid, fid, fname) {
 						return React.createElement("option", { key: pid + ":" + (fid == null ? "root" : fid), value: pid + ":" + (fid == null ? "root" : fid) },
-							"[" + (projName[pid] || "#" + pid) + "] " + (fname == null ? "根目录" : fname));
+							(projName[pid] || "#" + pid) + " · " + (fname == null ? "（无文件夹）" : fname));
 					};
 					return React.createElement("div", null,
 						React.createElement("p", { style: S.text }, "将选中的 " + papers2.length + " 篇论文移动到：" + (optionKeys.length > 1 ? "（涉及 " + optionKeys.length + " 个项目）" : "")),
 						React.createElement("select", { style: Object.assign({}, S.select, { width: "100%", height: 36 }), value: targetFolder, onChange: function (e) { setTargetFolder(e.target.value); } },
 							React.createElement("option", { value: "" }, "选择目标…"),
 							optionKeys.flatMap(function (pid) {
-								var folders = (props.foldersByProject && props.foldersByProject[pid]) || [];
+								var folders = foldersFor(pid);
 								return [row(pid, null, null)].concat(folders.map(function (f) { return row(pid, f.id, f.name); }));
 							}),
 						),
