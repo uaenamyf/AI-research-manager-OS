@@ -965,13 +965,13 @@ window.__ModuleLoader__.load({
 					// 不再依赖左侧勾选同步。关闭 = setResearchPanelTab(null)。
 					return React.createElement("div", { style: S.rsRoot },
 						topTabs(),
-						React.createElement(ReviewComposer, { onBack: function () { setResearchPanelTab(null); } }),
+						React.createElement(ReviewComposer, null),
 					);
 				}
 				if (tab === "writing") {
 					return React.createElement("div", { style: S.rsRoot },
 						topTabs(),
-						React.createElement(WritingComposer, { onBack: function () { setResearchPanelTab(null); } }),
+						React.createElement(WritingComposer, null),
 					);
 				}
 				if (tab === "search") {
@@ -1725,7 +1725,6 @@ window.__ModuleLoader__.load({
 
 		// ── 综述生成（底部栏触发，使用已选论文）──────────────────────────
 		function ReviewComposer(props) {
-			var onBack = props.onBack;
 			var [topic, setTopic] = useState("");
 			var [taskId, setTaskId] = useState(null);
 			var [markdown, setMarkdown] = useState(null);
@@ -1820,7 +1819,8 @@ window.__ModuleLoader__.load({
 					api("/research-review/" + taskId).then(function (j) {
 						if (!ok(j)) return;
 						var st = j.data && j.data.status;
-						if (st === "SUCCESS") { clearInterval(timer); setMarkdown((j.data.result && j.data.result.markdown) || "(empty)"); }
+						// 2026-08-19 myf: 成功时同时清空 taskId，按钮从「生成中…」恢复为「生成综述」
+						if (st === "SUCCESS") { clearInterval(timer); setTaskId(null); setMarkdown((j.data.result && j.data.result.markdown) || "(empty)"); }
 						else if (st === "FAILED") { clearInterval(timer); setErr(j.data.error || "综述生成失败"); setTaskId(null); }
 					});
 				}, 3000);
@@ -1837,10 +1837,7 @@ window.__ModuleLoader__.load({
 					});
 			};
 			return React.createElement("div", { style: S.root, paddingTop: 2 },
-				React.createElement("div", { style: S.header },
-					React.createElement("span", { style: S.label }, "生成综述 · 已选 " + selected.length + " / " + (papers ? papers.length : "…") + " 篇"),
-					React.createElement("button", { style: S.iconBtn, title: "返回", onClick: onBack }, "←"),
-				),
+				// 2026-08-19 myf: 移除「生成综述 · 已选 X / X 篇」标题与返回按钮（顶部 tab 行可切换）
 				// 当前已上传论文目录：按 项目 → 文件夹 分组（可折叠），checkbox 勾选参与综述，默认全选
 				React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.06))", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.06))" } },
 					loadErr ? React.createElement("p", { style: S.err, padding: 8 }, loadErr)
@@ -1866,7 +1863,6 @@ window.__ModuleLoader__.load({
 		// ── 写作（底部栏触发）────────────────────────────────────────────
 		var ACTIONS = [["polish", "润色"], ["expand", "扩写"], ["shorten", "缩写"], ["translate", "翻译"], ["rebuttal", "审稿回复"], ["cover_letter", "Cover Letter"]];
 		function WritingComposer(props) {
-			var onBack = props.onBack;
 			var [text, setText] = useState("");
 			var [action, setAction] = useState("polish");
 			var [instruction, setInstruction] = useState("");
@@ -1886,9 +1882,9 @@ window.__ModuleLoader__.load({
 					.finally(function () { setBusy(false); });
 			};
 			return React.createElement("div", { style: S.root, paddingTop: 2 },
+				// 2026-08-19 myf: 移除返回按钮（顶部 tab 行可切换），保留「写作助手」标题
 				React.createElement("div", { style: S.header },
 					React.createElement("span", { style: S.label }, "写作助手"),
-					React.createElement("button", { style: S.iconBtn, title: "返回", onClick: onBack }, "←"),
 				),
 				React.createElement("div", { style: { padding: "0 12px" } },
 					React.createElement("textarea", { style: S.textarea, placeholder: "粘贴要处理的文本…", value: text, onChange: function (e) { setText(e.target.value); } }),
