@@ -7,6 +7,7 @@
 - `apply.ts`：details 注册的 children 增加该坑位
 - `skeleton/DetailsPanel.tsx`：body 顶部渲染 `renderSlot('conversation.details.research')`
   （无论文选择时自渲染 null，不影响工具详情）
+- `skeleton/DetailsPanel.module.css`：header 改 `padding: 12px 12px 0`（顶距与会话头部一致，分割线垂直对齐）
 
 **应用**（checkout 重装后）：
 ```sh

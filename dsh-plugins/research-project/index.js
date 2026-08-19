@@ -10,6 +10,7 @@
 //   POST   /research-project            { name, description, domain } -> project (create)
 //   GET    /research-project?page=0&size=20                            -> { items, page, size, total, totalPages }
 //   GET    /research-project/:id                                       -> project (404 if not owned)
+//   PUT    /research-project/:id/rename { name }                       -> project (404 if not owned)
 //   DELETE /research-project/:id                                       -> ok (404 if not owned)
 //
 // Response envelope mirrors backend ApiResponse: { code: 0, message, data }.
@@ -178,10 +179,41 @@ export function apply(ctx) {
         return fail(res, 405, 'method not allowed')
       }
 
-      // ── item routes: /research-project/:id ──
+      // ── item routes: /research-project/:id[/rename] ──
       const seg = pathname.slice('/research-project/'.length)
-      const id = /^\d+$/.test(seg) ? Number(seg) : null
+      const parts = seg.split('/')
+      const id = /^\d+$/.test(parts[0]) ? Number(parts[0]) : null
+      const action = parts[1]
       if (id === null) return fail(res, 404, 'not found')
+
+      // PUT /research-project/:id/rename { name } — 研究区文件管理（与工作区一致：可重命名项目）。
+      if (req.method === 'PUT' && action === 'rename') {
+        let body
+        try {
+          body = await readJson(req)
+        } catch {
+          return fail(res, 400, 'invalid JSON body')
+        }
+        const name = String(body.name || '').trim()
+        if (!name) return fail(res, 400, 'name is required')
+        try {
+          const [rows] = await pool.query(
+            'SELECT id FROM research_project WHERE id = ? AND user_id = ?',
+            [id, userId],
+          )
+          if (!rows.length) return fail(res, 404, 'project not found')
+          await pool.query('UPDATE research_project SET name = ? WHERE id = ? AND user_id = ?', [name, id, userId])
+          const [fresh] = await pool.query(
+            'SELECT id, user_id, name, description, domain, created_time FROM research_project WHERE id = ?',
+            [id],
+          )
+          return ok(res, toProjectDto(fresh[0]))
+        } catch (e) {
+          ctx.logger.warn(`[research-project] rename error: ${e.message}`)
+          return fail(res, 500, `operation failed: ${e.message}`)
+        }
+      }
+
       if (req.method === 'GET' || req.method === 'DELETE') {
         try {
           // Ownership-enforced lookup (WHERE user_id = ?) — mirrors requireProjectOwnedBy.
