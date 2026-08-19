@@ -250,10 +250,8 @@ window.__ModuleLoader__.load({
 			rsCardTitle: { fontSize: 14, lineHeight: "20px", fontWeight: 500, margin: 0, color: "var(--dsw-alias-label-primary, #111)" },
 			detailTitle: { fontSize: 13, fontWeight: 600, lineHeight: 1.4, margin: "0 0 2px", color: "var(--dsw-alias-label-primary, #111)" },
 			detailMeta: { fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-label-tertiary, #999)", margin: "0 0 3px" },
-			tag: { display: "inline-block", fontSize: 11, padding: "1px 8px", borderRadius: 999, background: "var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05))", color: "var(--dsw-alias-label-secondary, #666)", margin: "0 3px 2px 0" },
 			// 2026-08-19 myf: 论文原始 keywords（来自 paper_agent LLM 抽取的 4-8
-			// 个），用更小一号的字号 + 描边样式与 AI tags 视觉区分（AI tags
-			// 是 LLM 推理出的分类，这里是论文本身声明的关键词）。
+			// 个）。原 AI tags（胶囊样式）已移除（用户不需要），保留 keywords。
 			kw: { display: "inline-block", fontSize: 10.5, padding: "0 6px", borderRadius: 4, border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", color: "var(--dsw-alias-label-secondary, #666)", margin: "0 3px 2px 0", lineHeight: "16px" },
 			fieldLabel: { fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-label-secondary, #666)", marginBottom: 1, display: "block" },
 			text: { fontSize: 13, lineHeight: 1.5, color: "var(--dsw-alias-label-primary, #111)", margin: "0 0 2px", whiteSpace: "pre-wrap", wordBreak: "break-word" },
@@ -372,9 +370,8 @@ window.__ModuleLoader__.load({
 			return React.createElement("div", { style: S.detail },
 				React.createElement("p", { style: S.detailTitle }, detail.title || "(untitled)"),
 				React.createElement("p", { style: S.detailMeta }, (detail.authors || "—") + (detail.year ? " · " + detail.year : "") + (detail.doi ? " · DOI: " + detail.doi : "")),
-				cardData && Array.isArray(cardData.tags) && cardData.tags.length ? React.createElement("div", { style: { marginBottom: 4 } },
-					cardData.tags.map(function (t, i) { return React.createElement("span", { key: i, style: S.tag }, (t.name || "") + (t.category ? " · " + t.category : "")); }),
-				) : null,
+				// 2026-08-19 myf: 不再渲染 cardData.tags（AI 推理标签），只保留论文
+				// 原始 keywords。AI tags 在 knowledge graph 那边单独呈现。
 				kwList.length ? React.createElement("div", { style: { marginBottom: 6 } },
 					React.createElement("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-secondary, #666)", marginRight: 4 } }, "Keywords:"),
 					kwList.map(function (k, i) { return React.createElement("span", { key: "kw-" + i, style: S.kw }, k); }),
