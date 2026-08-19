@@ -384,12 +384,9 @@ window.__ModuleLoader__.load({
 		function proxyPdfUrl(p) { return "/research-external-search/pdf?url=" + encodeURIComponent(p.pdf_url); }
 		function pdfDownloadLabel(p) { return ((p.title || "paper").slice(0, 60)) + ".pdf"; }
 
-		// pdf.js loader (singleton, CDN). Picked the legacy 3.11.x build because
-		// it ships a single-file UMD that works without a bundler — modern
-		// 4.x requires a worker URL we can't trivially expose from a runtime
-		// client plugin. The 3.11.174 build also matches the version pinned
-		// in our ai-service PDF parsing pipeline, so the rendered output is
-		// behaviourally consistent with what we extract server-side.
+		// pdf.js loader (singleton, CDN). 3.11.x ships a single-file UMD that
+		// works without a bundler; this version is also pinned in our
+		// ai-service PDF parsing pipeline, so the rendered output matches.
 		var PDFJS_VERSION = "3.11.174";
 		var PDFJS_CDN = "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VERSION + "/build/pdf.min.js";
 		var PDFJS_WORKER_CDN = "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VERSION + "/build/pdf.worker.min.js";
@@ -403,7 +400,6 @@ window.__ModuleLoader__.load({
 				s.src = PDFJS_CDN;
 				s.async = true;
 				s.onload = function () {
-					// 3.11.x UMD attaches to window.pdfjsLib; tolerate alias paths.
 					var lib = window.pdfjsLib || window["pdfjs-dist/build/pdf"];
 					if (!lib) return reject(new Error("pdf.js global not found after load"));
 					pdfjsLib = lib;
@@ -430,39 +426,46 @@ window.__ModuleLoader__.load({
 			var pdfUrl = isExternal
 				? ("/research-external-search/pdf?url=" + encodeURIComponent(src))
 				: ("/research-file/files/" + encodeURIComponent(src).replace(/%2F/g, "/"));
-			// canvasRef + state held in a child component so each PDF gets
-			// its own lifecycle (avoids stale state when switching papers).
-			return React.createElement(PdfCanvas, { url: pdfUrl, title: title });
+			return React.createElement(PdfViewer, { url: pdfUrl, title: title });
 		}
-		function PdfCanvas(props) {
+
+		// Full PDF viewer built on top of pdf.js — own toolbar (zoom +/-,
+		// fit-width, 100%, prev/next, page jump), all pages rendered on
+		// demand, keyboard nav (←/→/Home/End), theme-aware chrome. Avoids
+		// <iframe> (depends on the browser's built-in PDF plugin) and the
+		// pdf.js web/viewer.html (not shipped on jsDelivr's npm tarball).
+		function PdfViewer(props) {
 			var canvasRef = useRef(null);
-			var wrapRef = useRef(null);
+			var scrollerRef = useRef(null);
+			var docRef = useRef(null);
+			var renderTaskRef = useRef(null);
+			var pendingPageRef = useRef(null); // throttle target page while a render is in-flight
 			var [status, setStatus] = useState("loading"); // loading | ready | error
 			var [error, setError] = useState("");
-			var [pages, setPages] = useState(1);
-			var docRef = useRef(null);
-			// 2026-08-19 myf: 旧实现是 <iframe src=PDF>，依赖浏览器内置 PDF
-			// viewer/扩展；扩展不可用时整片空白。改为 pdf.js 把每页画到 canvas
-			// 上，不依赖任何扩展/外部 viewer，深色主题下也跟主题色一致。
+			var [numPages, setNumPages] = useState(0);
+			var [pageNum, setPageNum] = useState(1);
+			var [pageInput, setPageInput] = useState("1");
+			var [scale, setScale] = useState(1); // user scale multiplier
+			var [fitMode, setFitMode] = useState("width"); // "width" | "100"
+			var [containerW, setContainerW] = useState(360);
+
+			// Load document whenever the URL changes.
 			useEffect(function () {
 				var cancelled = false;
 				setStatus("loading");
 				setError("");
-				setPages(1);
+				setNumPages(0);
+				setPageNum(1);
+				setPageInput("1");
+				docRef.current = null;
 				bootstrapPdfjs().then(function () {
 					if (cancelled) return;
-					pdfjsLib.getDocument({ url: props.url, withCredentials: true }).promise.then(function (doc) {
-						if (cancelled) { doc.destroy(); return; }
-						docRef.current = doc;
-						setPages(doc.numPages);
-						return renderPages(doc, canvasRef, 1);
-					}).then(function () {
-						if (!cancelled) setStatus("ready");
-					}).catch(function (e) {
-						if (cancelled) return;
-						setError(e && e.message ? e.message : String(e));
-						setStatus("error");
-					});
+					return pdfjsLib.getDocument({ url: props.url, withCredentials: true }).promise;
+				}).then(function (doc) {
+					if (cancelled) { try { doc.destroy(); } catch (_) {} return; }
+					docRef.current = doc;
+					setNumPages(doc.numPages);
+					setStatus("ready");
 				}).catch(function (e) {
 					if (cancelled) return;
 					setError(e && e.message ? e.message : String(e));
@@ -473,50 +476,179 @@ window.__ModuleLoader__.load({
 					if (docRef.current) { try { docRef.current.destroy(); } catch (_) {} docRef.current = null; }
 				};
 			}, [props.url]);
-			// 主题色：浅色用白底 + 浅灰边，深色用 #1e1e1e 背景 + 暗边；
-			// 渲染区是嵌入在 chat 旁的窄栏，沿用 dsh 二级层色，与 dsw 一致。
-			var isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-			var wrapBg = isDark ? "#1e1e1e" : "#fff";
-			var wrapBorder = isDark ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.12)";
-			var errColor = isDark ? "#f87171" : "#dc2626";
-			var labelColor = isDark ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.55)";
-			return React.createElement("div", { ref: wrapRef, style: { width: "100%", border: "1px solid " + wrapBorder, borderRadius: 12, background: wrapBg, boxSizing: "border-box", padding: 8, maxHeight: 540, overflowY: "auto" } },
-				status === "loading" ? React.createElement("div", { style: { padding: 24, textAlign: "center", color: labelColor, fontSize: 12 } }, "加载 PDF…")
-					: null,
-				status === "error" ? React.createElement("div", { style: { padding: 24, textAlign: "center", color: errColor, fontSize: 12, lineHeight: 1.5 } },
-						"PDF 加载失败",
-						React.createElement("br", null),
-						React.createElement("span", { style: { fontSize: 11, opacity: 0.8 } }, error),
-					) : null,
-				React.createElement("canvas", { ref: canvasRef, style: { display: "block", width: "100%", borderRadius: 6 } }),
-				status === "ready" && pages > 1 ? React.createElement("div", { style: { fontSize: 11, color: labelColor, textAlign: "center", marginTop: 4 } },
-					"已渲染第 1 / " + pages + " 页（点击下方 Paper Card 查看完整解析）",
-				) : null,
-			);
-		}
-		// Render page 1 by default; keeps payload small (a 1.8MB paper
-		// rendered at 1.4x scale fits in <500KB PNG-equivalent of canvas).
-		function renderPages(doc, canvasRef, upTo) {
-			var tasks = [];
-			for (var n = 1; n <= upTo; n++) {
-				tasks.push(doc.getPage(n).then(function (page) {
-					var containerWidth = (canvasRef.current && canvasRef.current.parentElement)
-						? canvasRef.current.parentElement.clientWidth - 16
-						: 360;
-					var unscaledViewport = page.getViewport({ scale: 1 });
-					var scale = Math.max(0.6, Math.min(2.5, containerWidth / unscaledViewport.width));
-					var viewport = page.getViewport({ scale: scale });
+
+			// Track container width so fit-width can recompute on resize.
+			useEffect(function () {
+				var el = scrollerRef.current;
+				if (!el) return;
+				var measure = function () {
+					var w = el.clientWidth;
+					if (w && w !== containerW) setContainerW(w);
+				};
+				measure();
+				var ro = new ResizeObserver(measure);
+				ro.observe(el);
+				return function () { ro.disconnect(); };
+				// eslint-disable-next-line react-hooks/exhaustive-deps
+			}, [status]);
+
+			// Compute the scale used to render the current page, based on the
+			// fitMode and the user override.
+			function computeScale(page) {
+				var base = page.getViewport({ scale: 1 });
+				if (fitMode === "width") {
+					var pad = 16; // matches scroller padding (8 * 2)
+					var w = Math.max(120, (containerW || 360) - pad);
+					return Math.max(0.25, Math.min(4, w / base.width));
+				}
+				return scale;
+			}
+
+			// Render the given page number to the canvas. Coalesces rapid
+			// scroll/click updates by remembering the latest requested page
+			// while a render task is in-flight.
+			function renderPage(n) {
+				var doc = docRef.current;
+				if (!doc) return;
+				if (renderTaskRef.current) {
+					pendingPageRef.current = n;
+					return;
+				}
+				doc.getPage(n).then(function (page) {
+					if (docRef.current !== doc) return; // doc was swapped / destroyed
+					var s = computeScale(page);
+					var viewport = page.getViewport({ scale: s });
 					var canvas = canvasRef.current;
 					if (!canvas) return;
 					var ctx = canvas.getContext("2d");
 					canvas.width = Math.floor(viewport.width);
 					canvas.height = Math.floor(viewport.height);
-					canvas.style.width = "100%";
-					canvas.style.height = "auto";
-					return page.render({ canvasContext: ctx, viewport: viewport }).promise;
-				}));
+					canvas.style.width = Math.floor(viewport.width) + "px";
+					canvas.style.height = Math.floor(viewport.height) + "px";
+					var task = page.render({ canvasContext: ctx, viewport: viewport });
+					renderTaskRef.current = task;
+					return task.promise.then(function () {
+						renderTaskRef.current = null;
+						var next = pendingPageRef.current;
+						pendingPageRef.current = null;
+						if (next && next !== n) renderPage(next);
+					}).catch(function (e) {
+						renderTaskRef.current = null;
+						// Rendering cancelled mid-flight is normal during fast page turns.
+						if (e && e.name === "RenderingCancelledException") return;
+						setError(e && e.message ? e.message : String(e));
+					});
+				});
 			}
-			return Promise.all(tasks);
+
+			// Re-render whenever the current page, scale mode, or container width changes.
+			useEffect(function () {
+				if (status !== "ready" || !numPages) return;
+				if (renderTaskRef.current) { pendingPageRef.current = pageNum; return; }
+				renderPage(pageNum);
+				// eslint-disable-next-line react-hooks/exhaustive-deps
+			}, [pageNum, status, fitMode, scale, containerW, numPages]);
+
+			function go(delta) {
+				var next = Math.max(1, Math.min(numPages, pageNum + delta));
+				if (next !== pageNum) { setPageNum(next); setPageInput(String(next)); }
+			}
+			function jumpToPage(raw) {
+				var n = parseInt(raw, 10);
+				if (isNaN(n)) { setPageInput(String(pageNum)); return; }
+				n = Math.max(1, Math.min(numPages, n));
+				if (n !== pageNum) { setPageNum(n); setPageInput(String(n)); }
+				else setPageInput(String(n));
+			}
+			function zoom(delta) {
+				setFitMode("100");
+				setScale(function (s) { return Math.max(0.25, Math.min(4, Math.round((s + delta) * 100) / 100)); });
+			}
+			function fitWidth() { setFitMode("width"); }
+			function zoom100() { setFitMode("100"); setScale(1); }
+
+			// Keyboard nav (←/→/Home/End). Bound on the scroller so it only
+			// fires when the user is interacting with the PDF region.
+			function onKey(e) {
+				if (status !== "ready") return;
+				if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
+				else if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
+				else if (e.key === "Home") { e.preventDefault(); if (pageNum !== 1) { setPageNum(1); setPageInput("1"); } }
+				else if (e.key === "End") { e.preventDefault(); if (pageNum !== numPages) { setPageNum(numPages); setPageInput(String(numPages)); } }
+			}
+
+			// Theme tokens — mirror the dsh layer-2 surface so the viewer
+			// blends with the surrounding chat panel.
+			var isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+			var wrapBg = isDark ? "#1e1e1e" : "#fff";
+			var wrapBorder = isDark ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.12)";
+			var scrollerBg = isDark ? "#121212" : "#f3f4f6";
+			var labelColor = isDark ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.55)";
+			var strongColor = isDark ? "rgba(255,255,255,.92)" : "rgba(0,0,0,.85)";
+			var btnBg = isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)";
+			var btnBgHover = isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)";
+			var btnBorder = isDark ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.10)";
+			var errColor = isDark ? "#f87171" : "#dc2626";
+			var inputBg = isDark ? "rgba(255,255,255,.04)" : "#fff";
+			var scaleLabel = (fitMode === "width") ? "适应宽度" : Math.round(scale * 100) + "%";
+
+			var toolbarStyle = {
+				display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+				padding: "6px 8px", borderBottom: "1px solid " + wrapBorder,
+				color: strongColor, fontSize: 12, userSelect: "none",
+			};
+			function btn(children, onClick, title, disabled) {
+				return React.createElement("button", {
+					type: "button", onClick: onClick, title: title || "", disabled: disabled,
+					style: {
+						minWidth: 26, height: 24, padding: "0 6px",
+						background: btnBg, color: strongColor, border: "1px solid " + btnBorder,
+						borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1,
+						fontSize: 12, lineHeight: "22px",
+					},
+				}, children);
+			}
+			function toolbarBtn(label, title, onClick, disabled) { return btn(label, onClick, title, disabled); }
+
+			return React.createElement("div", { style: { width: "100%", border: "1px solid " + wrapBorder, borderRadius: 12, background: wrapBg, boxSizing: "border-box", overflow: "hidden" } },
+				// Toolbar
+				React.createElement("div", { style: toolbarStyle },
+					toolbarBtn("−", "缩小 (–)", function () { zoom(-0.1); }, status !== "ready"),
+					btn(function () { return React.createElement("span", { style: { minWidth: 44, display: "inline-block", textAlign: "center" } }, scaleLabel); }, function () { if (fitMode === "width") zoom100(); else fitWidth(); }, "切换: 适应宽度 / 100%", status !== "ready"),
+					toolbarBtn("+", "放大 (+)", function () { zoom(0.1); }, status !== "ready"),
+					React.createElement("span", { style: { width: 1, height: 16, background: btnBorder, margin: "0 2px" } }),
+					toolbarBtn("⟸", "上一页 (←)", function () { go(-1); }, status !== "ready" || pageNum <= 1),
+					React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, color: strongColor, fontSize: 12 } },
+						React.createElement("input", {
+							type: "text", value: pageInput, onChange: function (e) { setPageInput(e.target.value.replace(/[^0-9]/g, "")); },
+							onKeyDown: function (e) { if (e.key === "Enter") { e.preventDefault(); jumpToPage(pageInput); } },
+							onBlur: function () { jumpToPage(pageInput); },
+							disabled: status !== "ready",
+							style: { width: 38, height: 22, textAlign: "center", border: "1px solid " + btnBorder, borderRadius: 4, background: inputBg, color: strongColor, fontSize: 12, padding: "0 4px" },
+						}),
+						React.createElement("span", { style: { color: labelColor } }, "/ " + (numPages || "—")),
+					),
+					toolbarBtn("⟹", "下一页 (→)", function () { go(1); }, status !== "ready" || pageNum >= numPages),
+					React.createElement("span", { style: { flex: 1 } }),
+					React.createElement("a", { href: props.url, target: "_blank", rel: "noreferrer", title: "在新窗口打开", style: { color: labelColor, fontSize: 11, textDecoration: "none", padding: "0 4px" } }, "新窗口"),
+				),
+				// Scroller
+				React.createElement("div", {
+					ref: scrollerRef, tabIndex: 0, onKeyDown: onKey,
+					style: {
+						maxHeight: 540, overflowY: "auto", overflowX: "auto",
+						background: scrollerBg, padding: 8, textAlign: "center",
+						outline: "none",
+					},
+				},
+					status === "loading" ? React.createElement("div", { style: { padding: 32, color: labelColor, fontSize: 12 } }, "加载 PDF…")
+						: null,
+					status === "error" ? React.createElement("div", { style: { padding: 24, color: errColor, fontSize: 12, lineHeight: 1.5, textAlign: "left", whiteSpace: "pre-wrap" } },
+							"PDF 加载失败\n", React.createElement("span", { style: { fontSize: 11, opacity: 0.8 } }, error),
+						) : null,
+					React.createElement("canvas", { ref: canvasRef, style: { display: "inline-block", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.12)", borderRadius: 4 } }),
+				),
+			);
 		}
 
 		// Detail view tab strip: [PDF 预览] [Paper Card]. Mirrors the dsh
