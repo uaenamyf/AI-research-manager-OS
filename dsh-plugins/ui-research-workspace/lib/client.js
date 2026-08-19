@@ -298,6 +298,13 @@ window.__ModuleLoader__.load({
 			modalTitle: { fontSize: 15, fontWeight: 600, margin: "0 0 12px", color: "var(--dsw-alias-label-primary, #111)" },
 			modalFooter: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 },
 			ok: { padding: "6px 12px", fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-state-success-primary, #16a34a)" },
+			// 2026-08-19 myf: 引用弹窗（APA / MLA / GBT 三栏）
+			citeBlock: { marginBottom: 12 },
+			citeBlockHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+			citeBlockLabel: { fontSize: 12, fontWeight: 600, color: "var(--dsw-alias-label-secondary, #666)" },
+			citeBlockCopy: { padding: "3px 10px", fontSize: 11, borderRadius: 6, border: "none", background: "var(--dsw-alias-button-elevated-fill, #fff)", color: "var(--dsw-alias-label-primary, #111)", boxShadow: "0 0 0 1px var(--dsw-alias-border-l2, rgba(0,0,0,.12))", cursor: "pointer" },
+			citeBlockCopyOk: { color: "var(--dsw-alias-state-success-primary, #16a34a)" },
+			citeBlockText: { fontSize: 12, lineHeight: 1.6, padding: "8px 10px", borderRadius: 8, background: "var(--dsw-alias-bg-layer-1, #f6f7f9)", color: "var(--dsw-alias-label-primary, #111)", whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "ui-serif, Georgia, 'Times New Roman', serif" },
 		};
 
 		// Shared right-column research selection: the region writes it on a
@@ -340,6 +347,24 @@ window.__ModuleLoader__.load({
 			};
 		}
 
+		// 2026-08-19 myf: 树元信息（项目 + 文件夹）广播——左栏 LibraryView 拉树成功后
+		// 通过这里推给 ResearchSidebar，让批量移动弹窗能拿到目标文件夹列表
+		// （不重复请求 /research-folder 与 /research-project）。
+		var researchTreeMeta = { projects: [], foldersByProject: {} };
+		var researchTreeMetaSubs = [];
+		function setResearchTreeMeta(projects, foldersByProject) {
+			researchTreeMeta.projects = projects || [];
+			researchTreeMeta.foldersByProject = foldersByProject || {};
+			for (var i = 0; i < researchTreeMetaSubs.length; i++) researchTreeMetaSubs[i](researchTreeMeta);
+		}
+		function subscribeResearchTreeMeta(fn) {
+			researchTreeMetaSubs.push(fn);
+			fn(researchTreeMeta);
+			return function () {
+				researchTreeMetaSubs = researchTreeMetaSubs.filter(function (x) { return x !== fn; });
+			};
+		}
+
 		// Shared right-column literature search: the 文献检索 action publishes a
 		// result set here; the details seat renders it when no paper is focused.
 		var researchSearch = { state: null }; // { query, results, loading } | null
@@ -374,6 +399,22 @@ window.__ModuleLoader__.load({
 			researchImportSubs.push(fn);
 			return function () {
 				researchImportSubs = researchImportSubs.filter(function (x) { return x !== fn; });
+			};
+		}
+
+		// 2026-08-19 myf: 引用弹窗请求：搜索结果面板点击「引用」按钮后通过这里推送
+		// 选中的文献给外部预览面板，弹出 APA / MLA / GBT 三种格式（仅在前端生成，
+		// 不入后端）。预览面板订阅后显示 CitationDialog 弹窗。
+		var researchCitation = { paper: null };
+		var researchCitationSubs = [];
+		function setResearchCitation(paper) {
+			researchCitation.paper = paper;
+			for (var i = 0; i < researchCitationSubs.length; i++) researchCitationSubs[i](paper);
+		}
+		function subscribeResearchCitation(fn) {
+			researchCitationSubs.push(fn);
+			return function () {
+				researchCitationSubs = researchCitationSubs.filter(function (x) { return x !== fn; });
 			};
 		}
 
@@ -895,6 +936,7 @@ window.__ModuleLoader__.load({
 										p.venue ? React.createElement("span", null, p.venue) : null,
 									),
 								),
+								React.createElement("button", { type: "button", style: S.btn, title: "查看 APA / MLA / GBT 引用格式", onClick: function () { setResearchCitation(p); } }, "引用"),
 								React.createElement("button", { type: "button", style: S.btn, title: "导入到研究区", onClick: function () { setResearchImport(p); } }, "导入"),
 							),
 							p.abstract ? React.createElement("p", { className: "dsh-rr-abst" }, p.abstract) : null,
@@ -918,6 +960,9 @@ window.__ModuleLoader__.load({
 			var [detail, setDetail] = useState(null);
 			var [card, setCard] = useState(null);
 			var [innerTab, setInnerTab] = useState("pdf");
+			// 2026-08-19 myf: 引用弹窗订阅——搜索结果面板点击「引用」时弹出。
+			var [citation, setCitation] = useState(null);
+			useEffect(function () { return subscribeResearchCitation(setCitation); }, []);
 			useEffect(function () { return subscribeResearchDetail(function (rd) { setPaperId(rd.paperId); setNonce(rd.nonce); }); }, []);
 			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
 			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
@@ -1053,7 +1098,52 @@ window.__ModuleLoader__.load({
 			if (!tab) return React.createElement("div", { style: S.rsRoot },
 				React.createElement("p", { style: S.empty }, "点击最右侧「研究区」或选择研究区论文，打开论文详细 / 在线文献检索"),
 			);
-			return tabContent();
+			return React.createElement(React.Fragment, null,
+				tabContent(),
+				// 2026-08-19 myf: 引用弹窗——搜索结果面板点击「引用」时弹出，关闭后清空。
+				citation ? React.createElement(CitationDialog, { paper: citation, onClose: function () { setResearchCitation(null); setCitation(null); } }) : null,
+			);
+		}
+
+		// 2026-08-19 myf: 引用弹窗（APA / MLA / GBT 三种格式，一键复制到剪贴板）。
+		// 格式在前端用 citeAPA / citeMLA / citeGBT 纯函数生成，不依赖后端。
+		function CitationDialog(props) {
+			var paper = props.paper;
+			var [copied, setCopied] = useState(null); // 'apa' | 'mla' | 'gbt' | null
+			var formats = [
+				{ key: "apa", label: "APA (7th)", text: citeAPA(paper) },
+				{ key: "mla", label: "MLA (9th)", text: citeMLA(paper) },
+				{ key: "gbt", label: "GBT 7714-2015", text: citeGBT(paper) },
+			];
+			function doCopy(key, text) {
+				copyToClipboard(text).then(function (ok) {
+					if (ok) {
+						setCopied(key);
+						setTimeout(function () { setCopied(function (c) { return c === key ? null : c; }); }, 1500);
+					}
+				});
+			}
+			return React.createElement(Modal, {
+				title: "引用 · " + (paper.title || "(untitled)"),
+				onClose: props.onClose,
+				footer: [
+					React.createElement("button", { key: "close", type: "button", style: S.btn, onClick: props.onClose }, "关闭"),
+				],
+			},
+				formats.map(function (f) {
+					return React.createElement("div", { key: f.key, style: S.citeBlock },
+						React.createElement("div", { style: S.citeBlockHead },
+							React.createElement("span", { style: S.citeBlockLabel }, f.label),
+							React.createElement("button", {
+								type: "button",
+								style: Object.assign({}, S.citeBlockCopy, copied === f.key ? S.citeBlockCopyOk : null),
+								onClick: function () { doCopy(f.key, f.text); },
+							}, copied === f.key ? "✓ 已复制" : "复制"),
+						),
+						React.createElement("div", { style: S.citeBlockText }, f.text),
+					);
+				}),
+			);
 		}
 
 		// 2026-08-19 myf: 窗口最右侧活动栏（'activitybar' slot，一级菜单入口，
@@ -1145,6 +1235,109 @@ window.__ModuleLoader__.load({
 			return out;
 		}
 
+		// 2026-08-19 myf: 把外文检索结果里的作者/期刊数组转换为 BibTeX 风格的「姓, 名首字母」列表，
+		// 喂给 APA / MLA / GBT 三种格式。形如 [{family:"Smith", given:"John A."}] 或
+		// 直接是 "John Smith" 字符串都能正确处理。
+		function formatAuthorList(authors) {
+			if (!Array.isArray(authors)) return [];
+			return authors.map(function (a) {
+				if (a && typeof a === "object") {
+					var fam = a.family || a.last || a.surname || a.name || "";
+					var giv = a.given || a.first || "";
+					if (fam && giv) {
+						// initials: "John A." -> "J. A."
+						var init = String(giv).split(/\s+/).filter(Boolean).map(function (p) {
+							return p.replace(/[.,]/g, "").charAt(0).toUpperCase() + ".";
+						}).join(" ");
+						return { family: fam, given: giv, initials: init };
+					}
+					if (fam) return { family: fam, given: "", initials: "" };
+					if (giv) return { family: giv, given: "", initials: "" };
+				}
+				if (typeof a === "string" && a.trim()) {
+					var parts = a.trim().split(/\s+/);
+					if (parts.length === 1) return { family: parts[0], given: "", initials: "" };
+					var last0 = parts.pop();
+					var giv0 = parts.join(" ");
+					return { family: last0, given: giv0, initials: giv0.split(/\s+/).filter(Boolean).map(function (p) { return p.replace(/[.,]/g, "").charAt(0).toUpperCase() + "."; }).join(" ") };
+				}
+				return null;
+			}).filter(Boolean);
+		}
+		function joinAPA(authors) {
+			// APA 7: Smith, J. A.; Smith, J. A., & Wang, L.
+			if (!authors.length) return "";
+			var lastFmt = authors.map(function (a) { return a.family + (a.initials ? ", " + a.initials : ""); });
+			if (lastFmt.length === 1) return lastFmt[0];
+			if (lastFmt.length === 2) return lastFmt[0] + " & " + lastFmt[1];
+			return lastFmt.slice(0, -1).join(", ") + ", & " + lastFmt[lastFmt.length - 1];
+		}
+		function joinMLA(authors) {
+			// MLA 9: First author as "Smith, John A."; subsequent as "John A. Smith".
+			if (!authors.length) return "";
+			if (authors.length === 1) return authors[0].family + (authors[0].given ? ", " + authors[0].given : "");
+			var first = authors[0];
+			var rest = authors.slice(1).map(function (a) { return (a.given ? a.given + " " : "") + a.family; });
+			return first.family + (first.given ? ", " + first.given : "") + ", " + rest.join(", ") + (authors.length > 2 ? ", et al" : " et al");
+		}
+		function joinGBT(authors) {
+			// GBT 7714-2015: 前 3 名作者用 ", " 连接；3 名以上用 ", 等"；个人作者用 "姓 名" 形式。
+			if (!authors.length) return "";
+			var up3 = authors.slice(0, 3);
+			var rest = up3.map(function (a) { return a.family + (a.given ? " " + a.given : ""); });
+			if (authors.length <= 3) {
+				if (authors.length === 1) return rest[0];
+				if (authors.length === 2) return rest[0] + ", " + rest[1];
+				return rest[0] + ", " + rest[1] + ", " + rest[2];
+			}
+			return rest[0] + ", " + rest[1] + ", " + rest[2] + ", 等";
+		}
+		function citeAPA(p) {
+			var auths = formatAuthorList(p.authors);
+			var a = joinAPA(auths);
+			var y = p.year ? (" (" + p.year + ").") : ".";
+			var t = (p.title || "(untitled)") + ".";
+			var s = p.venue || p.source ? ((p.venue || sourceLabel(p.source) || "") + ".") : "";
+			var d = p.doi ? (" https://doi.org/" + p.doi) : (p.url ? (" " + p.url) : "");
+			return [a, t, s, d].filter(Boolean).join(" ").replace(/\s+/g, " ").trim() || ((p.title || "(untitled)") + ".");
+		}
+		function citeMLA(p) {
+			var auths = formatAuthorList(p.authors);
+			var a = joinMLA(auths);
+			var y = p.year ? (" " + p.year + ".") : "";
+			var t = '"' + (p.title || "(untitled)") + '."';
+			var v = p.venue || p.source ? (" " + (p.venue || sourceLabel(p.source) || "") + ",") : "";
+			var d = p.doi ? (" doi:" + p.doi + ".") : (p.url ? (" " + p.url + ".") : "");
+			return (a ? a + ". " : "") + t + v + y + d;
+		}
+		function citeGBT(p) {
+			var auths = formatAuthorList(p.authors);
+			var a = joinGBT(auths);
+			var y = p.year ? (" " + p.year + ".") : ".";
+			var t = (p.title || "(untitled)") + "[J].";
+			var v = p.venue || p.source ? ((p.venue || sourceLabel(p.source) || "") + ".") : "";
+			var d = p.doi ? (" DOI:" + p.doi + ".") : (p.url ? (" " + p.url + ".") : "");
+			return (a ? a + "." : "") + t + (v ? " " + v : "") + y + d;
+		}
+		function copyToClipboard(text) {
+			if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+				return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallbackCopy(text); });
+			}
+			return Promise.resolve(fallbackCopy(text));
+		}
+		function fallbackCopy(text) {
+			try {
+				var ta = document.createElement("textarea");
+				ta.value = text;
+				ta.style.position = "fixed"; ta.style.opacity = "0";
+				document.body.appendChild(ta);
+				ta.select();
+				var ok = document.execCommand("copy");
+				document.body.removeChild(ta);
+				return ok;
+			} catch (e) { return false; }
+		}
+
 		// ── fixed dropdown (mirrors primitives Menu; portal-free) ──────
 		function Dropdown(props) {
 			var onCloseRef = useRef(props.onClose);
@@ -1194,7 +1387,7 @@ window.__ModuleLoader__.load({
 			useEffect(function () {
 				setText(dialog && dialog.initial ? dialog.initial : "");
 				setText2("");
-				setTargetFolder("root");
+				setTargetFolder(dialog && dialog.kind === "movePapers" ? "" : "root");
 				setImportProjectId("");
 				setBusy(false); setMsg(null);
 			}, [dialog]);
@@ -1209,7 +1402,8 @@ window.__ModuleLoader__.load({
 				: kind === "deleteFolder" ? "删除文件夹"
 				: kind === "deletePaper" ? "删除论文"
 				: kind === "deletePapers" ? "删除论文"
-				: kind === "movePaper" ? "移动论文" : "";
+				: kind === "movePaper" ? "移动论文"
+				: kind === "movePapers" ? "批量移动论文" : "";
 			var confirmOnly = kind === "deleteProject" || kind === "deleteFolder" || kind === "deletePaper" || kind === "deletePapers";
 
 			function submit() {
@@ -1259,6 +1453,30 @@ window.__ModuleLoader__.load({
 					return;
 				} else if (kind === "movePaper") {
 					req = { method: "PUT", url: "/research-paper/papers/" + d.paper.id + "/move", body: { folderId: targetFolder === "root" ? null : Number(targetFolder) } };
+				} else if (kind === "movePapers") {
+					// 2026-08-19 myf: 批量移动——后端无批量接口，按 (projectId, folderId) 分组后
+					// 并行调用单篇 PUT /move；targetFolderValue 形如 "pid:root" / "pid:<folderId>"。
+					var papers = d.papers || [];
+					if (!papers.length) { setMsg("未选择论文"); return; }
+					if (!targetFolder || !/^\d+:(root|\d+)$/.test(targetFolder)) { setMsg("请选择目标文件夹"); return; }
+					setBusy(true);
+					Promise.all(papers.map(function (p) {
+						var tParts = targetFolder.split(":");
+						var tPid = Number(tParts[0]);
+						var tFid = tParts[1] === "root" ? null : Number(tParts[1]);
+						// 选中论文可能跨多个项目；当选项属于非本论文所属项目时，跳过
+						if (Number(p.projectId) !== tPid) return Promise.resolve({ code: 0, _skipped: true });
+						return api("/research-paper/papers/" + p.id + "/move", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId: tFid }) });
+					})).then(function (results) {
+						var real = results.filter(function (r) { return r && !r._skipped; });
+						if (real.length === 0) {
+							// 全部跨项目被跳：让用户知道为什么没动
+							setMsg("所选项目与目标项目不一致"); setBusy(false); return;
+						}
+						if (real.every(function (j) { return ok(j); })) props.onDone && props.onDone(kind, dialog);
+						else { setMsg("部分论文移动失败，请重试"); setBusy(false); }
+					}).catch(function () { setMsg("网络错误"); setBusy(false); });
+					return;
 				}
 				if (!req) return;
 				setBusy(true);
@@ -1282,6 +1500,32 @@ window.__ModuleLoader__.load({
 					return React.createElement("select", { style: Object.assign({}, S.select, { width: "100%", height: 36 }), value: targetFolder, onChange: function (e) { setTargetFolder(e.target.value); } },
 						React.createElement("option", { value: "root" }, "根目录（无文件夹）"),
 						(dialog.folderOptions || []).map(function (f) { return React.createElement("option", { key: f.id, value: String(f.id) }, new Array(f.depth + 1).join("　") + f.name); }),
+					);
+				}
+				if (kind === "movePapers") {
+					// 2026-08-19 myf: 把选中论文涉及的 (projectId, projectName, folderId, folderName) 拍平成
+					// 单个下拉选项；value = "projectId:root|folderId"，便于 submit 直接分组。
+					var papers2 = dialog.papers || [];
+					var projName = {};
+					(props.projects || []).forEach(function (pp) { projName[pp.id] = pp.name || ("#" + pp.id); });
+					var seenPids = {};
+					papers2.forEach(function (p) { if (p.projectId != null) seenPids[p.projectId] = true; });
+					var optionKeys = Object.keys(seenPids).map(function (k) { return Number(k); });
+					// 若选中论文所属项目在 treeMeta 中找不到，给出"#"占位
+					optionKeys.sort(function (a, b) { return (projName[a] || "").localeCompare(projName[b] || ""); });
+					var row = function (pid, fid, fname) {
+						return React.createElement("option", { key: pid + ":" + (fid == null ? "root" : fid), value: pid + ":" + (fid == null ? "root" : fid) },
+							"[" + (projName[pid] || "#" + pid) + "] " + (fname == null ? "根目录" : fname));
+					};
+					return React.createElement("div", null,
+						React.createElement("p", { style: S.text }, "将选中的 " + papers2.length + " 篇论文移动到：" + (optionKeys.length > 1 ? "（涉及 " + optionKeys.length + " 个项目）" : "")),
+						React.createElement("select", { style: Object.assign({}, S.select, { width: "100%", height: 36 }), value: targetFolder, onChange: function (e) { setTargetFolder(e.target.value); } },
+							React.createElement("option", { value: "" }, "选择目标…"),
+							optionKeys.flatMap(function (pid) {
+								var folders = (props.foldersByProject && props.foldersByProject[pid]) || [];
+								return [row(pid, null, null)].concat(folders.map(function (f) { return row(pid, f.id, f.name); }));
+							}),
+						),
 					);
 				}
 				if (kind === "importExternal") {
@@ -1522,6 +1766,8 @@ window.__ModuleLoader__.load({
 						results.forEach(function (r) { fbp[r.id] = r.folders; pbp[r.id] = r.papers; allPapers = allPapers.concat(r.papers); });
 						setFoldersByProject(fbp); setPapersByProject(pbp);
 						if (props.onPapers) props.onPapers(allPapers);
+						// 2026-08-19 myf: 把当前树元信息广播给 sidebar，批量移动弹窗读取用
+						setResearchTreeMeta(projs, fbp);
 						// 2026-08-19 myf: 树刷新完成广播版本号，右窗综述目录及时刷新
 						bumpResearchTree();
 					}).catch(function () { setErr("网络错误"); });
@@ -1946,6 +2192,9 @@ window.__ModuleLoader__.load({
 			// 卸载重挂 sidebar.research 时选区不丢，否则刚选完就丢。
 			var [sel, setSel] = useState(researchSelection);
 			useEffect(function () { return subscribeResearchSelection(setSel); }, []);
+			// 2026-08-19 myf: 树元信息（项目 + 文件夹）订阅，喂给批量移动弹窗
+			var [treeMeta, setTreeMeta] = useState(researchTreeMeta);
+			useEffect(function () { return subscribeResearchTreeMeta(setTreeMeta); }, []);
 			var [focused, setFocused] = useState(null);
 			var [items, setItems] = useState([]);
 			// 2026-08-19 myf: 批量删除确认弹窗 + 删除后刷新树（refreshTick 触发 LibraryView 重载）
@@ -1985,11 +2234,14 @@ window.__ModuleLoader__.load({
 						// 仅用于批量删除（+ 计数 / 清空选择）。
 						Object.keys(sel).length > 0 ? React.createElement("div", { style: S.bar },
 							React.createElement("span", { style: S.barLabel }, "已选 " + Object.keys(sel).length + " 篇"),
+							// 2026-08-19 myf: 多选批量移动到文件夹（按 projectId 分组，
+							// 每个项目用对应的文件夹列表；后端暂无批量接口，所以并行调用单篇 PUT /move）
+							React.createElement("button", { style: S.btn, onClick: function () { setDialog({ kind: "movePapers", papers: selectedPapers }); } }, "移动到…"),
 							// 2026-08-19 myf: 多选批量删除（确认后并行删除，清空选择并刷新树）
 							React.createElement("button", { style: S.btnDanger, onClick: function () { setDialog({ kind: "deletePapers", papers: selectedPapers }); } }, "删除"),
 							React.createElement("button", { style: S.iconBtn, title: "清空选择", onClick: clearSel }, React.createElement(IconClose, null)),
 						) : null,
-						dialog ? React.createElement(DialogForm, { dialog: dialog, projects: [], onClose: function () { setDialog(null); }, onDone: function (kind, d) { setDialog(null); if (kind === "deletePapers") { clearSel(); setRefreshTick(function (t) { return t + 1; }); } } }) : null,
+						dialog ? React.createElement(DialogForm, { dialog: dialog, projects: treeMeta.projects || [], foldersByProject: treeMeta.foldersByProject || {}, onClose: function () { setDialog(null); }, onDone: function (kind, d) { setDialog(null); if (kind === "deletePapers" || kind === "movePapers") { clearSel(); setRefreshTick(function (t) { return t + 1; }); } } }) : null,
 					),
 			);
 		}
