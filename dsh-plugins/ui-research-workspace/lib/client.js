@@ -251,6 +251,10 @@ window.__ModuleLoader__.load({
 			detailTitle: { fontSize: 13, fontWeight: 600, lineHeight: 1.4, margin: "0 0 2px", color: "var(--dsw-alias-label-primary, #111)" },
 			detailMeta: { fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-label-tertiary, #999)", margin: "0 0 3px" },
 			tag: { display: "inline-block", fontSize: 11, padding: "1px 8px", borderRadius: 999, background: "var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05))", color: "var(--dsw-alias-label-secondary, #666)", margin: "0 3px 2px 0" },
+			// 2026-08-19 myf: 论文原始 keywords（来自 paper_agent LLM 抽取的 4-8
+			// 个），用更小一号的字号 + 描边样式与 AI tags 视觉区分（AI tags
+			// 是 LLM 推理出的分类，这里是论文本身声明的关键词）。
+			kw: { display: "inline-block", fontSize: 10.5, padding: "0 6px", borderRadius: 4, border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", color: "var(--dsw-alias-label-secondary, #666)", margin: "0 3px 2px 0", lineHeight: "16px" },
 			fieldLabel: { fontSize: 12, lineHeight: "18px", color: "var(--dsw-alias-label-secondary, #666)", marginBottom: 1, display: "block" },
 			text: { fontSize: 13, lineHeight: 1.5, color: "var(--dsw-alias-label-primary, #111)", margin: "0 0 2px", whiteSpace: "pre-wrap", wordBreak: "break-word" },
 			// inputs / buttons
@@ -352,12 +356,28 @@ window.__ModuleLoader__.load({
 		function PaperDetail(props) {
 			var detail = props.detail, card = props.card;
 			var cardData = card || detail.summary;
-			var fields = [["Abstract", cardData ? cardData.abstract : ""], ["Method", cardData ? cardData.method : ""], ["Finding", cardData ? cardData.finding : ""], ["Limitation", cardData ? cardData.limitation : ""], ["Future work", cardData ? cardData.future_work : ""]];
+			// 2026-08-19 myf: 加上 keywords（论文原始关键词，弱化样式与 AI tags
+			// 区分）和 workflow（4-8 句完整实验流程）。原 5 字段保留。
+			var fields = [
+				["Abstract", cardData ? cardData.abstract : ""],
+				["Method", cardData ? cardData.method : ""],
+				["Finding", cardData ? cardData.finding : ""],
+				["Limitation", cardData ? cardData.limitation : ""],
+				["Future work", cardData ? cardData.future_work : ""],
+				["Workflow", cardData ? cardData.workflow : ""],
+			];
+			// keywords: 兼容 array（新版）或 comma-separated string（旧版）
+			var kws = cardData && cardData.keywords;
+			var kwList = Array.isArray(kws) ? kws : (typeof kws === "string" && kws.trim() ? kws.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : []);
 			return React.createElement("div", { style: S.detail },
 				React.createElement("p", { style: S.detailTitle }, detail.title || "(untitled)"),
 				React.createElement("p", { style: S.detailMeta }, (detail.authors || "—") + (detail.year ? " · " + detail.year : "") + (detail.doi ? " · DOI: " + detail.doi : "")),
 				cardData && Array.isArray(cardData.tags) && cardData.tags.length ? React.createElement("div", { style: { marginBottom: 4 } },
 					cardData.tags.map(function (t, i) { return React.createElement("span", { key: i, style: S.tag }, (t.name || "") + (t.category ? " · " + t.category : "")); }),
+				) : null,
+				kwList.length ? React.createElement("div", { style: { marginBottom: 6 } },
+					React.createElement("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-secondary, #666)", marginRight: 4 } }, "Keywords:"),
+					kwList.map(function (k, i) { return React.createElement("span", { key: "kw-" + i, style: S.kw }, k); }),
 				) : null,
 				fields.map(function (f, i) {
 					if (!f[1]) return null;
