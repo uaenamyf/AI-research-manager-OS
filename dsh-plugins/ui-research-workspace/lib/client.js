@@ -1765,6 +1765,15 @@ window.__ModuleLoader__.load({
 			// 卸载重挂 sidebar.research 时选区不丢，否则刚选完就丢。
 			var [sel, setSel] = useState(researchSelection);
 			useEffect(function () { return subscribeResearchSelection(setSel); }, []);
+			// 2026-08-19 myf: dsh 切 conversation 时只重挂 sidebar.research
+			// 不重挂 right column slot —— 模块级 paperId/tab 会带着上一个
+			// 会话的内容残留到新会话。挂在 authReady=true 这一帧清一次
+			// （每个 region 实例只清一次，等价于 dsh 切 conv 时复位）。
+			useEffect(function () {
+				if (!authReady) return;
+				setResearchDetail(null);
+				setResearchPanelTab(null);
+			}, [authReady]);
 			var [focused, setFocused] = useState(null);
 			var [items, setItems] = useState([]);
 			// 2026-08-19 myf: 批量删除确认弹窗 + 删除后刷新树（refreshTick 触发 LibraryView 重载）
