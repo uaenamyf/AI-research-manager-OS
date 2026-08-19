@@ -812,6 +812,56 @@ window.__ModuleLoader__.load({
 			var [err, setErr] = useState(null);
 			var [menu, setMenu] = useState(null);
 			var [dialog, setDialog] = useState(null);
+			// 2026-08-19 myf: 本地 PDF 上传（项目行加号 -> 文件选择器 ->
+			// research-file 预签名上传 -> research-paper 创建并触发 AI 分析）
+			var fileRef = useRef(null);
+			var uploadTargetRef = useRef(null);
+			var [uploadBusy, setUploadBusy] = useState(false);
+			var [uploadMsg, setUploadMsg] = useState(null);
+
+			// 打开文件选择器（记录目标项目/文件夹），选中 PDF 后走预签名上传链路。
+			// 打开文件选择器（记录目标项目/文件夹）。项目行加号调用时不传 folderId（根目录）。
+			function startPdfUpload(projectId, folderId) {
+				uploadTargetRef.current = { projectId: projectId, folderId: folderId == null ? null : folderId };
+				setUploadMsg(null);
+				fileRef.current && fileRef.current.click();
+			}
+			function onFilePicked(e) {
+				var file = e.target.files && e.target.files[0];
+				e.target.value = ""; // 允许重复选择同一文件
+				if (!file) return;
+				var target = uploadTargetRef.current;
+				if (!target) return;
+				if (!/\.pdf$/i.test(file.name)) { setUploadMsg("请选择 PDF 文件"); return; }
+				setUploadBusy(true); setUploadMsg(null);
+				api("/research-file/upload-url", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ fileName: file.name }),
+				}).then(function (j) {
+					if (!ok(j)) throw new Error(j.message || "获取上传地址失败");
+					var up = j.data.url, key = j.data.fields.key;
+					var fd = new FormData();
+					fd.append("file", file);
+					fd.append("key", key);
+					return fetch(up, { method: "POST", credentials: "include", body: fd }).then(function (r) { return r.json(); }).then(function (j2) {
+						if (!ok(j2)) throw new Error(j2.message || "上传失败");
+						return api("/research-paper/projects/" + target.projectId + "/papers", {
+							method: "POST",
+							headers: { "content-type": "application/json" },
+							body: JSON.stringify({ fileName: file.name, s3Key: key, folderId: target.folderId }),
+						});
+					});
+				}).then(function (j3) {
+					setUploadBusy(false);
+					if (!ok(j3)) { setUploadMsg(j3.message || "创建论文失败"); return; }
+					setUploadMsg(null);
+					loadTree();
+				}).catch(function (err) {
+					setUploadBusy(false);
+					setUploadMsg((err && err.message) || "上传失败");
+				});
+			}
 
 			// Load the tree: projects -> folders (nested) -> papers (all, tagged projectId).
 			var loadTree = useCallback(function () {
@@ -971,7 +1021,7 @@ window.__ModuleLoader__.load({
 						React.createElement("span", { className: "dsh-rr-ftitle" }, p.name || ("#" + p.id)),
 						React.createElement("span", { className: "dsh-rr-actions" },
 							React.createElement("button", { type: "button", className: "dsh-rr-iconbtn", title: "更多", onClick: function (e) { e.stopPropagation(); openProjectMenu(e, p); } }, React.createElement(IconEllipsis, null)),
-							React.createElement("button", { type: "button", className: "dsh-rr-iconbtn", title: "新建文件夹", onClick: function (e) { e.stopPropagation(); setDialog({ kind: "newFolder", projectId: p.id }); } }, React.createElement(IconPlus, null)),
+							React.createElement("button", { type: "button", className: "dsh-rr-iconbtn", title: "添加 PDF 文件", onClick: function (e) { e.stopPropagation(); startPdfUpload(p.id); } }, React.createElement(IconPlus, null)),
 						),
 					),
 					expanded ? React.createElement("div", null,
@@ -1022,6 +1072,9 @@ window.__ModuleLoader__.load({
 					),
 				),
 				React.createElement("div", { style: S.list }, listBody()),
+				uploadBusy ? React.createElement("div", { style: { padding: "4px 12px", fontSize: 12, color: "var(--dsw-alias-button-primary-fill, #2563eb)" } }, "上传并分析中…") : null,
+				uploadMsg ? React.createElement("div", { style: Object.assign({}, S.err, { padding: "4px 12px" }) }, uploadMsg) : null,
+				React.createElement("input", { ref: fileRef, type: "file", accept: "application/pdf,.pdf", style: { display: "none" }, onChange: onFilePicked }),
 				menu ? React.createElement(Dropdown, { x: menu.x, y: menu.y, items: menu.items, onSelect: function (id) { handleMenuSelect(menu.target, id); setMenu(null); }, onClose: function () { setMenu(null); } }) : null,
 				dialog ? React.createElement(DialogForm, { dialog: dialog, projects: projects || [], onClose: function () { setDialog(null); }, onDone: function (kind, d) { setDialog(null); if (kind === "deletePaper" && removeSel) removeSel(d.paper.id); loadTree(); } }) : null,
 			);
