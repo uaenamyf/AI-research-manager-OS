@@ -50,6 +50,14 @@ window.__ModuleLoader__.load({
 				React.createElement("path", { d: "M13.197 1.88326L14.1168 2.80305L2.80309 14.1168L1.8833 13.197L13.197 1.88326Z", fill: "currentColor" }),
 			);
 		}
+		// IconGlobeOutline14 (online literature search) — from
+		// @deepseek-ai/dsh-client-ui-primitives; distinguishes the online-library
+		// affordance from the local 检索 magnifier.
+		function IconGlobe(props) {
+			return React.createElement("svg", { width: props.size || 14, height: props.size || 14, viewBox: "0 0 14 14", fill: "none", xmlns: "http://www.w3.org/2000/svg" },
+				React.createElement("path", { fillRule: "evenodd", clipRule: "evenodd", d: "M7.00018 0.353516C10.6708 0.353535 13.6468 3.32958 13.6469 7.00018C13.6468 10.6708 10.6708 13.6468 7.00018 13.6469C3.32957 13.6468 0.353535 10.6708 0.353516 7.00018C0.353535 3.32957 3.32957 0.353531 7.00018 0.353516ZM5.44643 7.59661C5.49463 8.97506 5.70762 10.191 6.02136 11.0793C6.20141 11.5891 6.40328 11.9585 6.59898 12.1889C6.79501 12.4196 6.93213 12.454 7.00018 12.454C7.06822 12.454 7.20533 12.4197 7.40138 12.1889C7.59708 11.9585 7.79895 11.589 7.979 11.0793C8.29274 10.191 8.50574 8.97506 8.55394 7.59661H5.44643ZM1.57861 7.59661C1.80785 9.70467 3.2386 11.4509 5.1715 12.1388C5.07135 11.9317 4.97972 11.7098 4.89746 11.477C4.53084 10.4391 4.30224 9.0828 4.25357 7.59661H1.57861ZM9.74679 7.59661C9.69813 9.0828 9.46952 10.4391 9.1029 11.477C9.0206 11.7099 8.92818 11.9316 8.82797 12.1388C10.7613 11.4511 12.1925 9.70496 12.4218 7.59661H9.74679ZM5.1706 1.8616C3.23814 2.54963 1.80876 4.29604 1.5795 6.40376H4.25357C4.30224 4.91756 4.53083 3.56129 4.89746 2.5234C4.97968 2.29066 5.07051 2.0686 5.1706 1.8616ZM7.00018 1.54637C6.93213 1.54638 6.79503 1.5807 6.59898 1.81145C6.40332 2.04177 6.20139 2.41058 6.02136 2.92012C5.70754 3.80851 5.49461 5.02499 5.44643 6.40376H8.55394C8.50575 5.025 8.29282 3.80851 7.979 2.92012C7.79898 2.41059 7.59705 2.04177 7.40138 1.81145C7.20531 1.58067 7.06823 1.54637 7.00018 1.54637ZM8.82887 1.8616C8.92902 2.0687 9.02064 2.29053 9.1029 2.5234C9.46953 3.56129 9.69812 4.91756 9.74679 6.40376H12.4209C12.1916 4.29575 10.7618 2.54943 8.82887 1.8616Z", fill: "currentColor" }),
+			);
+		}
 		// IconPersonalizationOutline16 (view options) — workspace header twin.
 		function IconViewOptions(props) {
 			return React.createElement("svg", { width: props.size || 16, height: props.size || 16, viewBox: "0 0 16 16", fill: "none", xmlns: "http://www.w3.org/2000/svg" },
@@ -482,13 +490,9 @@ window.__ModuleLoader__.load({
 			if (s.open_access) conds.push("仅开放获取");
 			var meta = conds.length ? conds.join(" · ") : (s.loading || s.results ? "检索条件" : "输入条件开始检索在线文献库");
 			return React.createElement("div", { style: S.rsRoot },
-				React.createElement("div", { style: S.rsHead },
-					React.createElement("div", null,
-						React.createElement("p", { style: S.rsTitle }, "在线文献检索"),
-						React.createElement("p", { style: S.rsMeta }, meta + (s.loading ? " · 检索中…" : (s.results ? " · " + s.results.length + " 条结果" : ""))),
-					),
-					React.createElement("button", { type: "button", style: S.iconBtn, title: "关闭", onClick: function () { setResearchSearch(null); } }, React.createElement(IconClose, { size: 14 })),
-				),
+				// 2026-08-19 myf: 移除面板自带头部（在线文献检索标题 + 关闭按钮），
+				// 标题统一由 DetailsPanel 的 ResearchDetailTitle 渲染，避免两个顶部
+				React.createElement("p", { style: S.rsMeta }, meta + (s.loading ? " · 检索中…" : (s.results ? " · " + s.results.length + " 条结果" : ""))),
 				React.createElement("div", { style: S.litForm },
 					React.createElement("div", { style: S.litRow },
 						React.createElement("input", { style: S.finput, type: "text", placeholder: "关键词（标题/摘要自由词）", maxLength: 200, value: fQ, onChange: function (e) { setFQ(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") doSearch(); } }),
@@ -586,6 +590,25 @@ window.__ModuleLoader__.load({
 			}
 			if (search) return React.createElement(SearchResultsPanel, { search: search });
 			return null; // empty seat
+		}
+
+		// Details-panel header title (conversation.details.research.title seat):
+		// renders 论文详细 while a paper is focused/previewed, 在线文献检索 while
+		// the online literature search is open (the search panel no longer
+		// renders its own header — one title bar only), and keeps the 详情 label
+		// on the empty seat (single-kind slot fallback only fires with no
+		// registered entry, so the label is mirrored here). Mirrors
+		// ResearchDetailPanel's branch order.
+		function ResearchDetailTitle(props) {
+			var [paperId, setPaperId] = useState(researchDetail.paperId);
+			var [search, setSearch] = useState(researchSearch.state);
+			var [preview, setPreview] = useState(researchPreview.paper);
+			useEffect(function () { return subscribeResearchDetail(setPaperId); }, []);
+			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
+			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
+			if (paperId != null || preview) return React.createElement("span", null, "论文详细");
+			if (search) return React.createElement("span", null, "在线文献检索");
+			return React.createElement("span", null, "详情");
 		}
 
 		// ── time / status helpers ─────────────────────────────────────
@@ -991,7 +1014,9 @@ window.__ModuleLoader__.load({
 						),
 					),
 					React.createElement("div", { style: searchOpen ? Object.assign({}, S.headerActions, S.headerActionsHidden) : S.headerActions },
-						React.createElement("button", { type: "button", style: S.iconBtn, title: "检索在线文献库", onClick: function () { setResearchDetail(null); setResearchPreview(null); setResearchSearch({ q: "", title: "", author: "", doi: "", year_from: "", year_to: "", open_access: false, results: null, loading: false, error: null, form: true }); } }, React.createElement(IconSearch, { size: 16 })),
+						// 2026-08-19 myf: 在线检索按钮同时打开右侧详情栏——右侧栏默认收起
+						// (layout details=0)，仅设置 researchSearch 状态用户会看不到任何反应
+						React.createElement("button", { type: "button", style: S.iconBtn, title: "检索在线文献库", onClick: function () { setResearchDetail(null); setResearchPreview(null); setResearchSearch({ q: "", title: "", author: "", doi: "", year_from: "", year_to: "", open_access: false, results: null, loading: false, error: null, form: true }); if (props.openDetails) props.openDetails(); } }, React.createElement(IconGlobe, { size: 16 })),
 						React.createElement("button", { type: "button", style: S.iconBtn, title: "视图设置", onClick: function (e) { openViewMenu(e); } }, React.createElement(IconViewOptions, { size: 16 })),
 						React.createElement("button", { type: "button", style: S.iconBtn, title: "新建项目", onClick: function () { setDialog({ kind: "newProject" }); } }, React.createElement(IconFolderAdd, { size: 16 })),
 					),
@@ -1173,6 +1198,13 @@ window.__ModuleLoader__.load({
 				return ctx.slots.register(
 					{ name: "conversation.details.research", id: "research-detail" },
 					ResearchDetailPanel,
+				);
+			});
+			// right-column details header title (论文详细 / online-search blank)
+			ctx.slots.inject("conversation.details.research.title", function () {
+				return ctx.slots.register(
+					{ name: "conversation.details.research.title", id: "research-detail-title" },
+					ResearchDetailTitle,
 				);
 			});
 		};

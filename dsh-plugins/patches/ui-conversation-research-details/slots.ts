@@ -131,6 +131,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'conversation.details.research': { kind: 'single'; scope: 'root' }
     /**
+     * ResearchOS fusion: the research detail seat's header title. The occupant
+     * renders the title text for the current right-column mode (论文详细 while a
+     * paper is focused, empty while the online literature search is open); an
+     * empty seat falls back to the details.title label. Root scope (session-
+     * independent); declared by this package's 'details' entry;
+     * @researchos/ui-research-workspace registers the renderer.
+     */
+    'conversation.details.research.title': { kind: 'single'; scope: 'root' }
+    /**
      * The composer takeover chain: entries are selector-routed replacements
      * of the default InputBar. Declared by this package's 'conversation'
      * entry; the owner dispatches the {@link ComposerChainProps} currency and
@@ -730,7 +739,7 @@ export interface DetailsInjected {
 }
 
 /** Full details-slot props: selection store, Tool output seat, injected close callback, and locale. */
-export type DetailsSlotProps = PropsRuntime<'details'> & PropsRenderSlots<'conversation.details.tool' | 'conversation.details.research'>
+export type DetailsSlotProps = PropsRuntime<'details'> & PropsRenderSlots<'conversation.details.tool' | 'conversation.details.research' | 'conversation.details.research.title'>
   & PropsStore<ChatStore> & DetailsInjected & PropsLocale<'conversation'>
 
 /** Owner share common to the hero / New-Session Workspace pickers. */

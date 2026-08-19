@@ -448,6 +448,9 @@ export function apply(ctx: Context): void {
       'conversation.details.tool': { kind: 'single', scope: 'session' },
       // ResearchOS fusion: right-column research detail seat (paper card).
       'conversation.details.research': { kind: 'single', scope: 'root' },
+      // ResearchOS fusion: header title for the research detail seat (论文详细
+      // while a paper is focused; empty while online search is open).
+      'conversation.details.research.title': { kind: 'single', scope: 'root' },
     },
     store: chatStore,
     inject: (): DetailsInjected => ({

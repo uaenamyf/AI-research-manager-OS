@@ -79,7 +79,12 @@ export function DetailsPanel({ useSession, useSessions, sessionId, useStore, ren
     <div className={css.root}>
       <div className={css.header}>
         <div className={css.title}>
-          {selection === null ? t('details.title') : material?.name ?? selection.toolName ?? t('details.title')}
+          {/* ResearchOS fusion: the research seat renders its own header title
+              (论文详细 while a paper is focused, empty while the online search
+              is open); an empty seat falls back to the details.title label. */}
+          {renderSlot('conversation.details.research.title', {}, {
+            fallback: selection === null ? t('details.title') : material?.name ?? selection.toolName ?? t('details.title'),
+          })}
         </div>
         <button
           type="button" className={css.close} aria-label={t('details.close')}
@@ -95,7 +100,7 @@ export function DetailsPanel({ useSession, useSessions, sessionId, useStore, ren
             tool details (self-renders nothing when no paper is chosen). */}
         {renderSlot('conversation.details.research')}
         {selection === null || callId === undefined
-          ? <div className={css.empty}>{t('details.empty')}</div>
+          ? null
           : material === null
             ? <div className={css.empty}>{t('details.notInWindow')}</div>
             : (
