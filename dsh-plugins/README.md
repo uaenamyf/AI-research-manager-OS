@@ -656,6 +656,8 @@ boot 注入 7 个 research UI 条目。
 
 ## Phase 4 出口执行（Next.js 下线）✅ 2026-08-18
 
+> 📌 后续（2026-08-19）：旧 Next.js 前端已彻底移除（删 `frontend/` 目录、docker-compose 服务、CI 步骤、文档引用），下方 stop/start 命令不再可用，仅作历史记录。
+
 **动作**：① `dsh-gateway.sh start 3081` 恢复统一网关（此前 3081 无监听，ai-service 的 LLM/embedding 全链路已死）；
 ② `cd infra && docker compose --env-file ../.env --profile app stop frontend`（:3000 下线）。
 

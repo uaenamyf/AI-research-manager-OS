@@ -6,7 +6,6 @@
 
 - [后端测试（Java/Spring）](#后端测试javaspring)
 - [AI Service 测试（Python/FastAPI）](#ai-service-测试pythonfastapi)
-- [前端测试（TypeScript/Next.js）](#前端测试typescriptnextjs)
 - [CI 流水线](#ci-流水线)
 - [测试覆盖报告](#测试覆盖报告)
 
@@ -22,10 +21,6 @@ mvn test
 # AI Service 测试
 cd ai-service
 pytest tests/ -v --cov=app
-
-# 前端测试
-cd frontend
-npm test
 ```
 
 ---
@@ -187,56 +182,6 @@ pytest tests/ -v -k "not integration"
 
 ---
 
-## 前端测试（TypeScript/Next.js）
-
-### 测试类型
-
-| 类型 | 命令 | 说明 |
-|------|------|------|
-| Vitest 单元测试 | `npm test` | 组件、工具函数 |
-| TypeScript 类型检查 | `npx tsc --noEmit` | 类型安全 |
-| ESLint | `npm run lint` | 代码规范 |
-| Playwright E2E | `npm run test:e2e` | 端到端用户流程 |
-
-### 运行方式
-
-```bash
-cd frontend
-
-# 单元测试（watch 模式）
-npm test
-
-# 单元测试（单次运行 + 覆盖率）
-npm run test:coverage
-
-# 类型检查
-npx tsc --noEmit
-
-# ESLint
-npm run lint
-
-# Playwright E2E 测试
-# 首次运行需要安装浏览器：
-npx playwright install
-
-# 运行 E2E 测试（无头模式）
-npm run test:e2e
-
-# 运行 E2E 测试（带 GUI 调试）
-npm run test:e2e:ui
-```
-
-### 测试列表
-
-| 测试文件 | 覆盖内容 |
-|----------|----------|
-| `tests/utils.test.ts` | 工具函数（日期格式化、className 合并） |
-| `tests/components.test.tsx` | React 组件渲染 |
-| `tests/e2e/auth.spec.ts` | 注册→登录→访问受保护页面流程 |
-| `tests/e2e/paper-upload.spec.ts` | 论文上传和状态显示 |
-
----
-
 ## CI 流水线
 
 GitHub Actions 配置在 `.github/workflows/ci.yml`
@@ -260,15 +205,9 @@ GitHub Actions 配置在 `.github/workflows/ci.yml`
 │      ├─ pytest + coverage                                │
 │      └─ Upload coverage report                           │
 ├─────────────────────────────────────────────────────────┤
-│  3. Frontend Tests                                      │
-│      ├─ TypeScript type check                           │
-│      ├─ ESLint                                           │
-│      └─ Vitest unit tests                                │
-├─────────────────────────────────────────────────────────┤
-│  4. Docker Build Validation (Push only)                 │
+│  3. Docker Build Validation (Push only)                 │
 │      ├─ Build backend image                              │
-│      ├─ Build ai-service image                           │
-│      └─ Build frontend image                             │
+│      └─ Build ai-service image                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -281,11 +220,8 @@ cd backend && mvn test
 # 2. AI Service 测试
 cd ../ai-service && pytest tests/ -v --cov=app
 
-# 3. 前端测试
-cd ../frontend && npm run lint && npx tsc --noEmit && npm test -- --run
-
-# 4. Docker 构建验证
-cd infra && docker compose build backend ai-service frontend
+# 3. Docker 构建验证
+cd infra && docker compose build backend ai-service
 ```
 
 ---
@@ -319,16 +255,6 @@ cd infra && docker compose build backend ai-service frontend
 ✅ Health API           - /health 端点
 ```
 
-### 前端测试覆盖
-
-```
-✅ 工具函数             - cn(), formatDate()
-✅ 组件测试             - PaperCard, PaperStatusBadge
-✅ 类型检查             - 全项目 TypeScript
-✅ ESLint               - 代码规范
-✅ E2E Playwright       - 认证流程/论文上传
-```
-
 ---
 
 ## 本地开发测试最佳实践
@@ -342,7 +268,6 @@ make test
 # 或分别运行
 cd backend && mvn test -Dtest='!PostgresIntegrationTest'
 cd ../ai-service && pytest tests/ -v
-cd ../frontend && npm run lint && npx tsc --noEmit && npm test -- --run
 ```
 
 ### Debug 测试
@@ -353,9 +278,6 @@ mvn test -Dtest=UserServiceTest -Dmaven.surefire.debug
 
 # Python 调试
 pytest tests/test_embedding.py -v --pdb  # 失败时进入调试器
-
-# 前端调试
-npm run test:e2e:ui  # Playwright GUI 调试
 ```
 
 ---
@@ -370,28 +292,12 @@ npm run test:e2e:ui  # Playwright GUI 调试
 mvn test -Dtest='!PostgresIntegrationTest'
 ```
 
-### Q: Playwright 浏览器未安装
-
-**A:** 首次运行 E2E 测试前需要安装浏览器：
-
-```bash
-npx playwright install
-```
-
 ### Q: AI Service 测试失败缺少依赖
 
 **A:** 安装开发依赖：
 
 ```bash
 pip install -e ".[dev]"
-```
-
-### Q: 前端测试报错缺少 `@testing-library`
-
-**A:** 安装测试依赖：
-
-```bash
-npm install --save-dev @testing-library/react @testing-library/jest-dom
 ```
 
 ---
@@ -406,8 +312,4 @@ backend/
 ai-service/
   └─ tests/
       └─ test_paper.pdf          # 用于 PDF 解析测试的样本论文
-
-frontend/
-  └─ tests/fixtures/
-      └─ test-paper.pdf          # E2E 上传测试用
 ```

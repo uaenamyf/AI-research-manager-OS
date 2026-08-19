@@ -3,8 +3,8 @@
 ## 融合现状（2026-08-18）
 
 > ResearchOS 已融入 DeepSeek Harness（DSH）：Web 入口统一为 DSH GUI（`127.0.0.1:3080`），
-> Next.js 前端已下线（`:3000` 已停，回退命令 `docker compose --profile app start frontend`）。
-> **本节为当前生效契约**；下方各节为 legacy 契约描述，保留作回退基线与历史对照。
+> 旧 Next.js 前端已移除（2026-08-19 删 `frontend/`，:3000 下线）。
+> **本节为当前生效契约**；下方各节为 legacy 契约描述，保留作历史对照。
 
 ### DSH GUI 聊天节点 -> research-* bundle（当前生效的对外契约）
 
@@ -52,10 +52,10 @@
 - **调用方**：ai-service（`OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` 指向网关）、
   research-writing / research-paper-card bundle、research-mcp 的 vector_search。
 
-## frontend -> backend（对外 API，统一前缀 `/api`）
+## frontend -> backend（对外 API，统一前缀 `/api`）【已废弃：旧 Next.js 前端已移除】
 
-> ⚠️ 过时注（2026-08-18）：本节为 **legacy 契约**——Next.js 前端已下线，当前 DSH GUI 改调
-> 上方「融合现状」的 bundle 前缀路由；本节保留作回退基线与后端契约的历史记录。
+> ⚠️ 过时注（2026-08-18）：本节为 **legacy 契约**——旧 Next.js 前端已于 2026-08-19 移除，当前 DSH GUI 改调
+> 上方「融合现状」的 bundle 前缀路由；本节保留作后端契约的历史记录。
 
 ### 认证
 
@@ -140,7 +140,7 @@
 | POST | `/api/subscription/checkout` | body: `{plan:"PRO|RESEARCHER"}`，创建 Stripe Checkout 会话，返回 `{checkoutUrl, sessionId}`，需登录 |
 | POST | `/api/subscription/webhook` | Stripe webhook（`Stripe-Signature` 头），`permitAll`；`checkout.session.completed` → 升级用户套餐（只升不降，幂等） |
 
-> 依赖环境变量：`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_RESEARCHER`。未配置时 `createCheckout` 返回 500「Stripe is not configured」，前端优雅降级提示。成功/取消回跳 `{frontend}/settings?upgrade=success|cancelled`。
+> 依赖环境变量：`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_RESEARCHER`。未配置时 `createCheckout` 返回 500「Stripe is not configured」，前端优雅降级提示。成功/取消回跳 `{frontend}/settings?upgrade=success|cancelled`（旧前端已移除；当前 DSH GUI 经 `research-settings` / `research-subscription` bundle 处理）。
 
 ### Writing（Agent 4：改写 / 润色）
 

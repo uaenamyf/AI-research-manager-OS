@@ -4,6 +4,8 @@
 > 旧版产品路线图（已全部完成）保留在 git 历史：`git show HEAD:plan.md`。
 >
 > 配套：根 `AGENTS.md`（协作规范）、`CLAUDE.md`（编码规范）、`Implementation/`（契约文档）。
+>
+> 📌 **后续更新（2026-08-19）**：旧 Next.js 前端已彻底移除（删 `frontend/` 目录、docker-compose 服务、CI 步骤），下方「回退命令」均不再可用，仅作历史记录；当前前端 = DSH GUI :3080。
 
 ---
 

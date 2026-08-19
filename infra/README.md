@@ -53,8 +53,9 @@ docker compose --profile app up -d
 ```bash
 docker compose --profile app up -d backend
 docker compose --profile app up -d ai-service
-docker compose --profile app up -d frontend
 ```
+
+> 注：旧 Next.js 前端已于 2026-08-19 移除；前端 = DSH GUI（:3080，见根 `AGENTS.md` §0）。
 
 ### 4. 停止与清理
 
@@ -76,15 +77,16 @@ docker compose down -v
 | RabbitMQ Management | `localhost:15672` | 管理界面，`guest/guest` |
 | backend | `localhost:8080` | Spring Boot API |
 | ai-service | `localhost:8000` | FastAPI AI 服务 |
-| frontend | `localhost:3000` | Next.js 前端 |
+| DSH GUI | `localhost:3080` | DeepSeek Harness GUI + research bundles（`dsh-plugins/scripts/dsh-gateway.sh` 启动） |
 
 ## 架构说明
 
 ```
-┌─────────────┐    REST API    ┌──────────────┐   HTTP/MQ   ┌──────────────┐
-│  frontend   │ ─────────────> │   backend    │ ──────────> │  ai-service  │
-│  Next.js    │ <───────────── │  Spring Boot │ <────────── │   FastAPI    │
-└─────────────┘   统一响应/SSE  └──────────────┘  结果回调   └──────────────┘
+┌────────────────┐    REST API    ┌──────────────┐   HTTP/MQ   ┌──────────────┐
+│  DSH GUI :3080 │ ─────────────> │   backend    │ ──────────> │  ai-service  │
+│  (ui-research- │ <───────────── │  Spring Boot │ <────────── │   FastAPI    │
+│   * 客户端包)   │   统一响应/SSE  └──────────────┘  结果回调   └──────────────┘
+└────────────────┘
                                       │
                           ┌───────────┼───────────┐
                           │           │           │
@@ -113,8 +115,8 @@ python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 uvicorn app.main:app --reload --port 8000
 
-# 4. frontend 用 npm 跑
-cd frontend && npm install && npm run dev
+# 4. 前端 = DSH GUI，用 dsh-gateway.sh 启动（:3080）
+cd .. && ./dsh-plugins/scripts/dsh-gateway.sh start
 ```
 
 ## 相关文档

@@ -80,6 +80,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private String frontendOrigin() {
         return appProperties.getCors().getAllowedOrigins().stream()
                 .findFirst()
-                .orElse("http://localhost:3000");
+                .orElse("http://localhost:3080");
     }
 }

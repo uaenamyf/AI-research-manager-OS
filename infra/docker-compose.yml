@@ -3,8 +3,8 @@
 # 对应 Implementation/90-config-deploy.md。
 #
 # 设计原则：
-# - 基础设施（postgres/redis/rabbitmq）默认启动，应用服务（backend/ai-service/frontend）
-#   通过 profile=app 按需启用，避免各服务 Dockerfile 尚未就绪时 `docker compose up` 失败。
+# - 基础设施（postgres/redis/rabbitmq）默认启动，应用服务（backend/ai-service）
+#   通过 profile=app 按需启用（Next.js 前端已移除，前端 = DSH GUI :3080）。
 # - 数据持久化通过 named volume，删容器不丢数据。
 # - 健康检查配置在基础设施层，应用服务 depends_on 用 service_healthy 等待就绪。
 #
@@ -125,7 +125,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
       AI_SERVICE_URL: http://ai-service:8000
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3080}
       # 默认 local（本地目录开发）；生产显式设 STORAGE_TYPE=s3 并填下方凭据
       STORAGE_TYPE: ${STORAGE_TYPE:-local}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-researchos-pdfs}
@@ -179,25 +179,6 @@ services:
         condition: service_healthy
       mysql:
         condition: service_healthy
-    restart: unless-stopped
-
-  frontend:
-    profiles: ["app"]
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    container_name: researchos-frontend
-    environment:
-      # Next.js standalone 默认绑定 HOSTNAME（Docker 注入的容器 ID 地址），强制监听所有接口
-      HOSTNAME: 0.0.0.0
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
-      # 服务端 rewrite 代理目标（容器网络内地址；浏览器端仍用 NEXT_PUBLIC_API_URL 直连）
-      BACKEND_INTERNAL_URL: http://backend:8080
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
     restart: unless-stopped
 volumes:
   pgdata:

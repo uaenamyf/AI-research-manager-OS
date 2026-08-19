@@ -4,12 +4,11 @@
 
 | 层 | 工具 | 范围 |
 | --- | --- | --- |
-| 前端 | Vitest + React Testing Library | 组件单元、hook |
-| 前端 E2E | Playwright | 关键用户流程 |
 | 后端 | JUnit 5 + Mockito | service 单元、controller MockMvc |
 | 后端集成 | Testcontainers（PG/Redis/Rabbit） | repository、MQ 消费 |
 | ai-service | pytest + httpx | API、agent 逻辑（mock LLM） |
 | LLM 回归 | 录制 fixture，离线对比 | 防止 prompt 改动劣化 |
+| DSH 客户端包 | DSH GUI 手动验证（`dsh-plugins/README.md` 记录） | 聊天节点 / bundle 路由 / 可拔插 |
 
 ## ai-service 测试要点
 
@@ -24,7 +23,7 @@
 
 ## 融合现状（2026-08-18）：DSH bundle 验证实践
 
-> legacy 三服务测试策略（上表）保留不变，仍适用于在跑的 backend / ai-service 与 frontend 回退场景。
+> legacy 服务测试策略（上表）保留不变，仍适用于在跑的 backend / ai-service（旧 Next.js frontend 已于 2026-08-19 移除）。
 > 融合新增的 DSH bundle / MCP / UI 包验证以 `dsh-plugins/README.md` 为权威（每 bundle 均有端到端验证记录）。
 
 - **验证即文档**：每个 `research-*` bundle、`research-mcp`、`ui-research-*` 包的验证结论（端点、正负例、真实链路、boot 注入条目数）记录在 `dsh-plugins/README.md` 对应 Phase 章节；改动 bundle 后需同步更新该文件。

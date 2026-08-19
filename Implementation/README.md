@@ -2,7 +2,7 @@
 
 > 本文件夹是 `IMPLEMENTATION.md` 的拆分重组，按服务/关注点切分为多个子文档，便于在对应服务目录工作时就近查阅。
 >
-> 定位：**面向单一开发者的 8–12 周 MVP**，技术栈 Next.js + Spring Boot + Python FastAPI。
+> 定位：**面向单一开发者的 8–12 周 MVP**，技术栈 Spring Boot + Python FastAPI（前端 = DSH GUI，见根 `AGENTS.md` §0）。
 >
 > **融合现状（2026-08-18）**：本文件夹各文档描述 **legacy 三服务架构**（融合前路线）。融合后的现状以根 [`plan.md`](../plan.md)（融合方案）+ [`dsh-plugins/README.md`](../dsh-plugins/README.md)（bundle 实现/验证记录）为权威，各子文档均已增补「融合现状」小节。
 
@@ -11,7 +11,6 @@
 | 文档 | 内容 | 适用场景 |
 | --- | --- | --- |
 | [00-overview.md](./00-overview.md) | 仓库结构、技术栈、Feature->模块映射、服务边界 | 全局了解、任务归属判断 |
-| [10-frontend.md](./10-frontend.md) | Next.js 目录结构、关键约定、API 客户端示例 | frontend 开发 |
 | [20-backend.md](./20-backend.md) | Spring Boot 目录结构、分层约定、统一响应、SSE 转发、MQ 下发 | backend 开发 |
 | [30-ai-service.md](./30-ai-service.md) | FastAPI 目录结构、路由、内部鉴权、Agent、RAG、worker | ai-service 开发 |
 | [40-database.md](./40-database.md) | 双库 schema（MySQL 业务表 + PG 向量）、迁移脚本 | DB 改动、迁移脚本 |

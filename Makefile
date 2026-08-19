@@ -3,7 +3,7 @@
 # 使用方法：make <target>
 # ============================================================
 
-.PHONY: help infra-up infra-down up down build build-backend build-ai build-frontend test test-backend test-ai test-frontend logs logs-backend logs-ai logs-frontend logs-infra clean reset
+.PHONY: help infra-up infra-down up down build build-backend build-ai test test-backend test-ai logs logs-backend logs-ai logs-infra clean reset
 
 .DEFAULT_GOAL := help
 
@@ -26,13 +26,11 @@ help:
 	@echo "  make test          - 运行所有服务的单元测试"
 	@echo "  make test-backend  - 运行后端测试"
 	@echo "  make test-ai       - 运行 AI Service 测试"
-	@echo "  make test-frontend - 运行前端测试"
 	@echo ""
 	@echo "日志:"
 	@echo "  make logs          - 查看所有服务日志"
 	@echo "  make logs-backend  - 查看后端日志"
 	@echo "  make logs-ai       - 查看 AI Service 日志"
-	@echo "  make logs-frontend - 查看前端日志"
 	@echo ""
 	@echo "其他:"
 	@echo "  make clean         - 清理 Docker 资源（保留数据卷）"
@@ -65,22 +63,16 @@ build-backend:
 build-ai:
 	cd infra && docker compose --env-file ../.env build ai-service
 
-build-frontend:
-	cd infra && docker compose --env-file ../.env build frontend
-
 # ────────────────────────────────────────────────────────────
 # 测试
 # ────────────────────────────────────────────────────────────
-test: test-backend test-ai test-frontend
+test: test-backend test-ai
 
 test-backend:
 	cd backend && mvn test -B
 
 test-ai:
 	cd ai-service && pytest tests/ -v --cov=app
-
-test-frontend:
-	cd frontend && npm run lint && npx tsc --noEmit && npm test -- --run
 
 # ────────────────────────────────────────────────────────────
 # 日志
@@ -93,9 +85,6 @@ logs-backend:
 
 logs-ai:
 	cd infra && docker compose --env-file ../.env logs -f ai-service
-
-logs-frontend:
-	cd infra && docker compose --env-file ../.env logs -f frontend
 
 logs-infra:
 	cd infra && docker compose --env-file ../.env logs -f postgres redis rabbitmq

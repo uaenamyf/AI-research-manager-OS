@@ -28,14 +28,12 @@ cd ai-service
 source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload
 
-# 步骤 4：启动前端（新终端）
-cd frontend
-npm install
-npm run dev
+# 步骤 4：启动前端（DSH GUI，新终端）
+cd deepseek-harness-master && pnpm dsh web   # :3080
 ```
 
 访问地址：
-- 前端：http://localhost:3000
+- 前端（DSH GUI）：http://localhost:3080
 - 后端 API：http://localhost:8080
 - AI Service：http://localhost:8000
 - RabbitMQ 管理：http://localhost:15672（guest/guest）
@@ -54,7 +52,6 @@ docker compose --profile app up -d
 # 查看日志
 docker compose logs -f backend
 docker compose logs -f ai-service
-docker compose logs -f frontend
 ```
 
 ---
@@ -89,7 +86,6 @@ docker compose --profile app up -d
 # 只启动特定服务
 docker compose --profile app up -d backend
 docker compose --profile app up -d ai-service
-docker compose --profile app up -d frontend
 
 # 停止服务
 docker compose down
@@ -174,15 +170,13 @@ docker compose logs -f --tail=100 backend
 
 - ✅ **后端测试**：Maven 单元测试（68 个用例）
 - ✅ **AI Service 测试**：pytest + 覆盖率报告（72 个用例）
-- ✅ **前端测试**：TypeScript 类型检查 + ESLint + Vitest
-- ✅ **Docker 构建验证**：三个服务镜像构建验证
-- ✅ **E2E 测试**：启动 MySQL/Redis/RabbitMQ/Postgres + 真实后端 + 前端，
-  用 Playwright（Chromium）跑认证全流程（注册 → 登录 → 登出 → 未登录重定向）
+- ✅ **Docker 构建验证**：两个服务镜像构建验证
+- ✅ **E2E 测试**：启动 MySQL/Redis/RabbitMQ/Postgres + 真实后端，验证后端 API 全流程（已随旧 Next.js 前端移除，前端验证走 DSH GUI 手动验证，见 `dsh-plugins/README.md`）
 
 **`.github/workflows/cd.yml`（push 到 main / 手动触发）**
 
-- 构建三个服务镜像并推送至 GitHub Container Registry：
-  `ghcr.io/uaenamyf/ai-research-manager-os/{backend,ai-service,frontend}`（tag = SHA 前 8 位 + latest）
+- 构建两个服务镜像并推送至 GitHub Container Registry：
+  `ghcr.io/uaenamyf/ai-research-manager-os/{backend,ai-service}`（tag = SHA 前 8 位 + latest）
 - 可选自动部署：在 GitHub Repo Settings → Secrets and variables 配置后，push 到 main 会自动 SSH 部署：
   - **Variables**：`DEPLOY_ENABLED=true`、`DEPLOY_PATH=/opt/researchos`
   - **Secrets**：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`
@@ -215,12 +209,6 @@ mvn test
 # AI Service 测试
 cd ai-service
 pytest tests/ -v --cov=app
-
-# 前端测试
-cd frontend
-npm test
-npm run lint
-npx tsc --noEmit
 ```
 
 ---
@@ -241,11 +229,11 @@ npx tsc --noEmit
 2. 等待 RabbitMQ 完全启动（约 10-20 秒）
 3. 检查 `RABBITMQ_URL` 格式：`amqp://user:pass@host:port`
 
-### Q3: 前端显示 "Network Error"
+### Q3: DSH GUI 调用接口报错
 
 **A**: 检查：
-1. 后端是否正常启动：`curl http://localhost:8080/api/health`
-2. `NEXT_PUBLIC_API_URL` 配置正确
+1. DSH 是否运行：`curl http://127.0.0.1:3080`
+2. bundle 路由是否正常：`curl http://127.0.0.1:3080/research-<domain>/...`
 3. 浏览器控制台查看具体错误信息
 
 ### Q4: LLM API 调用失败
@@ -260,7 +248,6 @@ npx tsc --noEmit
 **A**: 常见原因：
 1. 网络问题导致依赖下载失败 → 重试或配置镜像
 2. 内存不足 → 增加 Docker 内存限制（至少 4GB）
-3. 前端构建时 Node.js OOM → 增加 `NODE_OPTIONS=--max-old-space-size=4096`
 
 ---
 
@@ -280,12 +267,6 @@ npx tsc --noEmit
 - [x] Embedding 服务测试
 - [ ] RAG 检索测试
 - [ ] Agent 测试（mock LLM）
-
-### 前端测试
-- [x] 工具函数测试
-- [x] 组件测试框架配置
-- [ ] 页面组件测试
-- [ ] E2E 测试（Playwright）
 
 ---
 

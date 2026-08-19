@@ -6,7 +6,7 @@
 >
 > 配套 `CLAUDE.md`（编码规范）与 `Implementation/` 文件夹（实现方案，入口见 `Implementation/README.md`）使用。
 >
-> 各服务目录下的 `AGENTS.md`（`frontend/AGENTS.md`、`backend/AGENTS.md`、`ai-service/AGENTS.md`）是该服务的模块级约束，开发对应服务前必读。
+> 各服务目录下的 `AGENTS.md`（`backend/AGENTS.md`、`ai-service/AGENTS.md`）是该服务的模块级约束，开发对应服务前必读。
 
 ---
 
@@ -20,8 +20,8 @@
   - **统一 LLM 网关 `research-llm-gateway`**（plan.md 中称 `dsh-llm-gateway`）：OpenAI 兼容直连代理，`POST /v1/chat/completions` + `POST /v1/embeddings`；上游 key/模型单点收口（chat `ark-code-latest` / embedding `doubao-embedding-vision`，来源 `.env`）。
   - **12 个 `research-*` 业务 bundle**：auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway；经 `ctx.webServer` 暴露 `/research-*` 路由，直连 MySQL（业务表）+ PG（`paper_chunk` 向量）。
   - **`research-mcp`**：stdio MCP server（`research-mcp/server.js`，由 dsh mcp-client 拉起），工具 `literature_search` / `literature_get` / `literature_cite` / `vector_search`，向 DSH agent 暴露文献检索/读取/引用/向量检索。
-  - **11 个 `ui-research-*` UI 包**（hello 探针 + 10 个业务节点）：聊天节点（library / paper / citation）+ 关键词触发面板（dashboard / writing / settings / literature / review / upload / project 等），遵循 DSH `ConversationNodeDefinition` / slot / props 规范接入浏览器 GUI。
-- **前端 = DSH GUI**：Next.js（:3000）已停（`docker compose --profile app stop frontend`），可随时回退（`start frontend`）。
+  - **11 个 `ui-research-*` UI 包**（hello 探针 + 10 个业务节点）：聊天节点（library / paper / citation）+ 关键词触发面板（dashboard / writing / settings / literature / review / upload / project 等，多数已随融合卸载，仅保留必要节点），遵循 DSH `ConversationNodeDefinition` / slot / props 规范接入浏览器 GUI。
+- **前端 = DSH GUI**：旧 Next.js frontend（:3000）已于 2026-08-19 移除（`frontend/` 目录、docker-compose 服务、CI 步骤一并清理），无回退。
 - **backend（Spring Boot :8080）与 ai-service（FastAPI :8000）仍在运行**：处于双认证 + MQ 管道过渡期；RabbitMQ 保留至 AI 管道迁入 DSH（`q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` 仍被 ai-service 消费）；Redis 未使用（0 key、无引用）可移除。
 
 ### 0.2 契约要点
@@ -43,7 +43,7 @@
 
 ### 0.4 适用范围
 
-- 本文档 §1-§10 仍适用于**仍在运行的 legacy 三服务**（backend / ai-service 开发；frontend 仅回退场景）。
+- 本文档 §1-§10 仍适用于**仍在运行的 legacy 服务**（backend / ai-service 开发；旧 Next.js frontend 已于 2026-08-19 移除，前端 = DSH GUI :3080）。
 - 融合相关新工作（bundle / MCP / 网关 / UI 包）以本章节 + `plan.md` + `dsh-plugins/README.md` 为准；契约变更同步更新 `Implementation/` 与 `plan.md`。
 
 ---
@@ -65,16 +65,16 @@
 
 # 1. 协作模型总览
 
-> ⚠️ 融合现状见 §0：前端已切换为 DSH GUI（:3080），backend / ai-service 仍在运行；本节描述的三服务架构适用于仍在运行的 legacy 服务。
+> ⚠️ 融合现状见 §0：前端 = DSH GUI（:3080，`ui-research-*` 客户端包 + `research-*` bundle），backend / ai-service 仍在运行；本节描述的架构适用于仍在运行的 legacy 服务（旧 Next.js frontend 已移除）。
 
-本项目是 **monorepo + 三服务**架构：
+本项目是 **monorepo + 双服务**架构（前端由 DSH 单实例承载）：
 
 ```
-┌─────────────┐    REST API    ┌──────────────┐   HTTP/MQ   ┌──────────────┐
-│  frontend   │ ─────────────> │   backend    │ ──────────> │  ai-service  │
-│  Next.js    │                │  Spring Boot │             │   FastAPI    │
-│  (TS)       │ <───────────── │   (Java)     │ <────────── │  (Python)    │
-└─────────────┘   统一响应/SSE  └──────────────┘  结果回调   └──────────────┘
+┌────────────────┐    REST API    ┌──────────────┐   HTTP/MQ   ┌──────────────┐
+│  DSH GUI :3080 │ ─────────────> │   backend    │ ──────────> │  ai-service  │
+│  (ui-research- │                │  Spring Boot │             │   FastAPI    │
+│   * 客户端包)   │ <───────────── │   (Java)     │ <────────── │  (Python)    │
+└────────────────┘   统一响应/SSE  └──────────────┘  结果回调   └──────────────┘
                                       │                           │
                           ┌───────────┼───────────┐               │
                           │           │           │               │
@@ -89,16 +89,15 @@
 
 # 2. 三个服务及其 Agent 角色
 
-## 2.1 frontend（Next.js）
+## 2.1 前端（DSH GUI，已替代旧 Next.js frontend）
 
-> （融合现状见 §0：Next.js :3000 已停，当前前端 = DSH GUI，可回退）
+> 旧 Next.js frontend 已于 2026-08-19 移除（`frontend/` 目录、docker-compose 服务、CI 步骤一并清理）；当前前端 = DSH GUI（:3080）。
 
-- **定位**：用户交互层，纯展示 + 状态管理。
-- **开发 agent 角色**：前端工程师。
+- **定位**：用户交互层，纯展示 + 状态管理，承载于 DeepSeek Harness。
+- **开发 agent 角色**：DSH 前端工程师（改动 `dsh-plugins/ui-research-*` 客户端包，遵循 `packages/client/AGENTS.md` 的 slot / props 规范）。
 - **职责**：
-  - 路由、页面、组件实现。
-  - 调用 backend `/api/*` 接口。
-  - 状态管理（Zustand + TanStack Query）。
+  - 研究区页面（`ui-research-workspace`）、聊天节点（`ui-research-library/paper/citation`）。
+  - 调用 `research-*` bundle 暴露的 `/research-*` 路由（统一 `{code,message,data}` 契约）。
 - **禁止**：
   - 直连数据库。
   - 直连 ai-service（即使为了调试）。
@@ -136,7 +135,9 @@
 
 # 3. 跨服务契约（不可违反）
 
-## 3.1 frontend -> backend
+## 3.1 客户端（DSH GUI / 旧 frontend）-> backend
+
+> 旧 Next.js frontend 已移除；本契约由 DSH GUI 的 `ui-research-*` 客户端包继承（经 `research-*` bundle 的 `/research-*` 路由）。
 
 - 统一响应：`{ code: 0, message, data }`。
 - 认证：httpOnly cookie 携带 JWT。
@@ -185,7 +186,7 @@
 
 | 任务关键词 | 委派给 |
 | --- | --- |
-| 页面、组件、样式、路由 | frontend agent |
+| 页面、组件、样式、路由（DSH GUI / ui-research-* 客户端包） | dsh 域 agent（见 §0.3） |
 | 用户、权限、API、订阅、MQ 发送 | backend agent |
 | PDF 解析、LLM、RAG、agent、MQ 消费 | ai-service agent |
 | docker、部署、CI | infra agent |
@@ -196,7 +197,7 @@
 
 ```
 [父任务] 论文上传 -> AI 分析链路
-  ├─ [子任务-frontend] 上传组件 + 状态轮询 UI
+  ├─ [子任务-ui] DSH 客户端包（上传面板 / 状态轮询 UI，ui-research-upload）
   ├─ [子任务-backend] 上传 API + MQ 发送 + 回调接收
   └─ [子任务-ai-service] MQ 消费 + 解析 + paper_agent + 回调
 ```
@@ -215,7 +216,7 @@
 
 1. **提案**：在 `docs/` 或 PR 描述中说明契约变更（新增字段/改路由/改消息格式）。
 2. **先改契约文档**：更新 `Implementation/` 下对应子文档（契约争议见 `50-api-contracts.md` / `70-async-mq.md` / `80-security.md`）。
-3. **同步改双方代码**：backend 与 ai-service（或 frontend 与 backend）同步修改。
+3. **同步改双方代码**：backend 与 ai-service（或 DSH 客户端包与 backend）同步修改。
 4. **补测试**：契约双方都要有对应测试（backend 测调用、ai-service 测接收）。
 5. **联调验证**：docker-compose 起全栈，跑通端到端流程。
 
@@ -335,7 +336,7 @@ PENDING -> PROCESSING -> SUCCESS
 
 # 10. 禁止事项
 
-1. ❌ frontend 直连 ai-service 或数据库。
+1. ❌ DSH 客户端包 / 旧 frontend 直连 ai-service 或数据库。
 2. ❌ ai-service 写业务表（user/project/paper/task/conversation）。
 3. ❌ backend 实现 LLM/向量/PDF 解析逻辑。
 4. ❌ 单 PR 跨三个服务同时改（必须拆分）。
@@ -348,4 +349,4 @@ PENDING -> PROCESSING -> SUCCESS
 
 ---
 
-> 本规范保证三服务解耦、契约清晰、安全可审计。任何协作冲突以本文件 + `CLAUDE.md` 为裁决依据。
+> 本规范保证服务解耦、契约清晰、安全可审计。任何协作冲突以本文件 + `CLAUDE.md` 为裁决依据。

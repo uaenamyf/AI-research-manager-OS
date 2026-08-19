@@ -2,7 +2,7 @@
 
 ## 融合现状（2026-08-18）
 
-> ResearchOS 已融入 DeepSeek Harness（DSH）：业务能力由 12 个 research bundles（auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway）+ research-mcp（stdio MCP server）承载，统一 LLM 网关为 research-llm-gateway（驻 127.0.0.1:3080，OpenAI 兼容 `/v1/chat/completions` + `/v1/embeddings`）。前端 = DSH GUI（Next.js :3000 已停，可回退）。
+> ResearchOS 已融入 DeepSeek Harness（DSH）：业务能力由 12 个 research bundles（auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway）+ research-mcp（stdio MCP server）承载，统一 LLM 网关为 research-llm-gateway（驻 127.0.0.1:3080，OpenAI 兼容 `/v1/chat/completions` + `/v1/embeddings`）。前端 = DSH GUI（旧 Next.js :3000 已于 2026-08-19 移除）。
 > 本节补充 DSH 侧四条数据流；下方 6.1 / 6.4 / 6.5（上传分析 / Review / 删除论文）等 legacy 链路仍有效、保留。
 
 ### ① Bundle CRUD 流（同步 REST）

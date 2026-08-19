@@ -183,11 +183,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         return false;
     }
 
-    /** 取 CORS 配置的第一个来源作为前端回跳地址（未配置时回退 localhost）。 */
+    /** 取 CORS 配置的第一个来源作为前端回跳地址（未配置时回退 DSH GUI）。 */
     private String frontendBaseUrl() {
         List<String> origins = appProperties.getCors().getAllowedOrigins();
         if (origins == null || origins.isEmpty()) {
-            return "http://localhost:3000";
+            return "http://localhost:3080";
         }
         return origins.get(0).replaceAll("/+$", "");
     }

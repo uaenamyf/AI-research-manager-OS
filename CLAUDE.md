@@ -1,6 +1,6 @@
 # CLAUDE.md - ResearchOS AI 编码规范
 
-> 本文件是项目统一的编码规范，适用于所有服务（frontend / backend / ai-service）。
+> 本文件是项目统一的编码规范，适用于所有服务（backend / ai-service；前端 = DSH GUI，见根 `AGENTS.md` §0）。
 >
 > - 多服务协作规则见 `AGENTS.md`（本文档的配套文档）。
 > - 实现方案与契约见 `Implementation/` 文件夹。
@@ -24,7 +24,7 @@
 
 # 1. 通用规范
 
-- **语言与版本**：前端 TypeScript（Next.js 16）、后端 Java 21（Spring Boot 3.3）、AI 服务 Python 3.12（FastAPI）。
+- **语言与版本**：后端 Java 21（Spring Boot 3.3）、AI 服务 Python 3.12（FastAPI）；前端为 DeepSeek Harness GUI（:3080，`dsh-plugins/ui-research-*` 客户端包，TypeScript，见 `AGENTS.md` §0）。
 - **编码风格**：跟随语言官方风格——Java 用官方格式化（4 空格缩进），Python 用 PEP 8 + Black（4 空格），TypeScript 用 Prettier（2 空格）。
 - **注释语言**：注释/文档用中文写说明，标识符用英文；对外用户可见文案一律英文（i18n 规范）。
 - **禁止**：硬编码密钥/Token/连接串（必须走环境变量）；提交编译不过或测试失败的代码。
@@ -97,12 +97,12 @@
 
 - backend：service 层 JUnit 5 + Mockito 单元测试；controller 用 MockMvc；调用 ai-service 的逻辑必须有 mock 契约测试。
 - ai-service：pytest + httpx；**LLM 调用必须可 mock，CI 不消耗真实 token**；PDF 解析与检索用 fixture 固化结果。
-- frontend：核心组件 Vitest 单元测试；关键用户流程（登录、上传、Chat、Review 生成）Playwright E2E。
-- 提交前本地跑通对应服务测试（`make test-backend` / `make test-ai` / `make test-frontend`）。
+- 前端（DSH GUI）：旧 Next.js 前端已移除；客户端包改动按 `dsh-plugins/` 与 DSH `packages/client/AGENTS.md` 规范验证。
+- 提交前本地跑通对应服务测试（`make test-backend` / `make test-ai`）。
 
 # 9. 服务边界铁律
 
-1. ❌ frontend 直连 ai-service 或数据库。
+1. ❌ DSH 客户端包 / 旧 frontend 直连 ai-service 或数据库。
 2. ❌ ai-service 写业务表（user/project/paper/task）。
 3. ❌ backend 实现 LLM/向量/PDF 解析逻辑。
 4. ❌ service 查询不带 `user_id` 过滤（越权漏洞）。

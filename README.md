@@ -1,6 +1,11 @@
 # ResearchOS AI
 
 > AI 驱动的学术研究助手 - PDF 智能解析、文献综述、问答助手
+>
+> **融合现状（2026-08-18）**：前端已融入 DeepSeek Harness（DSH），浏览器单一入口
+> `http://localhost:3080`（研究区 = `dsh-plugins/ui-research-workspace` 客户端包 +
+> `research-*` bundle）。旧 Next.js 前端（`:3000`）已于 2026-08-19 移除，详见
+> `dsh-plugins/README.md` 与根 `plan.md`。
 
 ## 🚀 快速开始
 
@@ -38,14 +43,13 @@ mvn spring-boot:run
 cd ai-service
 uvicorn app.main:app --reload
 
-# 4. 启动前端（新终端）
-cd frontend
-npm install
-npm run dev
+# 4. 启动 DSH 前端（新终端）
+cd deepseek-harness-master
+pnpm dsh web   # http://localhost:3080
 ```
 
 访问地址：
-- 前端：http://localhost:3000
+- 前端（DSH GUI）：http://localhost:3080
 - 后端 API：http://localhost:8080
 - AI Service：http://localhost:8000
 - RabbitMQ 管理：http://localhost:15672（guest/guest）
@@ -62,7 +66,7 @@ npm run dev
 | 💳 额度控制 | ✅ | FREE/PRO/RESEARCHER 三级计划（`ENFORCE_QUOTA` 开关，开发默认关闭） |
 | 📁 S3 存储 | ✅ | 私有对象存储 + 预签名上传 |
 | 🐳 Docker 部署 | ✅ | 生产级容器化部署 |
-| ✅ 单元测试 | ✅ | 后端/AI 服务/前端测试覆盖 |
+| ✅ 单元测试 | ✅ | 后端/AI 服务测试覆盖 |
 | 🔄 CI/CD | ✅ | GitHub Actions 自动化流水线 |
 | 💳 Stripe 支付 | ✅ | Checkout 订阅 + webhook 回调（需配置密钥） |
 | 🔗 Google OAuth | ✅ | 登录/注册页 + backend 授权码流程（需配置 `GOOGLE_CLIENT_ID/SECRET`） |
@@ -71,9 +75,9 @@ npm run dev
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        前端 (Frontend)                        │
-│                      Next.js 16 + React                       │
-│              Zustand + TanStack Query + Tailwind             │
+│                     前端 (Frontend)                          │
+│                  DeepSeek Harness GUI (:3080)                │
+│          research-* bundle / ui-research-* 客户端包          │
 └────────────────────────────────┬──────────────────────────────┘
                                  │ HTTP
 ┌────────────────────────────────▼──────────────────────────────┐
@@ -114,13 +118,8 @@ researchos-ai/
 │   │   └── api/            # API 路由
 │   └── Dockerfile
 │
-├── frontend/               # Next.js 前端
-│   ├── src/
-│   │   ├── app/            # 页面路由
-│   │   ├── components/     # React 组件
-│   │   ├── lib/            # 工具函数 / API 客户端
-│   │   └── stores/         # Zustand 状态管理
-│   └── Dockerfile
+├── deepseek-harness-master/ # DeepSeek Harness（DSH，前端 GUI :3080）
+├── dsh-plugins/            # ResearchOS 的 DSH 插件包（research-* bundle + ui-research-* 客户端）
 │
 ├── infra/                  # 基础设施配置
 │   ├── docker-compose.yml  # Docker Compose 编排
@@ -143,7 +142,6 @@ make test
 # 分别运行
 make test-backend    # 后端 Maven 测试
 make test-ai         # AI Service pytest
-make test-frontend   # 前端 lint + 类型检查 + Vitest
 ```
 
 ## 📊 测试覆盖
@@ -155,9 +153,6 @@ make test-frontend   # 前端 lint + 类型检查 + Vitest
 | AI Service | PDF 解析 | ✅ |
 | AI Service | Embedding 服务 | ✅ |
 | AI Service | RAG 检索 | 🔄 |
-| Frontend | 工具函数 | ✅ |
-| Frontend | 组件测试 | 🔄 |
-| E2E | Playwright | 🔄 |
 
 ## 🚢 部署
 

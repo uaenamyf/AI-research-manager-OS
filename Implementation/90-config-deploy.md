@@ -3,8 +3,8 @@
 ## 融合现状（2026-08-18）
 
 > DSH 单实例常驻 `127.0.0.1:3080`（GUI + 统一 LLM 网关 + research bundles 同驻一进程），
-> Next.js 已下线；backend / ai-service 保留运行（双认证 + MQ 管道）。**本节为当前部署形态**，
-> 下方各节为 legacy 描述，保留作回退基线。
+> 旧 Next.js 前端已移除（2026-08-19 删 `frontend/`）；backend / ai-service 保留运行（双认证 + MQ 管道）。**本节为当前部署形态**，
+> 下方各节为 legacy 描述，保留作历史对照。
 
 ### dsh-gateway.sh（DSH 常驻启动脚本，新增）
 
@@ -29,7 +29,6 @@
 | 端口 | 服务 | 状态 |
 | --- | --- | --- |
 | 3080 | DSH GUI + 统一 LLM 网关 + research bundles（单实例） | ✅ 运行（`dsh-gateway.sh start`） |
-| 3000 | Next.js 前端 | ⛔ 已停（`docker compose --profile app stop frontend`，回退 `start`） |
 | 8080 | backend（Spring Boot） | ✅ 运行（双认证 + MQ 回调） |
 | 8000 | ai-service（FastAPI） | ✅ 运行（MQ 消费 + 经网关调 LLM/embedding） |
 | 3306 / 5432 | MySQL / PostgreSQL（pgvector） | ✅ 数据服务 |
@@ -55,7 +54,7 @@ INTERNAL_TOKEN=...
 ### 启动顺序（当前）
 
 ```bash
-# 1) 数据/中间件 + backend + ai-service（frontend 不再启动）
+# 1) 数据/中间件 + backend + ai-service
 cd infra && docker compose --env-file ../.env --profile app up -d mysql postgres rabbitmq
 docker compose --env-file ../.env --profile app up -d backend ai-service
 # 2) DSH 单实例（GUI + 网关 + bundles）
@@ -129,8 +128,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ## docker-compose.yml
 
-> ⚠️ 过时注（2026-08-18）：`frontend` 服务已停止（`docker compose --profile app stop frontend`），
-> 定义保留作回退基线（`start frontend` 即恢复）；当前启动方式见上方「融合现状」。
+> ⚠️ 过时注（2026-08-18）：`frontend` 服务定义已随旧 Next.js 前端移除（2026-08-19 删 `frontend/` 与 compose 服务），
+> 当前启动方式见上方「融合现状」。
 
 ```yaml
 services:
@@ -181,13 +180,6 @@ services:
     ports: ["8000:8000"]
     depends_on: [postgres, mysql, rabbitmq]
 
-  frontend:
-    build: ./frontend
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
-    ports: ["3000:3000"]
-    depends_on: [backend]
-
 volumes:
   mysqldata:
   pgdata:
@@ -197,7 +189,7 @@ volumes:
 
 ```bash
 docker compose up -d postgres redis rabbitmq
-docker compose up backend ai-service frontend
+docker compose up backend ai-service
 ```
 
 ## 云部署

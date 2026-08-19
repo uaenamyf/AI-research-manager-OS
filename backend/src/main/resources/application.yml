@@ -53,7 +53,7 @@ app:
     # 开发阶段默认不限额（PDF 解析不限）；生产用 ENFORCE_QUOTA=true 打开
     enforce-quota: ${ENFORCE_QUOTA:false}
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3080}
 
 server:
   port: 8080

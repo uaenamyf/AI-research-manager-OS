@@ -15,7 +15,3 @@ services:
   ai-service:
     image: ghcr.io/uaenamyf/ai-research-manager-os/ai-service:latest
     build: !reset null
-
-  frontend:
-    image: ghcr.io/uaenamyf/ai-research-manager-os/frontend:latest
-    build: !reset null

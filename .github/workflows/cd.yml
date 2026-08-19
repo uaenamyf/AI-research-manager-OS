@@ -1,7 +1,7 @@
 # ============================================================
 # ResearchOS CD 工作流
 # 功能：
-#   1. push 到 main 时构建三个服务镜像并推送至 GitHub Container Registry
+#   1. push 到 main 时构建两个服务镜像并推送至 GitHub Container Registry
 #   2. 可选：配置 DEPLOY_ENABLED=true + SSH secrets 后自动部署到服务器
 # 说明：镜像 tag = git SHA 前 8 位 + latest
 # ============================================================
@@ -66,16 +66,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_BASE }}/ai-service:latest
             ${{ env.IMAGE_BASE }}/ai-service:${{ steps.meta.outputs.tag }}
-
-      - name: Build & push frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_BASE }}/frontend:latest
-            ${{ env.IMAGE_BASE }}/frontend:${{ steps.meta.outputs.tag }}
 
   # ────────────────────────────────────────────────────────────
   # Job 2: 部署到服务器（可选）

@@ -42,7 +42,7 @@ class OAuth2LoginSuccessHandlerTest {
         authService = mock(AuthService.class);
         appProperties = mock(AppProperties.class);
         AppProperties.Cors cors = new AppProperties.Cors();
-        cors.setAllowedOrigins(java.util.List.of("http://localhost:3000"));
+        cors.setAllowedOrigins(java.util.List.of("http://localhost:3080"));
         when(appProperties.getCors()).thenReturn(cors);
         handler = new OAuth2LoginSuccessHandler(userService, authService, appProperties);
     }
@@ -69,7 +69,7 @@ class OAuth2LoginSuccessHandlerTest {
 
         verify(authService).setTokenCookie(response, user);
         verify(userService, never()).save(any(User.class));
-        assertEquals("http://localhost:3000/dashboard?oauth=success", response.getRedirectedUrl());
+        assertEquals("http://localhost:3080/dashboard?oauth=success", response.getRedirectedUrl());
     }
 
     @Test
@@ -84,7 +84,7 @@ class OAuth2LoginSuccessHandlerTest {
 
         verify(userService).save(any(User.class));
         verify(authService).setTokenCookie(eq(response), any(User.class));
-        assertEquals("http://localhost:3000/dashboard?oauth=success", response.getRedirectedUrl());
+        assertEquals("http://localhost:3080/dashboard?oauth=success", response.getRedirectedUrl());
     }
 
     @Test
