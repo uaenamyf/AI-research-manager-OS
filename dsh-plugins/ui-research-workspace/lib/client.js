@@ -384,22 +384,139 @@ window.__ModuleLoader__.load({
 		function proxyPdfUrl(p) { return "/research-external-search/pdf?url=" + encodeURIComponent(p.pdf_url); }
 		function pdfDownloadLabel(p) { return ((p.title || "paper").slice(0, 60)) + ".pdf"; }
 
+		// pdf.js loader (singleton, CDN). Picked the legacy 3.11.x build because
+		// it ships a single-file UMD that works without a bundler — modern
+		// 4.x requires a worker URL we can't trivially expose from a runtime
+		// client plugin. The 3.11.174 build also matches the version pinned
+		// in our ai-service PDF parsing pipeline, so the rendered output is
+		// behaviourally consistent with what we extract server-side.
+		var PDFJS_VERSION = "3.11.174";
+		var PDFJS_CDN = "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VERSION + "/build/pdf.min.js";
+		var PDFJS_WORKER_CDN = "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VERSION + "/build/pdf.worker.min.js";
+		var pdfjsLib = null;
+		var pdfjsLoadingPromise = null;
+		function bootstrapPdfjs() {
+			if (pdfjsLib) return Promise.resolve(pdfjsLib);
+			if (pdfjsLoadingPromise) return pdfjsLoadingPromise;
+			pdfjsLoadingPromise = new Promise(function (resolve, reject) {
+				var s = document.createElement("script");
+				s.src = PDFJS_CDN;
+				s.async = true;
+				s.onload = function () {
+					// 3.11.x UMD attaches to window.pdfjsLib; tolerate alias paths.
+					var lib = window.pdfjsLib || window["pdfjs-dist/build/pdf"];
+					if (!lib) return reject(new Error("pdf.js global not found after load"));
+					pdfjsLib = lib;
+					pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
+					resolve(pdfjsLib);
+				};
+				s.onerror = function () { reject(new Error("pdf.js CDN load failed: " + PDFJS_CDN)); };
+				document.head.appendChild(s);
+			});
+			return pdfjsLoadingPromise;
+		}
+
 		// dsh-native PDF preview. Local storage keys (papers/... ) are served
 		// through /research-file/files/{key}; external URLs go through the
 		// same-origin proxy /research-external-search/pdf?url= (upstream hosts
 		// like Wiley/EuropePMC refuse direct iframe embedding via
 		// X-Frame-Options, so the server fetches and re-serves the PDF as
-		// application/pdf for the browser's built-in PDF viewer).
+		// application/pdf bytes — we then render via pdf.js so it works in
+		// browsers without a built-in PDF viewer / extensions disabled).
 		function PdfPreview(props) {
 			var src = props.src || "";
 			var title = props.title || "(PDF)";
 			var isExternal = /^https?:\/\//i.test(src);
-			var iframeSrc = isExternal
+			var pdfUrl = isExternal
 				? ("/research-external-search/pdf?url=" + encodeURIComponent(src))
 				: ("/research-file/files/" + encodeURIComponent(src).replace(/%2F/g, "/"));
-			return React.createElement("div", null,
-				React.createElement("iframe", { src: iframeSrc, title: title, style: { width: "100%", height: 420, border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", borderRadius: 12, background: "var(--dsw-alias-bg-layer-1, #fff)", boxSizing: "border-box" } }),
+			// canvasRef + state held in a child component so each PDF gets
+			// its own lifecycle (avoids stale state when switching papers).
+			return React.createElement(PdfCanvas, { url: pdfUrl, title: title });
+		}
+		function PdfCanvas(props) {
+			var canvasRef = useRef(null);
+			var wrapRef = useRef(null);
+			var [status, setStatus] = useState("loading"); // loading | ready | error
+			var [error, setError] = useState("");
+			var [pages, setPages] = useState(1);
+			var docRef = useRef(null);
+			// 2026-08-19 myf: 旧实现是 <iframe src=PDF>，依赖浏览器内置 PDF
+			// viewer/扩展；扩展不可用时整片空白。改为 pdf.js 把每页画到 canvas
+			// 上，不依赖任何扩展/外部 viewer，深色主题下也跟主题色一致。
+			useEffect(function () {
+				var cancelled = false;
+				setStatus("loading");
+				setError("");
+				setPages(1);
+				bootstrapPdfjs().then(function () {
+					if (cancelled) return;
+					pdfjsLib.getDocument({ url: props.url, withCredentials: true }).promise.then(function (doc) {
+						if (cancelled) { doc.destroy(); return; }
+						docRef.current = doc;
+						setPages(doc.numPages);
+						return renderPages(doc, canvasRef, 1);
+					}).then(function () {
+						if (!cancelled) setStatus("ready");
+					}).catch(function (e) {
+						if (cancelled) return;
+						setError(e && e.message ? e.message : String(e));
+						setStatus("error");
+					});
+				}).catch(function (e) {
+					if (cancelled) return;
+					setError(e && e.message ? e.message : String(e));
+					setStatus("error");
+				});
+				return function () {
+					cancelled = true;
+					if (docRef.current) { try { docRef.current.destroy(); } catch (_) {} docRef.current = null; }
+				};
+			}, [props.url]);
+			// 主题色：浅色用白底 + 浅灰边，深色用 #1e1e1e 背景 + 暗边；
+			// 渲染区是嵌入在 chat 旁的窄栏，沿用 dsh 二级层色，与 dsw 一致。
+			var isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+			var wrapBg = isDark ? "#1e1e1e" : "#fff";
+			var wrapBorder = isDark ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.12)";
+			var errColor = isDark ? "#f87171" : "#dc2626";
+			var labelColor = isDark ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.55)";
+			return React.createElement("div", { ref: wrapRef, style: { width: "100%", border: "1px solid " + wrapBorder, borderRadius: 12, background: wrapBg, boxSizing: "border-box", padding: 8, maxHeight: 540, overflowY: "auto" } },
+				status === "loading" ? React.createElement("div", { style: { padding: 24, textAlign: "center", color: labelColor, fontSize: 12 } }, "加载 PDF…")
+					: null,
+				status === "error" ? React.createElement("div", { style: { padding: 24, textAlign: "center", color: errColor, fontSize: 12, lineHeight: 1.5 } },
+						"PDF 加载失败",
+						React.createElement("br", null),
+						React.createElement("span", { style: { fontSize: 11, opacity: 0.8 } }, error),
+					) : null,
+				React.createElement("canvas", { ref: canvasRef, style: { display: "block", width: "100%", borderRadius: 6 } }),
+				status === "ready" && pages > 1 ? React.createElement("div", { style: { fontSize: 11, color: labelColor, textAlign: "center", marginTop: 4 } },
+					"已渲染第 1 / " + pages + " 页（点击下方 Paper Card 查看完整解析）",
+				) : null,
 			);
+		}
+		// Render page 1 by default; keeps payload small (a 1.8MB paper
+		// rendered at 1.4x scale fits in <500KB PNG-equivalent of canvas).
+		function renderPages(doc, canvasRef, upTo) {
+			var tasks = [];
+			for (var n = 1; n <= upTo; n++) {
+				tasks.push(doc.getPage(n).then(function (page) {
+					var containerWidth = (canvasRef.current && canvasRef.current.parentElement)
+						? canvasRef.current.parentElement.clientWidth - 16
+						: 360;
+					var unscaledViewport = page.getViewport({ scale: 1 });
+					var scale = Math.max(0.6, Math.min(2.5, containerWidth / unscaledViewport.width));
+					var viewport = page.getViewport({ scale: scale });
+					var canvas = canvasRef.current;
+					if (!canvas) return;
+					var ctx = canvas.getContext("2d");
+					canvas.width = Math.floor(viewport.width);
+					canvas.height = Math.floor(viewport.height);
+					canvas.style.width = "100%";
+					canvas.style.height = "auto";
+					return page.render({ canvasContext: ctx, viewport: viewport }).promise;
+				}));
+			}
+			return Promise.all(tasks);
 		}
 
 		// Detail view tab strip: [PDF 预览] [Paper Card]. Mirrors the dsh
@@ -862,12 +979,14 @@ window.__ModuleLoader__.load({
 			// list[i] = { name, state: pending|uploading|analyzing|done|error, progress }
 			var [upload, setUpload] = useState(null);
 			// 底部进度条弹窗样式（研究区根容器 relative，absolute 定位到底部）
+			// 2026-08-19 myf: 颜色全部走 dsh 主题变量（bg-layer-2/border-l2/skeleton），
+			// 深浅色主题自动适配，不再用不存在的 fill-bg/stroke-default 回退白底。
 			var uploadBarStyle = {
 				position: "absolute",
 				left: 8, right: 8, bottom: 8,
 				zIndex: 30,
-				background: "var(--dsw-alias-fill-bg, #ffffff)",
-				border: "1px solid var(--dsw-alias-stroke-default, #e5e7eb)",
+				background: "var(--dsw-alias-bg-layer-2, #fff)",
+				border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.1))",
 				borderRadius: 8,
 				padding: "8px 10px",
 				boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
@@ -1225,7 +1344,7 @@ window.__ModuleLoader__.load({
 				upload ? React.createElement("div", { style: uploadBarStyle },
 					React.createElement("style", null, "@keyframes dshUploadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }"),
 					React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-						React.createElement("span", { style: { fontWeight: 600, fontSize: 12 } },
+						React.createElement("span", { style: { fontWeight: 600, fontSize: 12, color: "var(--dsw-alias-label-primary, #111)" } },
 							upload.finished ? "上传完成"
 								: (upload.done + upload.failed) < upload.total ? "上传中…"
 									: "解析中…"),
@@ -1236,15 +1355,18 @@ window.__ModuleLoader__.load({
 					),
 					(upload.list || []).map(function (it, i) {
 						var label = it.state === "done" ? "完成" : it.state === "error" ? "失败" : it.state === "analyzing" ? "解析中…" : it.state === "uploading" ? (it.progress || 0) + "%" : "等待中";
-						var color = it.state === "error" ? "#dc2626" : it.state === "done" ? "#16a34a" : "#2563eb";
+						// 状态色走主题变量（深色主题自动提亮），fallback 保持原浅色值
+						var color = it.state === "error" ? "var(--dsw-alias-state-error-primary, #dc2626)"
+							: it.state === "done" ? "var(--dsw-alias-state-success-primary, #16a34a)"
+								: "var(--dsw-alias-button-primary-fill, #2563eb)";
 						var barWidth = it.state === "analyzing" ? "40%" : (it.state === "error" || it.state === "done" ? "100%" : (it.progress || 0) + "%");
 						var barAnim = it.state === "analyzing" ? { animation: "dshUploadSlide 1.4s linear infinite" } : {};
 						return React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } },
-							React.createElement("span", { style: { fontSize: 11, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 } }, it.name),
-							React.createElement("div", { style: { width: 110, height: 6, borderRadius: 3, background: "var(--dsw-alias-fill-subtle, #e5e7eb)", overflow: "hidden" } },
+							React.createElement("span", { style: { fontSize: 11, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170, color: "var(--dsw-alias-label-secondary, #666)" } }, it.name),
+							React.createElement("div", { style: { width: 110, height: 6, borderRadius: 3, background: "var(--dsw-alias-bg-skeleton, rgba(0,0,0,.06))", overflow: "hidden" } },
 								React.createElement("div", { style: Object.assign({ width: barWidth, height: "100%", background: color, transition: "width 0.2s" }, barAnim) }),
 							),
-							React.createElement("span", { style: { fontSize: 11, width: 48, textAlign: "right", color: it.state === "error" ? "#dc2626" : "var(--dsw-alias-label-secondary, #666)" } }, label),
+							React.createElement("span", { style: { fontSize: 11, width: 48, textAlign: "right", color: it.state === "error" ? "var(--dsw-alias-state-error-primary, #dc2626)" : "var(--dsw-alias-label-secondary, #666)" } }, label),
 						);
 					}),
 				) : null,
