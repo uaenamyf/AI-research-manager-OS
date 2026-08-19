@@ -193,7 +193,11 @@ window.__ModuleLoader__.load({
 		// ── shared styles: geometry mirrored 1:1 from ui-workspace ───────
 		var S = {
 			// region column
-			root: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", paddingRight: INSET },
+			root: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", paddingRight: INSET, position: "relative" },
+			// list seat: expands right past root's paddingRight (mirrors ui-workspace
+			// .listArea) so rows/scrollbar share the session list's right edge
+			// (sidebar right - scrollbar offset), keeping row hover insets identical.
+			listArea: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", marginLeft: -4, marginRight: "calc(-1 * " + INSET + ")", paddingLeft: 4, boxSizing: "border-box" },
 			// workspace list (the only scrolling region)
 			list: { flex: 1, minHeight: 0, overflowY: "auto", marginLeft: -4, marginRight: SCROLL_OFF, paddingLeft: 4, paddingRight: "calc(" + INSET + " - " + SCROLL_W + "px - " + SCROLL_OFF + "px)", paddingBottom: 16, scrollbarGutter: "stable" },
 			// section header (workspace .sectionHeader)
@@ -254,10 +258,13 @@ window.__ModuleLoader__.load({
 			textarea: { boxSizing: "border-box", width: "100%", minHeight: 80, padding: "7px 14px", border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", borderRadius: 14, outline: "none", background: "transparent", fontSize: 13, lineHeight: "18px", color: "var(--dsw-alias-label-primary, #111)", resize: "vertical" },
 			btn: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--dsw-alias-button-elevated-fill, #fff)", color: "var(--dsw-alias-label-primary, #111)", boxShadow: "0 0 0 1px var(--dsw-alias-border-l2, rgba(0,0,0,.12))", cursor: "pointer" },
 			btnPrimary: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--dsw-alias-button-primary-fill, #2563eb)", color: "var(--dsw-alias-label-primary-foreground, #fff)", cursor: "pointer" },
+			// 2026-08-19 myf: 批量删除操作按钮（危险色）
+			btnDanger: { padding: "5px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "#dc2626", color: "#fff", cursor: "pointer" },
 			select: { padding: "5px 10px", border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", borderRadius: 8, fontSize: 13, background: "transparent", color: "var(--dsw-alias-label-primary, #111)", outline: "none" },
 			field: { marginBottom: 6 },
-			// bottom action bar
-			bar: { flex: "none", display: "flex", alignItems: "center", gap: 6, padding: "6px " + INSET, borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08))", boxSizing: "border-box" },
+			// bottom action bar (right inset aligned to the tree's S.root
+			// paddingRight so the bar's width/edges match the workspace list)
+			bar: { flex: "none", display: "flex", alignItems: "center", gap: 6, marginRight: INSET, padding: "6px " + INSET, borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08))", boxSizing: "border-box" },
 			barLabel: { flex: 1, minWidth: 0, fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 			// view-settings dropdown + folder popover (anchored under the header)
 			menu: { position: "absolute", top: 34, right: 4, zIndex: 30, minWidth: 148, padding: 4, borderRadius: 10, border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12))", background: "var(--dsw-alias-bg-layer-2, #fff)", boxShadow: "0 8px 24px rgba(0,0,0,.12)" },
@@ -273,11 +280,17 @@ window.__ModuleLoader__.load({
 		// Shared right-column research selection: the region writes it on a
 		// paper click, the `conversation.details.research` seat reads it (both
 		// registers live in this package, so a module-level signal is safe).
-		var researchDetail = { paperId: null };
+		var researchDetail = { paperId: null, nonce: 0 };
 		var researchSubs = [];
 		function setResearchDetail(id) {
 			researchDetail.paperId = id;
-			for (var i = 0; i < researchSubs.length; i++) researchSubs[i](id);
+			researchDetail.nonce++;
+			for (var i = 0; i < researchSubs.length; i++) researchSubs[i](researchDetail);
+		}
+		// 2026-08-19 myf: 强制右窗栏重新拉取当前论文详情（上传完成自动刷新解析结果用）。
+		function refreshResearchDetail() {
+			researchDetail.nonce++;
+			for (var i = 0; i < researchSubs.length; i++) researchSubs[i](researchDetail);
 		}
 		function subscribeResearchDetail(fn) {
 			researchSubs.push(fn);
@@ -542,20 +555,33 @@ window.__ModuleLoader__.load({
 		// (iframe) and Paper Card (paper intelligence content).
 		function ResearchDetailPanel(props) {
 			var [paperId, setPaperId] = useState(researchDetail.paperId);
+			var [nonce, setNonce] = useState(researchDetail.nonce);
 			var [search, setSearch] = useState(researchSearch.state);
 			var [preview, setPreview] = useState(researchPreview.paper);
 			var [detail, setDetail] = useState(null);
 			var [card, setCard] = useState(null);
 			var [tab, setTab] = useState("pdf");
-			useEffect(function () { return subscribeResearchDetail(setPaperId); }, []);
+			useEffect(function () { return subscribeResearchDetail(function (rd) { setPaperId(rd.paperId); setNonce(rd.nonce); }); }, []);
 			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
 			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
+			// 2026-08-19 myf: 依赖 nonce（上传完成自动刷新）；PROCESSING/UPLOADED 每 3s
+			// 轮询直到 READY，使「上传后自动获取最新解析结果」无需手动重开详情。
 			useEffect(function () {
 				if (paperId == null) { setDetail(null); setCard(null); return; }
 				setDetail(null); setCard(null);
-				api("/research-paper/papers/" + paperId).then(function (j) { if (ok(j)) setDetail(j.data); });
-				api("/research-paper/papers/" + paperId + "/card").then(function (j) { if (ok(j) && j.data) setCard(j.data); });
-			}, [paperId]);
+				var timer = null;
+				function fetchAll() {
+					api("/research-paper/papers/" + paperId).then(function (j) {
+						if (!ok(j)) return;
+						setDetail(j.data);
+						var st = j.data && j.data.status;
+						if (st === "PROCESSING" || st === "UPLOADED") timer = setTimeout(fetchAll, 3000);
+					});
+					api("/research-paper/papers/" + paperId + "/card").then(function (j) { if (ok(j) && j.data) setCard(j.data); });
+				}
+				fetchAll();
+				return function () { if (timer) clearTimeout(timer); };
+			}, [paperId, nonce]);
 			if (paperId != null) {
 				if (!detail) return React.createElement("div", { style: S.rsRoot }, React.createElement("p", { style: S.empty }, "加载论文详情…"));
 				var pdfSrc = detail.pdfUrl || detail.pdf_url || null;
@@ -603,7 +629,7 @@ window.__ModuleLoader__.load({
 			var [paperId, setPaperId] = useState(researchDetail.paperId);
 			var [search, setSearch] = useState(researchSearch.state);
 			var [preview, setPreview] = useState(researchPreview.paper);
-			useEffect(function () { return subscribeResearchDetail(setPaperId); }, []);
+			useEffect(function () { return subscribeResearchDetail(function (rd) { setPaperId(rd.paperId); }); }, []);
 			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
 			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
 			if (paperId != null || preview) return React.createElement("span", null, "论文详细");
@@ -701,8 +727,9 @@ window.__ModuleLoader__.load({
 				: kind === "deleteProject" ? "删除项目"
 				: kind === "deleteFolder" ? "删除文件夹"
 				: kind === "deletePaper" ? "删除论文"
+				: kind === "deletePapers" ? "删除论文"
 				: kind === "movePaper" ? "移动论文" : "";
-			var confirmOnly = kind === "deleteProject" || kind === "deleteFolder" || kind === "deletePaper";
+			var confirmOnly = kind === "deleteProject" || kind === "deleteFolder" || kind === "deletePaper" || kind === "deletePapers";
 
 			function submit() {
 				if (busy) return;
@@ -735,6 +762,18 @@ window.__ModuleLoader__.load({
 					req = { method: "DELETE", url: "/research-folder/folders/" + d.folder.id };
 				} else if (kind === "deletePaper") {
 					req = { method: "DELETE", url: "/research-paper/papers/" + d.paper.id };
+				} else if (kind === "deletePapers") {
+					// 2026-08-19 myf: 批量删除——并行调用单篇删除接口，全部成功才关闭弹窗
+					var ids = (d.papers || []).map(function (p) { return p.id; }).filter(function (id) { return id != null; });
+					if (!ids.length) { setMsg("未选择论文"); return; }
+					setBusy(true);
+					Promise.all(ids.map(function (id) {
+						return api("/research-paper/papers/" + id, { method: "DELETE", credentials: "include" });
+					})).then(function (results) {
+						if (results.every(function (j) { return ok(j); })) props.onDone && props.onDone(kind, dialog);
+						else { setMsg("部分论文删除失败，请重试"); setBusy(false); }
+					}).catch(function () { setMsg("网络错误"); setBusy(false); });
+					return;
 				} else if (kind === "movePaper") {
 					req = { method: "PUT", url: "/research-paper/papers/" + d.paper.id + "/move", body: { folderId: targetFolder === "root" ? null : Number(targetFolder) } };
 				}
@@ -752,6 +791,7 @@ window.__ModuleLoader__.load({
 				if (confirmOnly) {
 					var what = kind === "deleteProject" ? "项目「" + (dialog.project && dialog.project.name) + "」"
 						: kind === "deleteFolder" ? "文件夹「" + (dialog.folder && dialog.folder.name) + "」"
+						: kind === "deletePapers" ? "选中的 " + ((dialog.papers || []).length) + " 篇论文"
 						: "论文「" + (dialog.paper && dialog.paper.title) + "」";
 					return React.createElement("p", { style: S.text }, "确定删除 " + what + " 吗？此操作不可撤销。");
 				}
@@ -814,53 +854,161 @@ window.__ModuleLoader__.load({
 			var [dialog, setDialog] = useState(null);
 			// 2026-08-19 myf: 本地 PDF 上传（项目行加号 -> 文件选择器 ->
 			// research-file 预签名上传 -> research-paper 创建并触发 AI 分析）
+			// 支持多文件；底部进度条弹窗显示队列与每个文件进度。
 			var fileRef = useRef(null);
 			var uploadTargetRef = useRef(null);
-			var [uploadBusy, setUploadBusy] = useState(false);
-			var [uploadMsg, setUploadMsg] = useState(null);
+			// 上传队列 UI：null 或 { total, done, failed, analyzed, current, list, finished }
+			// done=上传完成进入解析数；analyzed=解析已结束（READY/FAILED）数
+			// list[i] = { name, state: pending|uploading|analyzing|done|error, progress }
+			var [upload, setUpload] = useState(null);
+			// 底部进度条弹窗样式（研究区根容器 relative，absolute 定位到底部）
+			var uploadBarStyle = {
+				position: "absolute",
+				left: 8, right: 8, bottom: 8,
+				zIndex: 30,
+				background: "var(--dsw-alias-fill-bg, #ffffff)",
+				border: "1px solid var(--dsw-alias-stroke-default, #e5e7eb)",
+				borderRadius: 8,
+				padding: "8px 10px",
+				boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
+			};
 
 			// 打开文件选择器（记录目标项目/文件夹），选中 PDF 后走预签名上传链路。
 			// 打开文件选择器（记录目标项目/文件夹）。项目行加号调用时不传 folderId（根目录）。
 			function startPdfUpload(projectId, folderId) {
 				uploadTargetRef.current = { projectId: projectId, folderId: folderId == null ? null : folderId };
-				setUploadMsg(null);
 				fileRef.current && fileRef.current.click();
 			}
-			function onFilePicked(e) {
-				var file = e.target.files && e.target.files[0];
-				e.target.value = ""; // 允许重复选择同一文件
-				if (!file) return;
-				var target = uploadTargetRef.current;
-				if (!target) return;
-				if (!/\.pdf$/i.test(file.name)) { setUploadMsg("请选择 PDF 文件"); return; }
-				setUploadBusy(true); setUploadMsg(null);
-				api("/research-file/upload-url", {
-					method: "POST",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ fileName: file.name }),
-				}).then(function (j) {
-					if (!ok(j)) throw new Error(j.message || "获取上传地址失败");
-					var up = j.data.url, key = j.data.fields.key;
-					var fd = new FormData();
-					fd.append("file", file);
-					fd.append("key", key);
-					return fetch(up, { method: "POST", credentials: "include", body: fd }).then(function (r) { return r.json(); }).then(function (j2) {
+			// 串行上传多个 PDF：upload-url -> XHR multipart（带进度）-> 创建论文 ->
+			// 轮询解析状态。底部进度条覆盖「上传 + 解析」两个阶段：上传完只是进入
+			// 解析阶段，全部论文 READY/FAILED 才显示完成并自动关闭。
+			function uploadFiles(target, files) {
+				var total = files.length;
+				var list = files.map(function (f) { return { name: f.name, state: "pending", progress: 0 }; });
+				var successIds = [];
+				var analyzed = 0;     // 解析已结束（READY/FAILED）的论文数
+				var uploadFail = 0;   // 上传失败数
+				var idx = 0;
+				setUpload({ total: total, done: 0, failed: 0, analyzed: 0, current: null, list: list, finished: false });
+				// 全部文件上传完 + 全部论文解析结束 -> 完成态：刷新树 + 右窗打开最新论文
+				function checkAll() {
+					var uploaded = successIds.length + uploadFail;
+					if (uploaded >= total && analyzed >= successIds.length) {
+						setUpload(function (u) { return u ? Object.assign({}, u, { finished: true, current: null }) : u; });
+						loadTree();
+						if (successIds.length) {
+							var latest = successIds[successIds.length - 1];
+							setResearchDetail(latest);
+							if (props.openDetails) props.openDetails();
+							refreshResearchDetail();
+						}
+						setTimeout(function () { setUpload(null); }, 3000); // 完成态停留后自动关闭
+					}
+				}
+				// 轮询一篇论文的解析状态：PROCESSING/UPLOADED/PENDING 继续等待，
+				// READY 成功、FAILED 失败；未知状态/网络错误按重试次数兜底结束。
+				function pollPaper(paperId, i, retries) {
+					api("/research-paper/papers/" + paperId).then(function (j) {
+						var st = ok(j) && j.data ? j.data.status : null;
+						if (st === "READY" || st === "SUCCESS") {
+							analyzed++;
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "done", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, list: l }); });
+							checkAll();
+						} else if (st === "FAILED" || st === "ERROR") {
+							analyzed++;
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, failed: u.failed + 1, list: l }); });
+							checkAll();
+						} else if ((st === "PROCESSING" || st === "UPLOADED" || st === "PENDING" || st == null) && retries < 60) {
+							setTimeout(function () { pollPaper(paperId, i, retries + 1); }, 2500);
+						} else {
+							analyzed++;
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, failed: u.failed + 1, list: l }); });
+							checkAll();
+						}
+					}).catch(function () {
+						if (retries < 60) setTimeout(function () { pollPaper(paperId, i, retries + 1); }, 2500);
+						else {
+							analyzed++;
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, failed: u.failed + 1, list: l }); });
+							checkAll();
+						}
+					});
+				}
+				function next() {
+					if (idx >= total) return; // 上传全部启动；完成判定由 checkAll 轮询驱动
+					var i = idx++;
+					var file = files[i];
+					var key = null;
+					setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "uploading", progress: 0 }); return Object.assign({}, u, { current: i, list: l }); });
+					api("/research-file/upload-url", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ fileName: file.name }),
+					}).then(function (j) {
+						if (!ok(j)) throw new Error(j.message || "获取上传地址失败");
+						var up = j.data.url;
+						key = j.data.fields.key;
+						return new Promise(function (resolve, reject) {
+							var fd = new FormData();
+							fd.append("file", file);
+							fd.append("key", key);
+							var xhr = new XMLHttpRequest();
+							xhr.open("POST", up);
+							xhr.withCredentials = true;
+							xhr.upload.onprogress = function (ev) {
+								if (!ev.lengthComputable) return;
+								var p = Math.round(ev.loaded / ev.total * 100);
+								setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { progress: p }); return Object.assign({}, u, { list: l }); });
+							};
+							xhr.onload = function () {
+								if (xhr.status >= 200 && xhr.status < 300) {
+									try { resolve(JSON.parse(xhr.responseText)); }
+									catch (e2) { reject(new Error("上传响应异常")); }
+								} else reject(new Error("上传失败 HTTP " + xhr.status));
+							};
+							xhr.onerror = function () { reject(new Error("网络错误")); };
+							xhr.send(fd);
+						});
+					}).then(function (j2) {
 						if (!ok(j2)) throw new Error(j2.message || "上传失败");
 						return api("/research-paper/projects/" + target.projectId + "/papers", {
 							method: "POST",
 							headers: { "content-type": "application/json" },
 							body: JSON.stringify({ fileName: file.name, s3Key: key, folderId: target.folderId }),
 						});
+					}).then(function (j3) {
+						if (!ok(j3)) throw new Error(j3.message || "创建论文失败");
+						if (j3.data && j3.data.id) {
+							successIds.push(j3.data.id);
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "analyzing", progress: 100 }); return Object.assign({}, u, { done: u.done + 1, list: l }); });
+							pollPaper(j3.data.id, i, 0);
+						} else {
+							uploadFail++;
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { failed: u.failed + 1, list: l }); });
+							checkAll();
+						}
+						next();
+					}).catch(function (err) {
+						uploadFail++;
+						setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { failed: u.failed + 1, list: l }); });
+						next();
+						checkAll();
 					});
-				}).then(function (j3) {
-					setUploadBusy(false);
-					if (!ok(j3)) { setUploadMsg(j3.message || "创建论文失败"); return; }
-					setUploadMsg(null);
-					loadTree();
-				}).catch(function (err) {
-					setUploadBusy(false);
-					setUploadMsg((err && err.message) || "上传失败");
-				});
+				}
+				next();
+			}
+			function onFilePicked(e) {
+				var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
+				e.target.value = ""; // 允许重复选择同一文件
+				var target = uploadTargetRef.current;
+				if (!files.length || !target) return;
+				var pdfs = files.filter(function (f) { return /\.pdf$/i.test(f.name); });
+				if (!pdfs.length) {
+					setUpload({ total: 0, done: 0, failed: 0, analyzed: 0, current: null, finished: true, list: [{ name: "未选择 PDF 文件", state: "error", progress: 100 }] });
+					setTimeout(function () { setUpload(null); }, 2000);
+					return;
+				}
+				uploadFiles(target, pdfs);
 			}
 
 			// Load the tree: projects -> folders (nested) -> papers (all, tagged projectId).
@@ -1071,10 +1219,36 @@ window.__ModuleLoader__.load({
 						React.createElement("button", { type: "button", style: S.iconBtn, title: "新建项目", onClick: function () { setDialog({ kind: "newProject" }); } }, React.createElement(IconFolderAdd, { size: 16 })),
 					),
 				),
-				React.createElement("div", { style: S.list }, listBody()),
-				uploadBusy ? React.createElement("div", { style: { padding: "4px 12px", fontSize: 12, color: "var(--dsw-alias-button-primary-fill, #2563eb)" } }, "上传并分析中…") : null,
-				uploadMsg ? React.createElement("div", { style: Object.assign({}, S.err, { padding: "4px 12px" }) }, uploadMsg) : null,
-				React.createElement("input", { ref: fileRef, type: "file", accept: "application/pdf,.pdf", style: { display: "none" }, onChange: onFilePicked }),
+				React.createElement("div", { style: S.listArea },
+					React.createElement("div", { style: S.list }, listBody()),
+				),
+				upload ? React.createElement("div", { style: uploadBarStyle },
+					React.createElement("style", null, "@keyframes dshUploadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }"),
+					React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+						React.createElement("span", { style: { fontWeight: 600, fontSize: 12 } },
+							upload.finished ? "上传完成"
+								: (upload.done + upload.failed) < upload.total ? "上传中…"
+									: "解析中…"),
+						React.createElement("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-secondary, #666)" } },
+							upload.finished ? (upload.analyzed || 0) + "/" + (upload.total || 0) + " 完成"
+								: (upload.done + upload.failed) < upload.total ? "上传 " + (upload.done + upload.failed) + "/" + (upload.total || 0)
+									: "解析 " + (upload.analyzed || 0) + "/" + (upload.total || 0)),
+					),
+					(upload.list || []).map(function (it, i) {
+						var label = it.state === "done" ? "完成" : it.state === "error" ? "失败" : it.state === "analyzing" ? "解析中…" : it.state === "uploading" ? (it.progress || 0) + "%" : "等待中";
+						var color = it.state === "error" ? "#dc2626" : it.state === "done" ? "#16a34a" : "#2563eb";
+						var barWidth = it.state === "analyzing" ? "40%" : (it.state === "error" || it.state === "done" ? "100%" : (it.progress || 0) + "%");
+						var barAnim = it.state === "analyzing" ? { animation: "dshUploadSlide 1.4s linear infinite" } : {};
+						return React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } },
+							React.createElement("span", { style: { fontSize: 11, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 } }, it.name),
+							React.createElement("div", { style: { width: 110, height: 6, borderRadius: 3, background: "var(--dsw-alias-fill-subtle, #e5e7eb)", overflow: "hidden" } },
+								React.createElement("div", { style: Object.assign({ width: barWidth, height: "100%", background: color, transition: "width 0.2s" }, barAnim) }),
+							),
+							React.createElement("span", { style: { fontSize: 11, width: 48, textAlign: "right", color: it.state === "error" ? "#dc2626" : "var(--dsw-alias-label-secondary, #666)" } }, label),
+						);
+					}),
+				) : null,
+				React.createElement("input", { ref: fileRef, type: "file", accept: "application/pdf,.pdf", multiple: true, style: { display: "none" }, onChange: onFilePicked }),
 				menu ? React.createElement(Dropdown, { x: menu.x, y: menu.y, items: menu.items, onSelect: function (id) { handleMenuSelect(menu.target, id); setMenu(null); }, onClose: function () { setMenu(null); } }) : null,
 				dialog ? React.createElement(DialogForm, { dialog: dialog, projects: projects || [], onClose: function () { setDialog(null); }, onDone: function (kind, d) { setDialog(null); if (kind === "deletePaper" && removeSel) removeSel(d.paper.id); loadTree(); } }) : null,
 			);
@@ -1194,6 +1368,10 @@ window.__ModuleLoader__.load({
 			var [focused, setFocused] = useState(null);
 			var [mode, setMode] = useState(null); // null | 'review' | 'writing'
 			var [items, setItems] = useState([]);
+			// 2026-08-19 myf: 批量删除确认弹窗 + 删除后刷新树（refreshTick 触发 LibraryView 重载）
+			var [dialog, setDialog] = useState(null);
+			var [refreshTick, setRefreshTick] = useState(0);
+			var onPapersCb = useCallback(function (list) { setItems(list); }, [refreshTick]);
 			var focus = useCallback(function (id) {
 				setFocused(id);
 				// 点击论文行只聚焦/打开右侧详情，不再自动勾选；
@@ -1223,14 +1401,17 @@ window.__ModuleLoader__.load({
 					: mode === "review" ? React.createElement(ReviewComposer, { papers: selectedPapers, onBack: function () { setMode(null); } })
 					: mode === "writing" ? React.createElement(WritingComposer, { onBack: function () { setMode(null); } })
 					: React.createElement("div", { style: { display: "flex", flexDirection: "column", minHeight: 0, flex: 1 } },
-						React.createElement(LibraryView, { sel: sel, toggleSel: toggleSel, focus: focus, focused: focused, removeSel: removeSel, onPapers: setItems, openDetails: props.openDetails }),
+						React.createElement(LibraryView, { sel: sel, toggleSel: toggleSel, focus: focus, focused: focused, removeSel: removeSel, onPapers: onPapersCb, openDetails: props.openDetails }),
 						// bottom action bar: appears after single/multi selection
 						Object.keys(sel).length > 0 ? React.createElement("div", { style: S.bar },
 							React.createElement("span", { style: S.barLabel }, "已选 " + Object.keys(sel).length + " 篇"),
 							React.createElement("button", { style: S.btn, onClick: function () { setMode("review"); } }, "综述"),
 							React.createElement("button", { style: S.btn, onClick: function () { setMode("writing"); } }, "写作"),
+							// 2026-08-19 myf: 多选批量删除（确认后并行删除，清空选择并刷新树）
+							React.createElement("button", { style: S.btnDanger, onClick: function () { setDialog({ kind: "deletePapers", papers: selectedPapers }); } }, "删除"),
 							React.createElement("button", { style: S.iconBtn, title: "清空选择", onClick: clearSel }, React.createElement(IconClose, null)),
 						) : null,
+						dialog ? React.createElement(DialogForm, { dialog: dialog, projects: [], onClose: function () { setDialog(null); }, onDone: function (kind, d) { setDialog(null); if (kind === "deletePapers") { clearSel(); setRefreshTick(function (t) { return t + 1; }); } } }) : null,
 					),
 			);
 		}
