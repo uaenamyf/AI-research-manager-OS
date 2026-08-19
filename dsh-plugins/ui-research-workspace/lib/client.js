@@ -287,6 +287,9 @@ window.__ModuleLoader__.load({
 		function setResearchDetail(id) {
 			researchDetail.paperId = id;
 			researchDetail.nonce++;
+			// 2026-08-19 myf: 任何 paper action 都把右窗栏切到「论文详细」tab。
+			// 这样外部预览 / 检索 / 综述 / 写作 tab 都不会被单论文点击意外关闭。
+			setResearchPanelTab("paper");
 			for (var i = 0; i < researchSubs.length; i++) researchSubs[i](researchDetail);
 		}
 		// 2026-08-19 myf: 强制右窗栏重新拉取当前论文详情（上传完成自动刷新解析结果用）。
@@ -307,6 +310,8 @@ window.__ModuleLoader__.load({
 		var researchSearchSubs = [];
 		function setResearchSearch(state) {
 			researchSearch.state = state;
+			// 2026-08-19 myf: 设置搜索时切到「在线文献检索」tab。
+			setResearchPanelTab("search");
 			for (var i = 0; i < researchSearchSubs.length; i++) researchSearchSubs[i](state);
 		}
 		function subscribeResearchSearch(fn) {
@@ -338,12 +343,48 @@ window.__ModuleLoader__.load({
 		var researchPreviewSubs = [];
 		function setResearchPreview(paper) {
 			researchPreview.paper = paper;
+			// 2026-08-19 myf: 切到「外部预览」tab（论文来源是检索结果时使用）。
+			setResearchPanelTab("preview");
 			for (var i = 0; i < researchPreviewSubs.length; i++) researchPreviewSubs[i](paper);
 		}
 		function subscribeResearchPreview(fn) {
 			researchPreviewSubs.push(fn);
 			return function () {
 				researchPreviewSubs = researchPreviewSubs.filter(function (x) { return x !== fn; });
+			};
+		}
+
+		// 2026-08-19 myf: 右窗栏 tab 路由。kind ∈ 'paper' | 'preview' | 'search' |
+		// 'review' | 'writing' | null。null = 关闭右窗栏（同时 paperId/preview/
+		// search 数据保留，下次切回时直接显示）。
+		// 任何 setResearchDetail / setResearchPreview / setResearchSearch 都会自动
+		// 切到对应 tab。底部栏「综述 / 写作」按钮调用 setResearchPanelTab 切到
+		// 对应 composer（toggle：再次点击同 tab 关闭 = null）。
+		var researchPanelTab = { kind: null };
+		var researchPanelTabSubs = [];
+		function setResearchPanelTab(kind) {
+			researchPanelTab.kind = kind;
+			for (var i = 0; i < researchPanelTabSubs.length; i++) researchPanelTabSubs[i](kind);
+		}
+		function subscribeResearchPanelTab(fn) {
+			researchPanelTabSubs.push(fn);
+			return function () {
+				researchPanelTabSubs = researchPanelTabSubs.filter(function (x) { return x !== fn; });
+			};
+		}
+
+		// 2026-08-19 myf: 多选选区提到 module-level store，dsh 切 conversation
+		// 卸载重挂 sidebar.research 时选区不丢。键 = paperId，值 = paper 引用。
+		var researchSelection = {};
+		var researchSelectionSubs = [];
+		function setResearchSelection(next) {
+			researchSelection = next;
+			for (var i = 0; i < researchSelectionSubs.length; i++) researchSelectionSubs[i](next);
+		}
+		function subscribeResearchSelection(fn) {
+			researchSelectionSubs.push(fn);
+			return function () {
+				researchSelectionSubs = researchSelectionSubs.filter(function (x) { return x !== fn; });
 			};
 		}
 
@@ -815,25 +856,30 @@ window.__ModuleLoader__.load({
 			);
 		}
 
-		// Right-column seat (conversation.details.research): paper detail outranks
-		// the search list; clicking a result focuses the paper. Both the local
-		// paper detail and an external result preview show two tabs — PDF 预览
-		// (iframe) and Paper Card (paper intelligence content).
+		// Right-column seat (conversation.details.research): routes by panel tab
+		// (论文详细 / 在线文献检索 / 综述 / 写作). Clicking a result / paper /
+		// searching / bottom-bar composer button switches the tab; the close
+		// button on the dsh DetailsPanel title bar clears the tab (right column
+		// collapses). The internal PDF/Paper Card tab inside 论文详细 keeps
+		// its existing look — only the top-level tab strip is new here.
 		function ResearchDetailPanel(props) {
 			var [paperId, setPaperId] = useState(researchDetail.paperId);
 			var [nonce, setNonce] = useState(researchDetail.nonce);
 			var [search, setSearch] = useState(researchSearch.state);
 			var [preview, setPreview] = useState(researchPreview.paper);
+			var [tab, setTab] = useState(researchPanelTab.kind);
 			var [detail, setDetail] = useState(null);
 			var [card, setCard] = useState(null);
-			var [tab, setTab] = useState("pdf");
+			var [innerTab, setInnerTab] = useState("pdf");
+			var [reviewSel, setReviewSel] = useState(null); // 2026-08-19 myf: 综述 composer 用
 			useEffect(function () { return subscribeResearchDetail(function (rd) { setPaperId(rd.paperId); setNonce(rd.nonce); }); }, []);
 			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
 			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
+			useEffect(function () { return subscribeResearchPanelTab(setTab); }, []);
 			// 2026-08-19 myf: 依赖 nonce（上传完成自动刷新）；PROCESSING/UPLOADED 每 3s
 			// 轮询直到 READY，使「上传后自动获取最新解析结果」无需手动重开详情。
 			useEffect(function () {
-				if (paperId == null) { setDetail(null); setCard(null); return; }
+				if (paperId == null || tab !== "paper") { setDetail(null); setCard(null); return; }
 				setDetail(null); setCard(null);
 				var timer = null;
 				function fetchAll() {
@@ -847,59 +893,139 @@ window.__ModuleLoader__.load({
 				}
 				fetchAll();
 				return function () { if (timer) clearTimeout(timer); };
-			}, [paperId, nonce]);
-			if (paperId != null) {
-				if (!detail) return React.createElement("div", { style: S.rsRoot }, React.createElement("p", { style: S.empty }, "加载论文详情…"));
+			}, [paperId, nonce, tab]);
+			// 2026-08-19 myf: 综述 composer 需要已选论文；region 同步过来即可。
+			// 这里只读，selectedPapers 来自 region 通过 store 推送。
+			var [reviewSel, setReviewSel] = useState(researchPanelReviewPapers.papers);
+			useEffect(function () { return subscribeResearchPanelReviewPapers(function (rp) { setReviewSel(rp.papers); }); }, []);
+			// 顶层 tab 条：仅在已打开某个 tab 时显示。综述 / 写作 不可直接点 tab
+			// 切换（必须从底部栏触发，避免与"打开右窗栏"动作混淆）；保留按钮仅供
+			// 用户在已经打开后再次点击 = 关闭。
+			function topTabs() {
+				if (!tab) return null;
+				var labels = { paper: "论文详细", preview: "外部预览", search: "在线文献检索", review: "综述", writing: "写作" };
+				var items = [
+					{ key: "paper", label: "论文详细" },
+					{ key: "search", label: "在线文献检索" },
+					{ key: "review", label: "综述" },
+					{ key: "writing", label: "写作" },
+				];
+				// 论文行点击 / 外部预览等只能从 paper 或 preview 进入；外部预览
+				// tab 用一个临时 label 让用户看得到当前激活什么。
+				return React.createElement("div", { className: "dsh-rr-tabs" },
+					items.map(function (it) {
+						return React.createElement("button", {
+							type: "button",
+							key: it.key,
+							// 2026-08-19 myf: 综述 / 写作 按钮仍可点击（再次点击关闭
+							// = toggle），其他 tab 直接切换。
+							className: "dsh-rr-tab" + (it.key === tab ? " dsh-rr-tab-on" : ""),
+							onClick: function () {
+								if (it.key === "paper" || it.key === "search" || it.key === "preview") {
+									setResearchPanelTab(it.key);
+								} else {
+									// 综述 / 写作：再点同 tab = 关闭；不同 tab = 切换
+									if (tab === it.key) setResearchPanelTab(null);
+									else setResearchPanelTab(it.key);
+								}
+							},
+						}, it.label + (tab === it.key && (it.key === "review" || it.key === "writing") ? " ×" : ""));
+					}),
+				);
+			}
+			if (!tab) return null;
+			if (tab === "review") {
+				// 2026-08-19 myf: 综述 composer。papers 来自 region 同步的 selection
+				// store（点击底部栏「综述」时已选）。关闭 = setResearchPanelTab(null)。
+				return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
+					React.createElement(ReviewComposer, { papers: reviewSel, onBack: function () { setResearchPanelTab(null); } }),
+				);
+			}
+			if (tab === "writing") {
+				return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
+					React.createElement(WritingComposer, { onBack: function () { setResearchPanelTab(null); } }),
+				);
+			}
+			if (tab === "search") {
+				return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
+					search ? React.createElement(SearchResultsPanel, { search: search })
+						: React.createElement("p", { style: S.empty }, "在文献检索按钮上发起一次检索"),
+				);
+			}
+			if (tab === "paper") {
+				if (paperId == null) return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
+					React.createElement("p", { style: S.empty }, "点击研究区一篇论文查看详情"),
+				);
+				if (!detail) return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
+					React.createElement("p", { style: S.empty }, "加载论文详情…"),
+				);
 				var pdfSrc = detail.pdfUrl || detail.pdf_url || null;
 				return React.createElement("div", { style: S.rsRoot },
-					React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: tab, onSelect: setTab }),
-					tab === "card" ? React.createElement(PaperDetail, { detail: detail, card: card })
+					topTabs(),
+					React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
+					innerTab === "card" ? React.createElement(PaperDetail, { detail: detail, card: card })
 						: pdfSrc ? React.createElement(PdfPreview, { src: pdfSrc, title: detail.title || "(PDF)" })
 						: React.createElement("p", { style: S.empty }, "该论文没有可预览的 PDF 文件"),
 				);
 			}
-			if (preview) {
+			if (tab === "preview") {
 				var p = preview;
+				if (!p) return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
+					React.createElement("p", { style: S.empty }, "点击在线文献检索结果中的论文查看"),
+				);
 				return React.createElement("div", { style: S.rsRoot },
+					topTabs(),
 					React.createElement("div", { style: S.rsHead },
 						React.createElement("div", null,
 							React.createElement("p", { style: S.rsTitle }, p.title || "(untitled)"),
 							React.createElement("p", { style: S.rsMeta }, sourceLabel(p.source) ? sourceLabel(p.source) + " · " : "" + (p.year ? p.year + " · " : "") + (p.doi ? "DOI: " + p.doi : "")),
 						),
-						React.createElement("button", { type: "button", style: S.iconBtn, title: "关闭", onClick: function () { setResearchPreview(null); } }, React.createElement(IconClose, { size: 14 })),
 					),
-					React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: tab, onSelect: setTab }),
-					tab === "card" ? React.createElement(ExternalPaperCard, { paper: p })
+					React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
+					innerTab === "card" ? React.createElement(ExternalPaperCard, { paper: p })
 						: p.pdf_url ? React.createElement(PdfPreview, { src: p.pdf_url, title: p.title || "(PDF)" })
 						: React.createElement("p", { style: S.empty }, "该文献没有可预览的 PDF 文件"),
 					React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" } },
 						p.url ? React.createElement("a", { key: "src", href: p.url, target: "_blank", rel: "noopener", style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "打开原文 ↗") : null,
 						p.pdf_url ? React.createElement("a", { key: "dl", href: proxyPdfUrl(p), download: pdfDownloadLabel(p), style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "下载 PDF") : null,
 						React.createElement("button", { key: "imp", type: "button", style: S.btnPrimary, onClick: function () { setResearchImport(p); } }, "导入到研究区"),
-						React.createElement("button", { key: "back", type: "button", style: S.btn, onClick: function () { setResearchPreview(null); } }, "返回结果列表"),
+						React.createElement("button", { key: "back", type: "button", style: S.btn, onClick: function () { setResearchPanelTab("search"); } }, "返回结果列表"),
 					),
 				);
 			}
-			if (search) return React.createElement(SearchResultsPanel, { search: search });
-			return null; // empty seat
+			return null;
+		}
+
+		// 2026-08-19 myf: 用于把 region 已选论文同步给 detail panel 的综述 composer
+		// （panel 渲染时 reading 这里）。模块级避免创建额外 props 穿透。
+		var researchPanelReviewPapers = { papers: [], nonce: 0 };
+		var researchPanelReviewPapersSubs = [];
+		function setResearchPanelReviewPapers(papers) {
+			researchPanelReviewPapers.papers = papers || [];
+			researchPanelReviewPapers.nonce++;
+			for (var i = 0; i < researchPanelReviewPapersSubs.length; i++) researchPanelReviewPapersSubs[i](researchPanelReviewPapers);
+		}
+		function subscribeResearchPanelReviewPapers(fn) {
+			researchPanelReviewPapersSubs.push(fn);
+			return function () { researchPanelReviewPapersSubs = researchPanelReviewPapersSubs.filter(function (x) { return x !== fn; }); };
 		}
 
 		// Details-panel header title (conversation.details.research.title seat):
-		// renders 论文详细 while a paper is focused/previewed, 在线文献检索 while
-		// the online literature search is open (the search panel no longer
-		// renders its own header — one title bar only), and keeps the 详情 label
-		// on the empty seat (single-kind slot fallback only fires with no
-		// registered entry, so the label is mirrored here). Mirrors
-		// ResearchDetailPanel's branch order.
+		// driven by researchPanelTab — each tab maps to a fixed title.
 		function ResearchDetailTitle(props) {
-			var [paperId, setPaperId] = useState(researchDetail.paperId);
-			var [search, setSearch] = useState(researchSearch.state);
-			var [preview, setPreview] = useState(researchPreview.paper);
-			useEffect(function () { return subscribeResearchDetail(function (rd) { setPaperId(rd.paperId); }); }, []);
-			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
-			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
-			if (paperId != null || preview) return React.createElement("span", null, "论文详细");
-			if (search) return React.createElement("span", null, "在线文献检索");
+			var [tab, setTab] = useState(researchPanelTab.kind);
+			useEffect(function () { return subscribeResearchPanelTab(setTab); }, []);
+			if (tab === "paper") return React.createElement("span", null, "论文详细");
+			if (tab === "preview") return React.createElement("span", null, "外部预览");
+			if (tab === "search") return React.createElement("span", null, "在线文献检索");
+			if (tab === "review") return React.createElement("span", null, "综述");
+			if (tab === "writing") return React.createElement("span", null, "写作助手");
 			return React.createElement("span", null, "详情");
 		}
 
@@ -1635,9 +1761,11 @@ window.__ModuleLoader__.load({
 				return function () { cancelled = true; };
 			}, []);
 			// selection (multi) + focus (detail) state
-			var [sel, setSel] = useState({});
+			// 2026-08-19 myf: 选区提到 module-level store —— dsh 切 conversation
+			// 卸载重挂 sidebar.research 时选区不丢，否则刚选完就丢。
+			var [sel, setSel] = useState(researchSelection);
+			useEffect(function () { return subscribeResearchSelection(setSel); }, []);
 			var [focused, setFocused] = useState(null);
-			var [mode, setMode] = useState(null); // null | 'review' | 'writing'
 			var [items, setItems] = useState([]);
 			// 2026-08-19 myf: 批量删除确认弹窗 + 删除后刷新树（refreshTick 触发 LibraryView 重载）
 			var [dialog, setDialog] = useState(null);
@@ -1650,15 +1778,15 @@ window.__ModuleLoader__.load({
 				setResearchDetail(id); // right-column paper detail
 			}, []);
 			var toggleSel = useCallback(function (id) {
-				setSel(function (s) {
+				setResearchSelection(function (s) {
 					var n = Object.assign({}, s);
 					if (n[id]) delete n[id]; else n[id] = true;
 					return n;
 				});
 			}, []);
-			var clearSel = useCallback(function () { setSel({}); setFocused(null); }, []);
+			var clearSel = useCallback(function () { setResearchSelection({}); setFocused(null); }, []);
 			var removeSel = useCallback(function (id) {
-				setSel(function (s) { var n = Object.assign({}, s); delete n[id]; return n; });
+				setResearchSelection(function (s) { var n = Object.assign({}, s); delete n[id]; return n; });
 				setFocused(function (f) { return f === id ? null : f; });
 			}, []);
 			var selectedPapers = items.filter(function (p) { return sel[p.id]; });
@@ -1669,15 +1797,26 @@ window.__ModuleLoader__.load({
 			}
 			return React.createElement("div", { className: "dsh-rr-wide", style: { display: "flex", flexDirection: "column", minHeight: 0, flex: 1 } },
 				!authReady ? React.createElement("p", { style: S.empty }, "研究区加载中…")
-					: mode === "review" ? React.createElement(ReviewComposer, { papers: selectedPapers, onBack: function () { setMode(null); } })
-					: mode === "writing" ? React.createElement(WritingComposer, { onBack: function () { setMode(null); } })
 					: React.createElement("div", { style: { display: "flex", flexDirection: "column", minHeight: 0, flex: 1 } },
 						React.createElement(LibraryView, { sel: sel, toggleSel: toggleSel, focus: focus, focused: focused, removeSel: removeSel, onPapers: onPapersCb, openDetails: props.openDetails }),
 						// bottom action bar: appears after single/multi selection
 						Object.keys(sel).length > 0 ? React.createElement("div", { style: S.bar },
 							React.createElement("span", { style: S.barLabel }, "已选 " + Object.keys(sel).length + " 篇"),
-							React.createElement("button", { style: S.btn, onClick: function () { setMode("review"); } }, "综述"),
-							React.createElement("button", { style: S.btn, onClick: function () { setMode("writing"); } }, "写作"),
+							// 2026-08-19 myf: 综述 / 写作 改为打开右窗栏对应 tab（与论文详细并列），
+							// 而不是替换研究区主区域。点击会同步已选 papers 给 detail panel
+							// 内的 ReviewComposer，并打开右窗栏。
+							React.createElement("button", { style: S.btn, onClick: function () {
+								// 同步当前选中的 papers 给右窗栏 review composer
+								setResearchPanelReviewPapers(selectedPapers);
+								// toggle：若当前已是 review tab 则关闭（null），否则切到 review
+								// 仅在开启时调 openDetails() —— 关闭时不能再开，否则 toggle 关闭看起来"没反应"。
+								if (researchPanelTab.kind === "review") setResearchPanelTab(null);
+								else { setResearchPanelTab("review"); if (props.openDetails) props.openDetails(); }
+							} }, "综述"),
+							React.createElement("button", { style: S.btn, onClick: function () {
+								if (researchPanelTab.kind === "writing") setResearchPanelTab(null);
+								else { setResearchPanelTab("writing"); if (props.openDetails) props.openDetails(); }
+							} }, "写作"),
 							// 2026-08-19 myf: 多选批量删除（确认后并行删除，清空选择并刷新树）
 							React.createElement("button", { style: S.btnDanger, onClick: function () { setDialog({ kind: "deletePapers", papers: selectedPapers }); } }, "删除"),
 							React.createElement("button", { style: S.iconBtn, title: "清空选择", onClick: clearSel }, React.createElement(IconClose, null)),
