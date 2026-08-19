@@ -1,0 +1,14 @@
+import type { Identifiers } from "./types.js";
+export declare function cleanText(value: unknown): string | undefined;
+export declare function truncate(value: unknown, max?: number): string | undefined;
+export declare function normalizeDoi(value: unknown): string | undefined;
+export declare function normalizePmid(value: unknown): string | undefined;
+export declare function normalizePmcid(value: unknown): string | undefined;
+export declare function normalizeArxiv(value: unknown): string | undefined;
+export declare function normalizeTitle(value: unknown): string;
+export declare function normalizeIdentifiers(ids: Identifiers): Identifiers;
+export declare function compact<T extends Record<string, unknown>>(record: T): T;
+export declare function firstString(value: unknown): string | undefined;
+export declare function toArray<T>(value: T | T[] | undefined | null): T[];
+export declare function yearFrom(value: unknown): number | undefined;
+export declare function chooseUrl(ids: Identifiers, url?: string): string | undefined;

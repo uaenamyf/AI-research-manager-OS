@@ -1,4 +1,0 @@
-# Phase 3 research-file patch: mounts the ResearchOS file storage bundle over the profile.
-- insert:
-    - id: research-file
-      name: '@researchos/dsh-research-file'

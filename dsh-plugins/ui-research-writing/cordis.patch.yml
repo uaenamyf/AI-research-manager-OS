@@ -1,4 +1,0 @@
-# Phase 4 ui-research-writing patch: mounts the ResearchOS writing panel client UI over the profile.
-- insert:
-    - id: ui-research-writing
-      name: '@researchos/ui-research-writing'

@@ -6,28 +6,25 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `docker-compose.yml` | 本地开发环境编排（PostgreSQL+pgvector / Redis / RabbitMQ + 应用服务） |
-| `.env.example` | 环境变量模板（复制为 `.env` 后修改） |
-| `.gitkeep` | 占位文件（保留目录结构用） |
+| `docker-compose.yml` | 本地开发环境编排（PostgreSQL+pgvector / MySQL） |
+| `mysql-init/` | MySQL 建表脚本（首次空数据卷初始化执行一次） |
+| `DEPLOYMENT.md` | 部署指南 |
 
-> ⚠️ `.env` 文件已被 `.gitignore` 忽略，**不会入库**。新环境需从 `.env.example` 复制。
+> ⚠️ `.env` 文件已被 `.gitignore` 忽略，**不会入库**。新环境需从根目录 `.env.example` 复制。
 
 ## 快速开始
 
 ### 1. 准备环境变量
 
 ```bash
-cd infra
-cp .env.example .env
+cp .env.example .env   # 仓库根目录
 # 编辑 .env，至少修改以下项：
+#   - OPENAI_API_KEY / RESEARCH_LLM_UPSTREAM_BASE_URL（DSH 网关经 scripts/dsh-gateway.sh 注入）
 #   - JWT_SECRET（生成方式：openssl rand -base64 48）
 #   - INTERNAL_TOKEN（任意随机字符串）
-#   - OPENAI_API_KEY 或 ANTHROPIC_API_KEY（使用 AI 功能时）
 ```
 
-### 2. 启动基础设施
-
-默认只启动 PostgreSQL、Redis、RabbitMQ 三个基础设施服务：
+### 2. 启动数据库（postgres + mysql）
 
 ```bash
 docker compose up -d
@@ -37,25 +34,18 @@ docker compose up -d
 
 ```bash
 docker compose ps
-# 三个服务均应为 healthy
+# postgres / mysql 均应为 healthy
 ```
 
-### 3. 启动应用服务（可选）
+> legacy backend / ai-service 已于 2026-08-19 移除（AI 管道迁入 DSH
+> `research-ai-worker`）；Redis/RabbitMQ 已随 Phase 5 下线，定义保留在注释中便于回退。
 
-当各服务的 `Dockerfile` 就绪后，可通过 `app` profile 启动应用层：
+### 3. 启动 DSH（前端 + 业务 bundle + AI 管道，:3080）
 
 ```bash
-docker compose --profile app up -d
+cd .. && bash scripts/dsh-gateway.sh start
+# 或 make start-dsh
 ```
-
-也可只启动单个应用服务（自动启动其依赖的基础设施）：
-
-```bash
-docker compose --profile app up -d backend
-docker compose --profile app up -d ai-service
-```
-
-> 注：旧 Next.js 前端已于 2026-08-19 移除；前端 = DSH GUI（:3080，见根 `AGENTS.md` §0）。
 
 ### 4. 停止与清理
 
@@ -63,7 +53,7 @@ docker compose --profile app up -d ai-service
 # 停止所有服务（保留数据）
 docker compose down
 
-# 停止所有服务并删除数据卷（⚠️ 清空数据库/缓存/队列）
+# 停止所有服务并删除数据卷（⚠️ 清空数据库）
 docker compose down -v
 ```
 
@@ -71,57 +61,33 @@ docker compose down -v
 
 | 服务 | 地址 | 说明 |
 | --- | --- | --- |
-| PostgreSQL | `localhost:5432` | 数据库，`researchos/researchos` |
-| Redis | `localhost:6379` | 缓存与会话 |
-| RabbitMQ | `localhost:5672`（AMQP） | 消息队列 |
-| RabbitMQ Management | `localhost:15672` | 管理界面，`guest/guest` |
-| backend | `localhost:8080` | Spring Boot API |
-| ai-service | `localhost:8000` | FastAPI AI 服务 |
-| DSH GUI | `localhost:3080` | DeepSeek Harness GUI + research bundles（`dsh-plugins/scripts/dsh-gateway.sh` 启动） |
+| PostgreSQL | `localhost:5432` | 向量库（paper_chunk），`researchos/researchos` |
+| MySQL | `localhost:3306` | 业务库（user/project/paper/...），`researchos/researchos` |
+| DSH GUI | `localhost:3080` | DeepSeek Harness GUI + research bundles（`scripts/dsh-gateway.sh` 启动） |
+| LLM 网关 | `localhost:3080/v1/chat/completions` | OpenAI 兼容统一网关 |
 
 ## 架构说明
 
 ```
-┌────────────────┐    REST API    ┌──────────────┐   HTTP/MQ   ┌──────────────┐
-│  DSH GUI :3080 │ ─────────────> │   backend    │ ──────────> │  ai-service  │
-│  (ui-research- │ <───────────── │  Spring Boot │ <────────── │   FastAPI    │
-│   * 客户端包)   │   统一响应/SSE  └──────────────┘  结果回调   └──────────────┘
-└────────────────┘
-                                      │
-                          ┌───────────┼───────────┐
-                          │           │           │
-                     PostgreSQL   Redis       RabbitMQ
-                     +pgvector   (缓存/会话)   (异步任务)
+┌─────────────────────────────────────────────────────────────┐
+│                  DeepSeek Harness GUI (:3080)               │
+│    research-* bundle（auth/project/folder/paper/file/...）  │
+│    research-ai-worker（解析/嵌入/卡片/综述/写作，inline）    │
+│    research-llm-gateway（统一 LLM/Embedding 网关）           │
+└───────────────┬───────────────────────────┬─────────────────┘
+                │ 直连（MySQL）             │ 直连（PG）
+┌───────────────▼───────────┐   ┌──────────▼─────────────────┐
+│  MySQL（业务数据）         │   │  PostgreSQL + pgvector     │
+│ user/project/paper/...    │   │  paper_chunk 向量存储       │
+└───────────────────────────┘   └────────────────────────────┘
 ```
 
-- **基础设施默认启动**：`docker compose up -d` 只起 Postgres/Redis/RabbitMQ，开发时各服务直接在宿主机用 IDE 运行。
-- **应用层按需启动**：各服务 Dockerfile 就绪后用 `--profile app` 启动，用于端到端联调或部署验证。
-- **数据持久化**：三个 named volume（`pgdata`、`redisdata`、`rabbitdata`），删容器不丢数据。
-
-## 本地开发模式（推荐）
-
-日常开发时，**基础设施用容器，应用用 IDE 跑**，便于断点调试：
-
-```bash
-# 1. 起基础设施
-cd infra && docker compose up -d
-
-# 2. backend 用 IDE 跑（application.yml 默认连 localhost）
-#    IDE: 运行 ResearchOsApplication.java
-
-# 3. ai-service 用 venv 跑
-cd ai-service
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
-
-# 4. 前端 = DSH GUI，用 dsh-gateway.sh 启动（:3080）
-cd .. && ./dsh-plugins/scripts/dsh-gateway.sh start
-```
+- **数据库层**：`docker compose up -d` 起 postgres + mysql，DSH bundle 直连（`scripts/dsh-gateway.sh` 注入连接信息）。
+- **数据持久化**：两个 named volume（`pgdata`、`mysqldata`），删容器不丢数据。
+- **文件存储**：论文 PDF 落 `~/.researchos/uploads`（research-file bundle，非容器内）。
 
 ## 相关文档
 
 - [Implementation/90-config-deploy.md](../Implementation/90-config-deploy.md) - 环境变量与部署配置规范
-- [Implementation/70-async-mq.md](../Implementation/70-async-mq.md) - RabbitMQ 拓扑与消息格式
 - [Implementation/40-database.md](../Implementation/40-database.md) - 数据库 schema 与迁移
-- [CLAUDE.md §13](../CLAUDE.md) - 依赖与环境约束
+- [CLAUDE.md](../CLAUDE.md) - 编码规范

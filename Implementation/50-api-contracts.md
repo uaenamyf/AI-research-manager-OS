@@ -1,9 +1,10 @@
 # 50 - 关键 API 契约
 
-## 融合现状（2026-08-18）
+## 融合现状（2026-08-19）
 
 > ResearchOS 已融入 DeepSeek Harness（DSH）：Web 入口统一为 DSH GUI（`127.0.0.1:3080`），
-> 旧 Next.js 前端已移除（2026-08-19 删 `frontend/`，:3000 下线）。
+> 旧 Next.js 前端已于 2026-08-19 移除（:3000 下线）；legacy backend / ai-service 亦于同日移除
+> （AI 管道迁入 research-ai-worker inline，无 MQ）。
 > **本节为当前生效契约**；下方各节为 legacy 契约描述，保留作历史对照。
 
 ### DSH GUI 聊天节点 -> research-* bundle（当前生效的对外契约）
@@ -26,14 +27,14 @@
 | research-subscription | `/research-subscription` | 套餐 / Stripe checkout / webhook |
 
 - **响应契约沿用 `{code, message, data}`**（与原 backend 逐字段一致，可无缝替换）。
-- **认证**：JWT **httpOnly cookie 与 `Authorization: Bearer` 双通道**；`research-auth` 与旧
-  Spring Boot **共享同一 `JWT_SECRET`（HS256）**，两边签发的 token 双向互通，前端切换无需
-  重新登录（详见 `80-security.md`）。
-- **内部链路不变**：bundle 的异步任务仍发 RabbitMQ `researchos.ai.task`
-  （`paper.analyze` / `review.generate` / `paper.delete`），由 ai-service 消费；backend ↔
+- **认证**：JWT **httpOnly cookie 与 `Authorization: Bearer` 双通道**；`research-auth` 签发
+  token（HS256，Payload `sub/email/plan/iat/exp`，与旧 Spring Boot 共享同一 `JWT_SECRET`
+  的历史契约，token 双向互通已随 legacy 下线归档，见 `80-security.md`）。
+- **内部链路（2026-08-19 更新）**：legacy RabbitMQ `researchos.ai.task` 与 backend ↔
   ai-service 内部契约（`X-Internal-Token`、`PATCH /internal/paper/{id}/result`、
-  `PATCH /internal/task/{id}/result`）原样保留（backend `:8080` 与 ai-service `:8000`
-  仍在运行，双认证 + MQ 管道阶段）。
+  `PATCH /internal/task/{id}/result`）已随 backend / ai-service 移除；现 AI 管道由
+  research-ai-worker **inline 直调**（`RESEARCH_AI_INLINE=1`，无 MQ），状态由 research-* bundle
+  直写 MySQL。`X-Internal-Token` 仍用于 bundle 间内部调用与兜底代理。
 
 ### 统一 LLM 网关契约（research-llm-gateway bundle，驻 3080）
 
@@ -49,7 +50,7 @@
   经 `dsh-gateway.sh` 注入启动环境），请求侧传不传 key 均可。
 - **上游**：`RESEARCH_LLM_UPSTREAM_BASE_URL`（真实上游，当前
   `https://ark.cn-beijing.volces.com/api/coding/v3`）。
-- **调用方**：ai-service（`OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` 指向网关）、
+- **调用方**：research-ai-worker（解析/嵌入/卡片/综述/写作）、
   research-writing / research-paper-card bundle、research-mcp 的 vector_search。
 
 ## frontend -> backend（对外 API，统一前缀 `/api`）【已废弃：旧 Next.js 前端已移除】

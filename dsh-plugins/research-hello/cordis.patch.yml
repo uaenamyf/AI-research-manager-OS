@@ -1,7 +1,0 @@
-# Phase 0 pluggability proof patch: inserts the research-hello plugin row over
-# the profile root. Applied after dsh-base / dsh-web-app layers; the profile's
-# own cordis.patch.yml or a --patch overlay can disable it by id.
-
-- insert:
-    - id: research-hello
-      name: '@researchos/dsh-research-hello'
