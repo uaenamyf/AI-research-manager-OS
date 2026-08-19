@@ -895,7 +895,6 @@ window.__ModuleLoader__.load({
 			var [detail, setDetail] = useState(null);
 			var [card, setCard] = useState(null);
 			var [innerTab, setInnerTab] = useState("pdf");
-			var [reviewSel, setReviewSel] = useState(null); // 2026-08-19 myf: 综述 composer 用
 			useEffect(function () { return subscribeResearchDetail(function (rd) { setPaperId(rd.paperId); setNonce(rd.nonce); }); }, []);
 			useEffect(function () { return subscribeResearchSearch(setSearch); }, []);
 			useEffect(function () { return subscribeResearchPreview(setPreview); }, []);
@@ -918,10 +917,7 @@ window.__ModuleLoader__.load({
 				fetchAll();
 				return function () { if (timer) clearTimeout(timer); };
 			}, [paperId, nonce, tab]);
-			// 2026-08-19 myf: 综述 composer 需要已选论文；region 同步过来即可。
-			// 这里只读，selectedPapers 来自 region 通过 store 推送。
-			var [reviewSel, setReviewSel] = useState(researchPanelReviewPapers.papers);
-			useEffect(function () { return subscribeResearchPanelReviewPapers(function (rp) { setReviewSel(rp.papers); }); }, []);
+			// 2026-08-19 myf: 综述 composer 已改为自加载论文目录，不再需要 region 同步选区
 			// 顶层 tab 条：仅在已打开某个 tab 时显示。综述 / 写作 不可直接点 tab
 			// 切换（必须从底部栏触发，避免与"打开右窗栏"动作混淆）；保留按钮仅供
 			// 用户在已经打开后再次点击 = 关闭。
@@ -962,11 +958,11 @@ window.__ModuleLoader__.load({
 			// tab=null 时显示空态提示（details 列仍可被最右竖栏/左侧论文打开）。
 			function tabContent() {
 				if (tab === "review") {
-					// 2026-08-19 myf: 综述 composer。papers 来自 region 同步的 selection
-					// store（点击底部栏「综述」时已选）。关闭 = setResearchPanelTab(null)。
+					// 2026-08-19 myf: 综述 composer 自加载当前已上传论文目录（checkbox 勾选），
+					// 不再依赖左侧勾选同步。关闭 = setResearchPanelTab(null)。
 					return React.createElement("div", { style: S.rsRoot },
 						topTabs(),
-						React.createElement(ReviewComposer, { papers: reviewSel, onBack: function () { setResearchPanelTab(null); } }),
+						React.createElement(ReviewComposer, { onBack: function () { setResearchPanelTab(null); } }),
 					);
 				}
 				if (tab === "writing") {
@@ -1081,19 +1077,8 @@ window.__ModuleLoader__.load({
 			);
 		}
 
-		// 2026-08-19 myf: 用于把 region 已选论文同步给 detail panel 的综述 composer
-		// （panel 渲染时 reading 这里）。模块级避免创建额外 props 穿透。
-		var researchPanelReviewPapers = { papers: [], nonce: 0 };
-		var researchPanelReviewPapersSubs = [];
-		function setResearchPanelReviewPapers(papers) {
-			researchPanelReviewPapers.papers = papers || [];
-			researchPanelReviewPapers.nonce++;
-			for (var i = 0; i < researchPanelReviewPapersSubs.length; i++) researchPanelReviewPapersSubs[i](researchPanelReviewPapers);
-		}
-		function subscribeResearchPanelReviewPapers(fn) {
-			researchPanelReviewPapersSubs.push(fn);
-			return function () { researchPanelReviewPapersSubs = researchPanelReviewPapersSubs.filter(function (x) { return x !== fn; }); };
-		}
+		// 2026-08-19 myf: 综述 composer 已改为自加载论文目录（checkbox 勾选），
+		// 不再需要 region → panel 的选区同步 store，相关代码已移除。
 
 		// Details-panel header title (conversation.details.research.title seat):
 		// driven by researchPanelTab — each tab maps to a fixed title.
@@ -1732,11 +1717,36 @@ window.__ModuleLoader__.load({
 
 		// ── 综述生成（底部栏触发，使用已选论文）──────────────────────────
 		function ReviewComposer(props) {
-			var papers = props.papers, onBack = props.onBack;
+			var onBack = props.onBack;
 			var [topic, setTopic] = useState("");
 			var [taskId, setTaskId] = useState(null);
 			var [markdown, setMarkdown] = useState(null);
 			var [err, setErr] = useState(null);
+			// 2026-08-19 myf: 综述不再依赖左侧勾选同步——直接展示当前已上传论文的
+			// 目录（跨项目扁平列表），checkbox 勾选参与综述的论文，默认全选。
+			var [papers, setPapers] = useState(null); // null = 加载中
+			var [checked, setChecked] = useState({}); // paperId -> true/false
+			var [loadErr, setLoadErr] = useState(null);
+			useEffect(function () {
+				api("/research-project?page=0&size=100").then(function (j) {
+					if (!ok(j)) { setLoadErr(j.message || "加载论文目录失败"); setPapers([]); return; }
+					var projs = (j.data && j.data.items) || [];
+					return Promise.all(projs.map(function (p) {
+						return api("/research-paper/projects/" + p.id + "/papers?folderId=-1&size=200").then(function (j2) {
+							var items = (ok(j2) && j2.data && j2.data.items) ? j2.data.items : [];
+							items.forEach(function (it) { it.projectId = p.id; it.projectName = p.name; });
+							return items;
+						}).catch(function () { return []; });
+					})).then(function (groups) {
+						var all = [];
+						groups.forEach(function (g) { all = all.concat(g); });
+						var chk = {};
+						all.forEach(function (pp) { chk[pp.id] = true; });
+						setPapers(all); setChecked(chk);
+					});
+				}).catch(function () { setLoadErr("网络错误"); setPapers([]); });
+			}, []);
+			var selected = papers ? papers.filter(function (p) { return checked[p.id]; }) : [];
 			useEffect(function () {
 				if (taskId == null) return;
 				var timer = setInterval(function () {
@@ -1751,8 +1761,9 @@ window.__ModuleLoader__.load({
 			}, [taskId]);
 			var generate = function () {
 				if (!topic.trim()) { setErr("请输入综述主题"); return; }
+				if (!selected.length) { setErr("请至少选择一篇论文"); return; }
 				setErr(null); setMarkdown(null);
-				api("/research-review/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paperIds: papers.map(function (p) { return p.id; }), topic: topic.trim() }) })
+				api("/research-review/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paperIds: selected.map(function (p) { return p.id; }), topic: topic.trim() }) })
 					.then(function (j) {
 						if (!ok(j)) { setErr(j.message || "提交失败"); return; }
 						setTaskId(j.data.taskId);
@@ -1760,8 +1771,22 @@ window.__ModuleLoader__.load({
 			};
 			return React.createElement("div", { style: S.root, paddingTop: 2 },
 				React.createElement("div", { style: S.header },
-					React.createElement("span", { style: S.label }, "生成综述 · 已选 " + papers.length + " 篇"),
+					React.createElement("span", { style: S.label }, "生成综述 · 已选 " + selected.length + " / " + (papers ? papers.length : "…") + " 篇"),
 					React.createElement("button", { style: S.iconBtn, title: "返回", onClick: onBack }, "←"),
+				),
+				// 当前已上传论文目录：checkbox 勾选参与综述，默认全选
+				React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.06))", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.06))" } },
+					loadErr ? React.createElement("p", { style: S.err, padding: 8 }, loadErr)
+						: papers == null ? React.createElement("p", { style: S.empty }, "加载论文目录…")
+						: papers.length === 0 ? React.createElement("p", { style: S.empty }, "暂无已上传论文")
+						: papers.map(function (p) {
+							return React.createElement("label", { key: p.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05))" } },
+								React.createElement("input", { type: "checkbox", style: S.checkbox, checked: !!checked[p.id], onChange: function () { setChecked(function (c) { var n = Object.assign({}, c); n[p.id] = !n[p.id]; return n; }); } }),
+								React.createElement("span", { style: Object.assign({}, S.statusDot, { background: dotColor(p.status) }), title: p.status || "" }),
+								React.createElement("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, color: "var(--dsw-alias-label-primary, #111)" } }, p.title || "(untitled)"),
+								p.projectName ? React.createElement("span", { style: { flex: "none", fontSize: 11, color: "var(--dsw-alias-label-tertiary, #999)" } }, p.projectName) : null,
+							);
+						}),
 				),
 				React.createElement("div", { style: { padding: "0 12px" } },
 					React.createElement("div", { style: S.field },
@@ -1879,23 +1904,10 @@ window.__ModuleLoader__.load({
 					: React.createElement("div", { style: { display: "flex", flexDirection: "column", minHeight: 0, flex: 1 } },
 						React.createElement(LibraryView, { sel: sel, toggleSel: toggleSel, focus: focus, focused: focused, removeSel: removeSel, onPapers: onPapersCb, openDetails: props.openDetails }),
 						// bottom action bar: appears after single/multi selection
+						// 2026-08-19 myf: 综述 / 写作 入口已上移至右窗栏 tab，左侧勾选
+						// 仅用于批量删除（+ 计数 / 清空选择）。
 						Object.keys(sel).length > 0 ? React.createElement("div", { style: S.bar },
 							React.createElement("span", { style: S.barLabel }, "已选 " + Object.keys(sel).length + " 篇"),
-							// 2026-08-19 myf: 综述 / 写作 改为打开右窗栏对应 tab（与论文详细并列），
-							// 而不是替换研究区主区域。点击会同步已选 papers 给 detail panel
-							// 内的 ReviewComposer，并打开右窗栏。
-							React.createElement("button", { style: S.btn, onClick: function () {
-								// 同步当前选中的 papers 给右窗栏 review composer
-								setResearchPanelReviewPapers(selectedPapers);
-								// toggle：若当前已是 review tab 则关闭（null），否则切到 review
-								// 仅在开启时调 openDetails() —— 关闭时不能再开，否则 toggle 关闭看起来"没反应"。
-								if (researchPanelTab.kind === "review") setResearchPanelTab(null);
-								else { setResearchPanelTab("review"); if (props.openDetails) props.openDetails(); }
-							} }, "综述"),
-							React.createElement("button", { style: S.btn, onClick: function () {
-								if (researchPanelTab.kind === "writing") setResearchPanelTab(null);
-								else { setResearchPanelTab("writing"); if (props.openDetails) props.openDetails(); }
-							} }, "写作"),
 							// 2026-08-19 myf: 多选批量删除（确认后并行删除，清空选择并刷新树）
 							React.createElement("button", { style: S.btnDanger, onClick: function () { setDialog({ kind: "deletePapers", papers: selectedPapers }); } }, "删除"),
 							React.createElement("button", { style: S.iconBtn, title: "清空选择", onClick: clearSel }, React.createElement(IconClose, null)),
