@@ -13,9 +13,9 @@
 //   GET    /research-paper/papers/:id                            -> paper (detail, incl summary)
 //   GET    /research-paper/papers/:id/status                     -> status string
 //   GET    /research-paper/papers/:id/card                       -> summary (Paper Intelligence Card)
-//   PUT    /research-paper/papers/:paperId/move                  { folderId }  (null -> root)
+//   PUT    /research-paper/papers/:paperId/move                  { folderId?, projectId? } (null -> root; projectId 切换项目)
 //   PUT    /research-paper/papers/:paperId/reading               { readingStatus?, starRating? }
-//   DELETE /research-paper/papers/:id                            -> delete + MQ paper.delete
+//   DELETE /research-paper/papers/:id                            -> delete + MQ paper.delete (无 PDF / UPLOADED-only 跳过)
 //
 // Async contract (mirror backend -> ai-service, see Implementation/70-async-mq.md):
 //   publish exchange "researchos.ai.task" routing "paper.analyze"/"paper.delete",
@@ -220,6 +220,8 @@ async function callWorker(action, body) {
     }
     return true
   } catch (e) {
+    // 2026-08-19 myf: 临时诊断，调查 cleanup 失败（写到 ctx.logger，dsh 主进程可见）
+    try { (globalThis.__researchPaperLogger || ((m) => process.stderr.write('[research-paper:callWorker] ' + m + '\n')))(`failed action=${action} err=${(e && e.message) || String(e)} gw=${GATEWAY}`) } catch {}
     return false
   }
 }
@@ -455,18 +457,31 @@ export function apply(ctx) {
           // GET /papers/:id/card
           if (method === 'GET' && action === 'card') return ok(res, parseSummary(paper.summary))
 
-          // PUT /papers/:paperId/move { folderId } — explicit SET so null moves back to root.
+          // PUT /papers/:paperId/move { folderId?, projectId? }
+          // 2026-08-19 myf: 支持 projectId 字段——跨项目移动时同时切换 project_id；
+          // 目标 folder 必须属于目标 project；folderId 缺省视为 null（根目录）。
           if (method === 'PUT' && action === 'move') {
             const body = await readJson(req)
+            const targetProjectId = body.projectId == null ? paper.project_id : Number(body.projectId)
+            if (!Number.isInteger(targetProjectId) || targetProjectId <= 0) return fail(res, 400, 'invalid projectId')
+            // 目标项目必须属于当前用户
+            const [ownProj] = await pool.query(
+              'SELECT id FROM research_project WHERE id = ? AND user_id = ?',
+              [targetProjectId, user.id],
+            )
+            if (!ownProj.length) return fail(res, 404, 'target project not found')
             const folderId = body.folderId == null ? null : Number(body.folderId)
             if (folderId != null) {
               const [fold] = await pool.query(
                 'SELECT id FROM folder WHERE id = ? AND user_id = ? AND project_id = ?',
-                [folderId, user.id, paper.project_id],
+                [folderId, user.id, targetProjectId],
               )
               if (!fold.length) return fail(res, 404, 'target folder not found')
             }
-            await pool.query('UPDATE paper SET folder_id = ? WHERE id = ? AND user_id = ?', [folderId, paperId, user.id])
+            await pool.query(
+              'UPDATE paper SET folder_id = ?, project_id = ? WHERE id = ? AND user_id = ?',
+              [folderId, targetProjectId, paperId, user.id],
+            )
             return ok(res, null)
           }
 
@@ -490,9 +505,19 @@ export function apply(ctx) {
           }
 
           // DELETE /papers/:id — publish cleanup FIRST (or inline worker), then delete the row (rollback-safe).
+          // 2026-08-19 myf: 跳过无文件论文（pdf_url 为空 / status=UPLOADED）的 cleanup——
+          // 此类论文从未触发 analyze，PG paper_chunk 里本来就没有记录，cleanup 是 no-op；
+          // 但 DSH 默认走 MQ 时若 RabbitMQ 未起（融合期常见），会无谓地 500。直接删 MySQL 行即可。
           if (method === 'DELETE' && action === undefined) {
-            const sent = await triggerCleanup(paperId)
-            if (!sent) return fail(res, 500, 'failed to publish cleanup task')
+            try { process.stderr.write(`[research-paper:DELETE] pid=${paperId} status=${paper.status} hasPdf=${!!paper.pdf_url} AI_INLINE=${AI_INLINE} GATEWAY=${GATEWAY}\n`) } catch {}
+            const needsCleanup = !!(paper.pdf_url && paper.status !== 'UPLOADED')
+            if (needsCleanup) {
+              const sent = await triggerCleanup(paperId)
+              try { process.stderr.write(`[research-paper:DELETE] pid=${paperId} sent=${sent}\n`) } catch {}
+              if (!sent) return fail(res, 500, 'failed to publish cleanup task')
+            } else {
+              try { process.stderr.write(`[research-paper:DELETE] pid=${paperId} skip cleanup (no pdf/uploaded-only)\n`) } catch {}
+            }
             await pool.query('DELETE FROM paper WHERE id = ? AND user_id = ?', [paperId, user.id])
             return ok(res, null)
           }

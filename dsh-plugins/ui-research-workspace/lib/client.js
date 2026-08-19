@@ -187,7 +187,12 @@ window.__ModuleLoader__.load({
 				".dsh-rr-abst { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 4px 0 0; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); white-space: normal; }",
 				// Detail view tabs (PDF preview / Paper Card) — mirrors the
 				// DetailsPanel tab strip look: 13px labels, accent underline.
+				// 2026-08-19 myf: 外层顶层 tab 钉在 detailPane 顶部（标题栏固定），
+				// 内层 PDF/Card TabBar 不 sticky（双 sticky 会互相遮挡，
+				// 内层只是内容切换，滚动时跟随内容自然消失即可）。
+				// sticky 元素加背景，否则下方滚动内容会透过 tab 文字。
 				".dsh-rr-tabs { display: flex; align-items: center; gap: 2px; margin: 0 0 8px; border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12)); }",
+				".dsh-rr-tabs.dsh-rr-tabs-sticky { position: sticky; top: 0; z-index: 5; padding-top: 4px; background: var(--dsw-alias-bg-layer-1, #fff); }",
 				".dsh-rr-tab { flex: none; padding: 8px 12px 7px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-tab:hover { color: var(--dsw-alias-label-primary, #111); }",
 				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill); font-weight: 500; }",
@@ -998,7 +1003,7 @@ window.__ModuleLoader__.load({
 					{ key: "review", label: "综述" },
 					{ key: "writing", label: "写作" },
 				];
-				return React.createElement("div", { className: "dsh-rr-tabs" },
+				return React.createElement("div", { className: "dsh-rr-tabs dsh-rr-tabs-sticky" },
 					items.map(function (it) {
 						// 2026-08-19 myf: preview 详情属于「在线文献检索」域：高亮 search tab；
 						// 点击时若上次停留在 preview 详情则恢复 preview，而不是回到结果列表。
@@ -1385,9 +1390,10 @@ window.__ModuleLoader__.load({
 			var [importProjectId, setImportProjectId] = useState("");
 			var [busy, setBusy] = useState(false);
 			var [msg, setMsg] = useState(null);
-			// 2026-08-19 myf: 批量移动弹窗打开时主动拉一次每个所属项目的文件夹树，
-			// 避免依赖 treeMeta 缓存（用户在 LibraryView 刚新建文件夹后立刻点
-			// 批量移动时，弹窗应能看到最新文件夹）。
+			// 2026-08-19 myf: 批量移动弹窗打开时主动拉一次每个**项目**的文件夹树，
+			// 跨项目也能选（用户想把 test 的论文搬到 abc 项目下某文件夹时也能选）。
+			// 不只拉选中论文所属项目，改为拉 props.projects 全部项目——确保任何
+			// 目标项目的新文件夹都能立刻看到。文件总数据优先用 freshFolders。
 			var [freshFolders, setFreshFolders] = useState({});
 			useEffect(function () {
 				setText(dialog && dialog.initial ? dialog.initial : "");
@@ -1396,12 +1402,11 @@ window.__ModuleLoader__.load({
 				setImportProjectId("");
 				setBusy(false); setMsg(null);
 				if (dialog && dialog.kind === "movePapers") {
-					var pids = {};
-					(dialog.papers || []).forEach(function (p) { if (p.projectId != null) pids[p.projectId] = true; });
-					var pidList = Object.keys(pids).map(function (k) { return Number(k); });
-					if (!pidList.length) { setFreshFolders({}); return; }
+					var allProjs = props.projects || [];
+					if (!allProjs.length) { setFreshFolders({}); return; }
 					setFreshFolders({});
-					Promise.all(pidList.map(function (pid) {
+					Promise.all(allProjs.map(function (p) {
+						var pid = p.id;
 						return api("/research-folder/projects/" + pid + "/folders/tree").then(function (j) {
 							return { pid: pid, folders: (ok(j) && j.data) ? j.data : [] };
 						}).catch(function () { return { pid: pid, folders: [] }; });
@@ -1479,24 +1484,18 @@ window.__ModuleLoader__.load({
 				} else if (kind === "movePapers") {
 					// 2026-08-19 myf: 批量移动——后端无批量接口，按 (projectId, folderId) 分组后
 					// 并行调用单篇 PUT /move；targetFolderValue 形如 "pid:root" / "pid:<folderId>"。
+					// 2026-08-19 myf: 去掉 _skipped 跨项目跳过——支持「把 test 的论文搬到 abc 项目下」。
 					var papers = d.papers || [];
 					if (!papers.length) { setMsg("未选择论文"); return; }
 					if (!targetFolder || !/^\d+:(root|\d+)$/.test(targetFolder)) { setMsg("请选择目标文件夹"); return; }
 					setBusy(true);
+					var tParts = targetFolder.split(":");
+					var tPid = Number(tParts[0]);
+					var tFid = tParts[1] === "root" ? null : Number(tParts[1]);
 					Promise.all(papers.map(function (p) {
-						var tParts = targetFolder.split(":");
-						var tPid = Number(tParts[0]);
-						var tFid = tParts[1] === "root" ? null : Number(tParts[1]);
-						// 选中论文可能跨多个项目；当选项属于非本论文所属项目时，跳过
-						if (Number(p.projectId) !== tPid) return Promise.resolve({ code: 0, _skipped: true });
-						return api("/research-paper/papers/" + p.id + "/move", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId: tFid }) });
+						return api("/research-paper/papers/" + p.id + "/move", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId: tFid, projectId: tPid }) });
 					})).then(function (results) {
-						var real = results.filter(function (r) { return r && !r._skipped; });
-						if (real.length === 0) {
-							// 全部跨项目被跳：让用户知道为什么没动
-							setMsg("所选项目与目标项目不一致"); setBusy(false); return;
-						}
-						if (real.every(function (j) { return ok(j); })) props.onDone && props.onDone(kind, dialog);
+						if (results.every(function (j) { return ok(j); })) props.onDone && props.onDone(kind, dialog);
 						else { setMsg("部分论文移动失败，请重试"); setBusy(false); }
 					}).catch(function () { setMsg("网络错误"); setBusy(false); });
 					return;
@@ -1530,28 +1529,43 @@ window.__ModuleLoader__.load({
 					// 单个下拉选项；value = "projectId:root|folderId"，便于 submit 直接分组。
 					// 文件夹来源优先用 freshFolders（弹窗打开时主动拉一次），保证新文件夹可见；
 					// 拉取未完成前用 props.foldersByProject 兜底。
+					// 跨项目也列出（用户希望把 test 论文搬到 abc 项目某文件夹时也能选）。
 					var papers2 = dialog.papers || [];
 					var projName = {};
 					(props.projects || []).forEach(function (pp) { projName[pp.id] = pp.name || ("#" + pp.id); });
-					var seenPids = {};
-					papers2.forEach(function (p) { if (p.projectId != null) seenPids[p.projectId] = true; });
-					var optionKeys = Object.keys(seenPids).map(function (k) { return Number(k); });
-					optionKeys.sort(function (a, b) { return (projName[a] || "").localeCompare(projName[b] || ""); });
+					// 跨项目列出所有项目；保持 props.projects 原顺序（用户视角的项目排序）
+					var allPids = (props.projects || []).map(function (pp) { return pp.id; });
 					function foldersFor(pid) {
 						if (Object.prototype.hasOwnProperty.call(freshFolders, pid)) return freshFolders[pid] || [];
 						return (props.foldersByProject && props.foldersByProject[pid]) || [];
 					}
-					var row = function (pid, fid, fname) {
-						return React.createElement("option", { key: pid + ":" + (fid == null ? "root" : fid), value: pid + ":" + (fid == null ? "root" : fid) },
-							(projName[pid] || "#" + pid) + " · " + (fname == null ? "（无文件夹）" : fname));
+					function flatFolders(items) {
+						// 2026-08-19 myf: 把树形文件夹拍平成 [{id, name, depth}]，按 depth/name 排序；
+						// 与 body() movePaper 单选分支保持一致（flattenFolders 是单选分支工具函数，
+						// 这里直接用本地版本以减少耦合）。
+						var out = [];
+						function walk(arr, depth) {
+							(arr || []).forEach(function (f) {
+								out.push({ id: f.id, name: f.name, depth: depth });
+								if (f.children && f.children.length) walk(f.children, depth + 1);
+							});
+						}
+						walk(items, 0);
+						return out;
+					}
+					var row = function (pid, fid, fname, depth) {
+						var pname = projName[pid] || ("#" + pid);
+						// 根目录项只显示项目名，不再带「（无文件夹）」后缀（用户反馈）
+						var label = pname + (fid == null ? "" : " · " + new Array(depth + 1).join("　") + fname);
+						return React.createElement("option", { key: pid + ":" + (fid == null ? "root" : fid), value: pid + ":" + (fid == null ? "root" : fid) }, label);
 					};
 					return React.createElement("div", null,
-						React.createElement("p", { style: S.text }, "将选中的 " + papers2.length + " 篇论文移动到：" + (optionKeys.length > 1 ? "（涉及 " + optionKeys.length + " 个项目）" : "")),
+						React.createElement("p", { style: S.text }, "将选中的 " + papers2.length + " 篇论文移动到："),
 						React.createElement("select", { style: Object.assign({}, S.select, { width: "100%", height: 36 }), value: targetFolder, onChange: function (e) { setTargetFolder(e.target.value); } },
 							React.createElement("option", { value: "" }, "选择目标…"),
-							optionKeys.flatMap(function (pid) {
-								var folders = foldersFor(pid);
-								return [row(pid, null, null)].concat(folders.map(function (f) { return row(pid, f.id, f.name); }));
+							allPids.flatMap(function (pid) {
+								var folders = flatFolders(foldersFor(pid));
+								return [row(pid, null, null, 0)].concat(folders.map(function (f) { return row(pid, f.id, f.name, f.depth); }));
 							}),
 						),
 					);
