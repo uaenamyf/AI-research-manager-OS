@@ -915,7 +915,8 @@ window.__ModuleLoader__.load({
 					),
 					React.createElement("div", { style: S.litRow },
 						React.createElement("label", { style: S.litCheck }, React.createElement("input", { type: "checkbox", style: S.checkbox, checked: fOpen, onChange: function (e) { setFOpen(e.target.checked); } }), " 仅开放获取"),
-						React.createElement("button", { type: "button", style: S.btnPrimary, onClick: doSearch }, "检索"),
+						// 2026-08-19 myf: 与「生成综述」「下载 PDF」风格一致（白底+细边框），不抢主色
+						React.createElement("button", { type: "button", style: S.btn, onClick: doSearch }, "检索"),
 					),
 				),
 				s.loading ? React.createElement("p", { style: S.empty }, "检索中…")
