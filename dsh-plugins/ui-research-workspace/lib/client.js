@@ -823,6 +823,7 @@ window.__ModuleLoader__.load({
 				});
 			};
 			// Condition summary for the header meta line.
+			// 2026-08-19 myf: 未检索（results 为 null）时显示「输入条件…」而非「无匹配文献」
 			var conds = [];
 			if (s.title) conds.push("标题:" + s.title);
 			if (s.author) conds.push("作者:" + s.author);
@@ -855,7 +856,8 @@ window.__ModuleLoader__.load({
 				),
 				s.loading ? React.createElement("p", { style: S.empty }, "检索中…")
 					: s.error ? React.createElement("p", { style: S.err }, s.error)
-					: !s.results || s.results.length === 0 ? React.createElement("p", { style: S.empty }, "无匹配文献")
+					: !s.results ? React.createElement("p", { style: S.empty }, "输入条件开始检索在线文献库")
+					: s.results.length === 0 ? React.createElement("p", { style: S.empty }, "无匹配文献")
 					: React.createElement("div", null, s.results.map(function (p, i) {
 						var authors = authorsText(p.authors);
 						return React.createElement("div", { key: p.source_id || p.doi || i, className: "dsh-rr-card", style: { cursor: "default" } },
@@ -974,10 +976,11 @@ window.__ModuleLoader__.load({
 					);
 				}
 				if (tab === "search") {
+					// 2026-08-19 myf: 右窗栏的在线文献检索 tab 自带检索表单，
+					// 不再显示「在文献检索按钮上发起一次检索」的空态提示。
 					return React.createElement("div", { style: S.rsRoot },
 						topTabs(),
-						search ? React.createElement(SearchResultsPanel, { search: search })
-							: React.createElement("p", { style: S.empty }, "在文献检索按钮上发起一次检索"),
+						React.createElement(SearchResultsPanel, { search: search || {} }),
 					);
 				}
 				if (tab === "paper") {
