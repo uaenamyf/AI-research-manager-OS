@@ -3,21 +3,19 @@
 # 对应 Implementation/90-config-deploy.md。
 #
 # 设计原则：
-# - 基础设施（postgres/redis/rabbitmq）默认启动，应用服务（backend/ai-service）
-#   通过 profile=app 按需启用（Next.js 前端已移除，前端 = DSH GUI :3080）。
+# - 仅保留数据库层（postgres 向量库 + mysql 业务库），DSH（:3080）直连；
+#   legacy backend/ai-service 已于 2026-08-19 移除（AI 管道迁入 DSH research-ai-worker）。
 # - 数据持久化通过 named volume，删容器不丢数据。
-# - 健康检查配置在基础设施层，应用服务 depends_on 用 service_healthy 等待就绪。
+# - 健康检查配置在基础设施层。
 #
-# 启动顺序：
-#   docker compose up -d                                # 只起基础设施
-#   docker compose --profile app up -d                  # 起基础设施 + 应用
-#   docker compose --profile app up -d backend          # 只起 backend（含依赖）
+# 启动：
+#   docker compose up -d
 #
 # 配套 .env 文件（复制 .env.example -> .env 后修改）。
 
 services:
   # ────────────────────────────────────────────────────────────
-  # 基础设施层（默认启动）
+  # 数据库层（DSH bundle 直连）
   # ────────────────────────────────────────────────────────────
 
   postgres:
@@ -78,12 +76,8 @@ services:
   #   restart: unless-stopped
 
   # ────────────────────────────────────────────────────────────
-  # 应用层（profile=app，按需启用）
-  # 各服务 Dockerfile 就绪后执行：
-  #   docker compose --profile app up -d
+  # 业务元数据库（MySQL）：DSH research-* bundle 直连（auth/project/folder/paper 等）
   # ────────────────────────────────────────────────────────────
-
-  # 业务元数据库（MySQL）：backend 主库，ai-service 只读 paper 元数据
   mysql:
     image: mysql:8.0
     container_name: researchos-mysql
@@ -100,8 +94,8 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysqldata:/var/lib/mysql
-      # 首次初始化时执行建表脚本（仅空数据卷时执行一次）
-      - ../backend/src/main/resources/db/migration-mysql/V1__init.sql:/docker-entrypoint-initdb.d/V1__init.sql:ro
+      # 首次初始化时执行建表脚本（仅空数据卷时执行一次；脚本随 infra 维护）
+      - ./mysql-init/V1__init.sql:/docker-entrypoint-initdb.d/V1__init.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-researchos-root}"]
       interval: 5s
@@ -110,77 +104,6 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  backend:
-    profiles: ["app"]
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    container_name: researchos-backend
-    environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_NAME: ${MYSQL_DB:-researchos}
-      DB_USER: ${MYSQL_USER:-researchos}
-      DB_PASS: ${MYSQL_PASSWORD:-researchos}
-      JWT_SECRET: ${JWT_SECRET:-dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA==}
-      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
-      AI_SERVICE_URL: http://ai-service:8000
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3080}
-      # 默认 local（本地目录开发）；生产显式设 STORAGE_TYPE=s3 并填下方凭据
-      STORAGE_TYPE: ${STORAGE_TYPE:-local}
-      STORAGE_BUCKET: ${STORAGE_BUCKET:-researchos-pdfs}
-      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
-      STORAGE_KEY: ${STORAGE_KEY:-}
-      STORAGE_SECRET: ${STORAGE_SECRET:-}
-      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
-      STRIPE_PRICE_RESEARCHER: ${STRIPE_PRICE_RESEARCHER:-}
-    ports:
-      - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
-    # 本地存储模式下 PDF 落 /app/uploads；命名卷持久化，重建容器不丢文件
-    volumes:
-      - uploadsdata:/app/uploads
-
-  ai-service:
-    profiles: ["app"]
-    build:
-      context: ../
-      dockerfile: ai-service/Dockerfile
-    container_name: researchos-ai-service
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-researchos}:${POSTGRES_PASSWORD:-researchos}@postgres:5432/${POSTGRES_DB:-researchos}
-      MYSQL_URL: mysql://${MYSQL_USER:-researchos}:${MYSQL_PASSWORD:-researchos}@mysql:3306/${MYSQL_DB:-researchos}
-      # 2026-08-18: Redis/RabbitMQ 已下线（AI 管道迁入 DSH）；RABBITMQ_URL 置空以禁用消费者
-      RABBITMQ_URL: ""
-      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
-      BACKEND_URL: http://backend:8080
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
-      EMBEDDING_DIM: ${EMBEDDING_DIM:-1536}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      # OpenAI 兼容端点（火山引擎/DeepSeek 等走 base_url，配合 OPENAI_DEFAULT_MODEL）
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-      OPENAI_DEFAULT_MODEL: ${OPENAI_DEFAULT_MODEL:-}
-      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
-      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
 volumes:
   pgdata:
   mysqldata:
-  uploadsdata:

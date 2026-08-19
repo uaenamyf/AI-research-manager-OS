@@ -1,19 +1,24 @@
 # 30 - AI 服务实现（FastAPI）
 
-## 融合现状（2026-08-18）
+## 融合现状（2026-08-19）
 
-> **本小节描述融合后的实际状态（以此为准）。下方原内容为 legacy 契约/结构描述（服务仍在运行，契约仍有效）。**
+> **legacy ai-service（FastAPI :8000）已于 2026-08-19 移除**：AI 管道（PDF 解析 / embedding / 卡片 / 综述 / 写作）已全部迁入 DSH `research-ai-worker`（`RESEARCH_AI_INLINE=1` inline 直调，无 RabbitMQ）；源码在 git 历史 `HEAD:ai-service/` 可回退。
+> 下方原内容为 legacy 契约/结构描述，仅作历史参考，不再对应运行代码。
 
-### 运行状态：MQ 管道保留，LLM 走统一网关
+### 迁移映射（ai-service → research-ai-worker）
 
-- **FastAPI 仍运行（:8000）**：RabbitMQ 消费者（`q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` 三条队列）+ 回调 backend（`PATCH /internal/paper/{id}/result`、`PATCH /internal/task/{id}/result`，带 `X-Internal-Token`）**全部保留**——论文分析/综述生成/删除清理全链路仍依赖本服务（Phase 5 评估结论：AI 管道迁入 DSH 前 RabbitMQ 不可移除）。
-- **LLM/embedding 已切到统一 LLM 网关**：`.env` 的 `OPENAI_BASE_URL` / `EMBEDDING_BASE_URL` = `http://host.docker.internal:3080/v1`（指向 DSH 单实例内的 `research-llm-gateway` bundle），**零代码改动**（切换 = 改两行配置 + 重建 ai-service 容器，容器内真实 OpenAI SDK 经网关回真实回复）。
+| 原模块 | 融合后承担者 | 说明 |
+| --- | --- | --- |
+| RabbitMQ 消费者（q.paper.analyze / q.review.generate / q.paper.cleanup）+ 回调 backend | research-ai-worker inline（`RESEARCH_AI_INLINE=1`） | MQ 已下线；状态由 bundle 直写 MySQL |
+| PDF 解析 / embedding / RAG | research-ai-worker（Node.js） | 向量写 PG `paper_chunk`（doubao-embedding-vision 2048 维，走统一网关） |
+| paper_agent / review_agent / writing_agent | research-paper-card / research-review / research-writing | prompt 与 ai-service 同源 |
+| `POST /paper/analyze` 等调试端点 | bundle 路由 + worker 直调 | 已移除 |
+
 - 统一网关细节：`POST /v1/chat/completions` + `POST /v1/embeddings`（OpenAI 兼容直连代理，上游 `RESEARCH_LLM_UPSTREAM_BASE_URL=https://ark.cn-beijing.volces.com/api/coding/v3`，chat 模型 `ark-code-latest`、embedding `doubao-embedding-vision` 2048 维）。
-- **AI agent（paper/review/writing）逻辑已由 DSH 侧 bundle 复刻**：`research-paper-card` / `research-review` / `research-writing`（prompt 与 ai-service 同源，LLM 走共享网关）；ai-service 侧 agent 保留运行（MQ 管道仍由本服务消费）。
-- 响应契约 `{code,message,data}`、内部调用 `X-Internal-Token` 不变。
-- 融合权威文档：根 `plan.md`（融合方案）+ `dsh-plugins/README.md`（bundle 实现记录）。
+- 响应契约 `{code,message,data}`、内部调用 `X-Internal-Token` 不变（bundle ↔ bundle / 兜底代理）。
+- 融合权威文档：根 `plan.md`（融合方案）+ `deepseek-harness-master/packages/researchos/`（bundle 实现记录）。
 
-> 注：以下为 legacy 描述（服务仍在运行，契约/结构仍有效）。
+> 注：以下为 legacy 描述（ai-service 已移除，仅作历史参考）。
 
 ## 目录结构
 

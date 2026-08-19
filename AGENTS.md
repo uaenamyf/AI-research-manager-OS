@@ -16,13 +16,13 @@
 
 ### 0.1 当前形态
 
-- **DSH 单实例驻 `127.0.0.1:3080`**（`dsh-plugins/scripts/dsh-gateway.sh` 启动，自动注入 `.env` 的 key / JWT / MySQL 等环境变量），单个 DSH 进程承载：
+- **DSH 单实例驻 `127.0.0.1:3080`**（`scripts/dsh-gateway.sh` 启动，自动注入 `.env` 的 key / JWT / MySQL 等环境变量），单个 DSH 进程承载：
   - **统一 LLM 网关 `research-llm-gateway`**（plan.md 中称 `dsh-llm-gateway`）：OpenAI 兼容直连代理，`POST /v1/chat/completions` + `POST /v1/embeddings`；上游 key/模型单点收口（chat `ark-code-latest` / embedding `doubao-embedding-vision`，来源 `.env`）。
   - **12 个 `research-*` 业务 bundle**：auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway；经 `ctx.webServer` 暴露 `/research-*` 路由，直连 MySQL（业务表）+ PG（`paper_chunk` 向量）。
-  - **`research-mcp`**：stdio MCP server（`research-mcp/server.js`，由 dsh mcp-client 拉起），工具 `literature_search` / `literature_get` / `literature_cite` / `vector_search`，向 DSH agent 暴露文献检索/读取/引用/向量检索。
+  - **`research-mcp`**：stdio MCP server（`packages/researchos/mcp/server.js`，由 dsh mcp-client 拉起），工具 `literature_search` / `literature_get` / `literature_cite` / `vector_search`，向 DSH agent 暴露文献检索/读取/引用/向量检索。
   - **11 个 `ui-research-*` UI 包**（hello 探针 + 10 个业务节点）：聊天节点（library / paper / citation）+ 关键词触发面板（dashboard / writing / settings / literature / review / upload / project 等，多数已随融合卸载，仅保留必要节点），遵循 DSH `ConversationNodeDefinition` / slot / props 规范接入浏览器 GUI。
-- **前端 = DSH GUI**：旧 Next.js frontend（:3000）已于 2026-08-19 移除（`frontend/` 目录、docker-compose 服务、CI 步骤一并清理），无回退。
-- **backend（Spring Boot :8080）与 ai-service（FastAPI :8000）仍在运行**：处于双认证 + MQ 管道过渡期；RabbitMQ 保留至 AI 管道迁入 DSH（`q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` 仍被 ai-service 消费）；Redis 未使用（0 key、无引用）可移除。
+- **前端 = DSH GUI**：旧 Next.js frontend（:3000）已于 2026-08-19 移除（无回退）。
+- **legacy backend（Spring Boot :8080）与 ai-service（FastAPI :8000）已于 2026-08-19 移除**：AI 管道（解析/嵌入/卡片/综述/写作）已全部迁入 DSH `research-ai-worker`（`RESEARCH_AI_INLINE=1` 直调 inline，无 RabbitMQ）；文件存储由 research-file 本地目录（`~/.researchos/uploads`）承载，ai-worker 直接经 research-file 读 PDF；Redis / RabbitMQ 已随 Phase 5 下线（compose 中注释保留便于回退）。数据库仅保留 postgres + mysql（`infra/docker-compose.yml`），DSH bundle 直连。
 
 ### 0.2 契约要点
 
@@ -37,14 +37,14 @@
 | --- | --- |
 | DSH bundle 开发/验证（research-\* 业务域、llm-gateway、research-mcp） | dsh 域 agent |
 
-- 改动 DSH 插件（`dsh-plugins/`）必须遵循 `dsh-plugins/README.md` 的包结构规范：`package.json` 声明 `dsh.bundle`（插件）或 `dsh.client`（客户端 UI 包）、`cordis.patch.yml` 自挂载（`- insert:` 行）、`index.js` `export function apply(ctx)`（Cordis 插件形态）。
+- 改动 DSH 融合包（`deepseek-harness-master/packages/researchos/`）必须遵循包结构规范：`package.json` 声明 `dsh.bundle`（插件）或 `dsh.client`（客户端 UI 包）、`cordis.patch.yml` 自挂载（`- insert:` 行）、`index.js` `export function apply(ctx)`（Cordis 插件形态）。
 - UI 包遵循 DSH `packages/client/AGENTS.md` 的 slot / props 规范（`ConversationNodeDefinition` 等）。
 - 安装/启停/卸载走 `dsh plugin --profile web add|remove`；「可拔插」（卸载不破坏其余功能）是验收项。
 
 ### 0.4 适用范围
 
-- 本文档 §1-§10 仍适用于**仍在运行的 legacy 服务**（backend / ai-service 开发；旧 Next.js frontend 已于 2026-08-19 移除，前端 = DSH GUI :3080）。
-- 融合相关新工作（bundle / MCP / 网关 / UI 包）以本章节 + `plan.md` + `dsh-plugins/README.md` 为准；契约变更同步更新 `Implementation/` 与 `plan.md`。
+- legacy backend / ai-service 已于 2026-08-19 移除（源码在 git 历史 `HEAD:backend/`、`HEAD:ai-service/` 可回退）；本文档 §1-§10 中的双服务协作章节仅作历史参考，不再对应运行代码。
+- 融合相关新工作（bundle / MCP / 网关 / UI 包）以本章节 + `plan.md` + `deepseek-harness-master/packages/researchos/` 为准；契约变更同步更新 `Implementation/` 与 `plan.md`。
 
 ---
 

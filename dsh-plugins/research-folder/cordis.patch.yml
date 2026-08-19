@@ -1,4 +1,0 @@
-# Phase 3 research-folder patch: mounts the ResearchOS folder CRUD bundle over the profile.
-- insert:
-    - id: research-folder
-      name: '@researchos/dsh-research-folder'

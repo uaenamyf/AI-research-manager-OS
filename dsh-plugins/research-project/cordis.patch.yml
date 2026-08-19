@@ -1,4 +1,0 @@
-# Phase 3 research-project patch: mounts the ResearchOS project CRUD bundle over the profile.
-- insert:
-    - id: research-project
-      name: '@researchos/dsh-research-project'

@@ -1,4 +1,0 @@
-# Phase 3 research-subscription patch: mounts the ResearchOS subscription bundle over the profile.
-- insert:
-    - id: research-subscription
-      name: '@researchos/dsh-research-subscription'

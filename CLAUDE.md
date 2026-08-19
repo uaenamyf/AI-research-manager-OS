@@ -1,10 +1,12 @@
 # CLAUDE.md - ResearchOS AI 编码规范
 
-> 本文件是项目统一的编码规范，适用于所有服务（backend / ai-service；前端 = DSH GUI，见根 `AGENTS.md` §0）。
+> 本文件是项目统一的编码规范。当前工程 = DeepSeek Harness（DSH）单实例承载全部
+> ResearchOS 能力（bundle / AI worker / 网关 / UI 包），数据库仅保留 postgres + mysql；
+> legacy backend（Java）与 ai-service（Python）已于 2026-08-19 移除（git 历史可回退）。
 >
 > - 多服务协作规则见 `AGENTS.md`（本文档的配套文档）。
 > - 实现方案与契约见 `Implementation/` 文件夹。
-> - 各服务目录下的 `AGENTS.md` 是该服务的模块级约束，冲突时以本文件 + 服务 AGENTS.md 为裁决依据。
+> - 融合包约束见 `deepseek-harness-master/packages/researchos/` 与 DSH `packages/client/AGENTS.md`。
 
 ---
 
@@ -24,10 +26,10 @@
 
 # 1. 通用规范
 
-- **语言与版本**：后端 Java 21（Spring Boot 3.3）、AI 服务 Python 3.12（FastAPI）；前端为 DeepSeek Harness GUI（:3080，`dsh-plugins/ui-research-*` 客户端包，TypeScript，见 `AGENTS.md` §0）。
-- **编码风格**：跟随语言官方风格——Java 用官方格式化（4 空格缩进），Python 用 PEP 8 + Black（4 空格），TypeScript 用 Prettier（2 空格）。
+- **语言与版本**：融合包以 TypeScript/JavaScript 为主（DSH `packages/researchos/`，bundle 为 Cordis 插件形态、UI 包为 React 客户端包）；DSH 本体见 `deepseek-harness-master/CLAUDE.md`。
+- **编码风格**：JS/TS 用 Prettier（2 空格）；bundle 遵循 Cordis 插件规范（`export function apply(ctx)`）。
 - **注释语言**：注释/文档用中文写说明，标识符用英文；对外用户可见文案一律英文（i18n 规范）。
-- **禁止**：硬编码密钥/Token/连接串（必须走环境变量）；提交编译不过或测试失败的代码。
+- **禁止**：硬编码密钥/Token/连接串（必须走环境变量，由 `scripts/dsh-gateway.sh` 注入）；提交编译不过或测试失败的代码。
 
 # 2. 文件头规范
 
@@ -80,33 +82,29 @@
 
 # 6. 数据库与迁移
 
-- **双库架构**：业务数据在 MySQL（backend 维护），AI 向量在 PostgreSQL `paper_chunk`（ai-service 维护）。
-- MySQL 建表脚本：`backend/src/main/resources/db/migration-mysql/V{n}__{desc}.sql`（docker-entrypoint-initdb.d 首次初始化执行）。
-- PG 迁移脚本：`backend/src/main/resources/db/migration/V{n}__{desc}.sql`。
+- **双库架构**：业务数据在 MySQL（research-* bundle 维护），AI 向量在 PostgreSQL `paper_chunk`（research-ai-worker 维护）。
+- MySQL 建表脚本：`infra/mysql-init/V{n}__{desc}.sql`（docker-entrypoint-initdb.d 首次初始化执行，来源为已移除的 `backend/src/main/resources/db/migration-mysql/`，git 历史可查）。
+- PG 迁移脚本：原 `backend/src/main/resources/db/migration/V{n}__{desc}.sql`（git 历史可查；当前 PG 直接由 pgvector 镜像 + research-ai-worker 建表）。
 - 表结构变更必须同步更新 `Implementation/40-database.md`。
-- 跨库无物理外键：删除论文时 backend 发 MQ `paper.delete` 让 ai-service 清理 PG chunk（最终一致，见 `70-async-mq.md`）。
+- 删除论文时 research-paper 删 MySQL `paper` 记录并清理 PG chunk（向量清理入口在 research-ai-worker）。
 
 # 7. 依赖管理
 
-- 新增依赖必须：
-  1. 更新对应 `pom.xml` / `pyproject.toml` / `package.json`；
-  2. 同步更新 `Implementation/00-overview.md` 的技术栈表（版本锁定）。
-- Python 依赖用 `pyproject.toml` 声明（`[project] dependencies` + `[project.optional-dependencies] test/dev`），不用裸 `requirements.txt` 散装。
+- 新增依赖必须更新对应 `package.json`（DSH 融合包在 `deepseek-harness-master/packages/researchos/`），并同步更新 `Implementation/00-overview.md` 的技术栈表（版本锁定）。
+- DSH 本体依赖（pnpm workspace）见 `deepseek-harness-master/package.json` / `pnpm-workspace.yaml`。
 
 # 8. 测试要求
 
-- backend：service 层 JUnit 5 + Mockito 单元测试；controller 用 MockMvc；调用 ai-service 的逻辑必须有 mock 契约测试。
-- ai-service：pytest + httpx；**LLM 调用必须可 mock，CI 不消耗真实 token**；PDF 解析与检索用 fixture 固化结果。
-- 前端（DSH GUI）：旧 Next.js 前端已移除；客户端包改动按 `dsh-plugins/` 与 DSH `packages/client/AGENTS.md` 规范验证。
-- 提交前本地跑通对应服务测试（`make test-backend` / `make test-ai`）。
+- 融合包（bundle / UI 包 / ai-worker）：改动按 DSH `packages/client/AGENTS.md` 与 `deepseek-harness-master/packages/researchos/` 的规范验证；LLM 相关改动保持可 mock、CI 不消耗真实 token。
+- legacy backend / ai-service 测试已随服务移除（git 历史可回退，见 `HEAD:backend/`、`HEAD:ai-service/`）。
+- 提交前本地跑通对应验证（`make help` 查看可用命令；DSH 起停 `make start-dsh` / `make stop-dsh`）。
 
 # 9. 服务边界铁律
 
-1. ❌ DSH 客户端包 / 旧 frontend 直连 ai-service 或数据库。
-2. ❌ ai-service 写业务表（user/project/paper/task）。
-3. ❌ backend 实现 LLM/向量/PDF 解析逻辑。
+1. ❌ UI 客户端包直连数据库（必须走 research-* bundle 的 `/research-*` 路由）。
+2. ❌ research-ai-worker 写业务表（user/project/paper/task 归属 research-* bundle）。
+3. ❌ bundle 内实现 LLM/向量/PDF 解析逻辑（归属 research-ai-worker 与 research-llm-gateway）。
 4. ❌ service 查询不带 `user_id` 过滤（越权漏洞）。
-5. ❌ 单 PR 跨三个服务同时改（必须拆分）。
-6. ❌ 只改契约一端就提交（必须同步双方 + 更新 `Implementation/` 契约文档）。
+5. ❌ 硬编码密钥/Token/连接串（必须走环境变量，由 `scripts/dsh-gateway.sh` 注入）。
 
 > 详细协作流程见根 `AGENTS.md`。

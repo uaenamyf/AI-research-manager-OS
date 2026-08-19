@@ -1,15 +1,11 @@
 # 70 - 异步任务流（RabbitMQ）
 
-## 融合现状（2026-08-18）
+## 融合现状（2026-08-19）
 
-> 本节记录 ResearchOS × DSH 融合后的 MQ 现状；下方 legacy 小节（拓扑 / 消息格式 / 重试与死信 / 回调 / 跨库清理）仍有效、保留。
+> **RabbitMQ 已随 Phase 5 下线**（2026-08-19，legacy backend / ai-service 一并移除）：AI 管道现由 research-ai-worker **inline 直调**（`RESEARCH_AI_INLINE=1`，无 MQ），状态由 research-* bundle 直写 MySQL、向量由 research-ai-worker 直写 PG。下方 legacy 小节（拓扑 / 消息格式 / 重试与死信 / 回调 / 跨库清理）仅作历史参考；compose 中相关服务已注释保留便于回退。
 
-- **RabbitMQ 拓扑不变**：exchange `researchos.ai.task`（direct）+ `q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` + 死信 `q.ai.dlq`（`researchos.ai.dlx`）；队列声明仍由 backend（Spring Boot :8080，RabbitConfig）负责，ai-service 消费者 `passive=True` 只检查不创建。
-- **消息生产方新增 DSH bundle**：融合后除 backend 外，DSH bundle 也成为生产方——
-  - `research-paper` bundle 发 `paper.analyze`（论文分析）与 `paper.delete`（跨库清理 PG chunk）；
-  - `research-review` bundle 发 `review.generate`（综述生成）。
-  - 消息格式 `{taskId, type, payload}` 与 backend **完全一致**，ai-service 消费与回调逻辑无需改动。
-- **保留/移除决策（Phase 5 评估结论）**：RabbitMQ 保留至 AI 管道完全迁入 DSH（`q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` 仍被 ai-service 消费）；**Redis 未使用（0 key、无引用），可移除**。
+- 遗留说明：exchange `researchos.ai.task`（direct）+ `q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` + 死信 `q.ai.dlq`（`researchos.ai.dlx`）曾由 backend 声明、ai-service 消费；现无生产者与消费者。
+- Redis 亦未使用（0 key、无引用），随 Phase 5 一并下线。
 
 ## RabbitMQ 拓扑
 

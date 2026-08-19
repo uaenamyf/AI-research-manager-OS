@@ -1,4 +1,0 @@
-# Phase 4 ui-research-upload patch: mounts the ResearchOS upload panel client UI over the profile.
-- insert:
-    - id: ui-research-upload
-      name: '@researchos/ui-research-upload'

@@ -1,4 +1,0 @@
-# Phase 3 research-writing patch: mounts the ResearchOS writing agent bundle over the profile.
-- insert:
-    - id: research-writing
-      name: '@researchos/dsh-research-writing'

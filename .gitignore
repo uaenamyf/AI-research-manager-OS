@@ -54,12 +54,9 @@ tools/
 *.log
 
 # ── DeepSeek Harness 集成（Phase 0+）──
-# DSH 完整 checkout 拷贝（含日志/构建产物/依赖，第三方源码，绝不入库）
-deepseek-harness-master/
-# 自研 dsh 插件包的依赖与临时文件
-dsh-plugins/**/node_modules/
-dsh-plugins/**/.dsh/
-dsh-plugins/**/*.log
-# dsh 常驻进程运行时产物（PID/日志，随启停变化）
-dsh-plugins/.dsh-gateway.pid
-dsh-plugins/.dsh-gateway.log
+# DSH 完整 checkout（已改造，整体入库；node_modules / lib / dist 等构建产物由
+# deepseek-harness-master/.gitignore 自身规则过滤，绝不入库）
+deepseek-harness-master/**/node_modules/
+# dsh 常驻进程运行时产物（PID/日志，随启停变化，位于仓库根）
+.dsh-gateway.pid
+.dsh-gateway.log

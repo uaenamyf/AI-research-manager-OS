@@ -1,4 +1,0 @@
-# Phase 4 ui-research-project patch: mounts the ResearchOS project management panel client UI over the profile.
-- insert:
-    - id: ui-research-project
-      name: '@researchos/ui-research-project'

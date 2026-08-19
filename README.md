@@ -2,32 +2,34 @@
 
 > AI 驱动的学术研究助手 - PDF 智能解析、文献综述、问答助手
 >
-> **融合现状（2026-08-18）**：前端已融入 DeepSeek Harness（DSH），浏览器单一入口
-> `http://localhost:3080`（研究区 = `dsh-plugins/ui-research-workspace` 客户端包 +
-> `research-*` bundle）。旧 Next.js 前端（`:3000`）已于 2026-08-19 移除，详见
-> `dsh-plugins/README.md` 与根 `plan.md`。
+> **融合现状（2026-08-19）**：全部能力已融入 DeepSeek Harness（DSH）单实例，
+> 浏览器单一入口 `http://localhost:3080`（研究区 = `packages/researchos/` 的
+> `research-*` bundle + `ui-research-*` 客户端包 + research-ai-worker AI 管道）。
+> legacy backend（Spring Boot）与 ai-service（FastAPI）已于 2026-08-19 移除，
+> 仅保留 postgres + mysql 数据库层。详见根 `plan.md`。
 
 ## 🚀 快速开始
 
-### 方式 1：Docker 一键启动
+### 方式 1：基础设施 + DSH 网关
 
 ```bash
 # 1. 复制环境变量配置
 cp .env.example .env
 # 编辑 .env，填入 LLM API Key 等必要配置
 
-# 2. 启动全部服务
-make up
-# 或（等价，手动指定根目录 .env）
-cd infra && docker compose --env-file ../.env --profile app up -d
+# 2. 启动数据库（postgres + mysql）
+make infra-up
+
+# 3. 启动 DSH（前端 + 业务 bundle + AI 管道，:3080）
+make start-dsh
 ```
 
-> **环境变量说明**：compose 通过 `--env-file ../.env` 读取**仓库根目录**的 `.env`（Makefile 已内置该参数），
-> 不要创建 `infra/.env`，否则两处配置会漂移。
+> **环境变量说明**：`scripts/dsh-gateway.sh` 从**仓库根目录** `.env` 读取
+> LLM key / JWT / MySQL 等并注入 DSH 进程。
 >
-> **LLM 配置**：`LLM_PROVIDER` 支持 `openai` / `anthropic`；国内网络无法直连 OpenAI 时，
-> 可设 `OPENAI_BASE_URL`（火山引擎/DeepSeek 等 OpenAI 兼容端点）+ `OPENAI_DEFAULT_MODEL`（接入点 ID），
-> `OPENAI_API_KEY` 填对应平台的 key（compose 已透传这三个变量）。
+> **LLM 配置**：统一 LLM 网关（research-llm-gateway）读取 `OPENAI_API_KEY` +
+> `RESEARCH_LLM_UPSTREAM_BASE_URL` + `OPENAI_DEFAULT_MODEL`，研究区全部 AI 能力
+> （论文分析/卡片/综述/写作/嵌入）经该网关单点出口。
 
 ### 方式 2：本地开发启动
 
@@ -35,24 +37,13 @@ cd infra && docker compose --env-file ../.env --profile app up -d
 # 1. 启动基础设施
 make infra-up
 
-# 2. 启动后端（新终端）
-cd backend
-mvn spring-boot:run
-
-# 3. 启动 AI Service（新终端）
-cd ai-service
-uvicorn app.main:app --reload
-
-# 4. 启动 DSH 前端（新终端）
-cd deepseek-harness-master
-pnpm dsh web   # http://localhost:3080
+# 2. 启动 DSH（新终端）
+make start-dsh   # scripts/dsh-gateway.sh start，http://localhost:3080
 ```
 
 访问地址：
 - 前端（DSH GUI）：http://localhost:3080
-- 后端 API：http://localhost:8080
-- AI Service：http://localhost:8000
-- RabbitMQ 管理：http://localhost:15672（guest/guest）
+- LLM 网关（OpenAI 兼容）：http://localhost:3080/v1/chat/completions
 
 ## ✨ 功能特性
 
@@ -68,91 +59,51 @@ pnpm dsh web   # http://localhost:3080
 | 🐳 Docker 部署 | ✅ | 生产级容器化部署 |
 | ✅ 单元测试 | ✅ | 后端/AI 服务测试覆盖 |
 | 🔄 CI/CD | ✅ | GitHub Actions 自动化流水线 |
-| 💳 Stripe 支付 | ✅ | Checkout 订阅 + webhook 回调（需配置密钥） |
-| 🔗 Google OAuth | ✅ | 登录/注册页 + backend 授权码流程（需配置 `GOOGLE_CLIENT_ID/SECRET`） |
+| 💳 Stripe 支付 | ✅ | Checkout 订阅 + webhook 回调（research-subscription bundle，需配置密钥） |
+| 🔗 Google OAuth | ✅ | 登录/注册页 + JWT 授权码流程（research-auth bundle，需配置 `GOOGLE_CLIENT_ID/SECRET`） |
 
 ## 🏗️ 技术架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     前端 (Frontend)                          │
-│                  DeepSeek Harness GUI (:3080)                │
-│          research-* bundle / ui-research-* 客户端包          │
-└────────────────────────────────┬──────────────────────────────┘
-                                 │ HTTP
-┌────────────────────────────────▼──────────────────────────────┐
-│                        后端 (Backend)                          │
-│                   Spring Boot 3 + MyBatis Plus                 │
-│    JWT 认证 / 文件存储编排 / 任务调度 / 额度控制(ENFORCE_QUOTA) / 回调处理    │
-└────────────────┬───────────────────────┬──────────────────────┘
-                 │                       │
-        REST/SSE │                       │ RabbitMQ 异步
-┌────────────────▼──────────┐  ┌────────▼──────────────────────┐
-│   PostgreSQL + pgvector    │  │        AI Service             │
-│    仅 paper_chunk 向量存储 │  │      FastAPI + Python         │
-└───────────────────────────┘  │  PDF 解析 / Embedding / RAG   │
-                               │    Agent 工作流 / LLM 调用     │
-                               └───────────────────────────────┘
+│                  DeepSeek Harness GUI (:3080)               │
+│    research-* bundle（auth/project/folder/paper/file/...）  │
+│    research-ai-worker（解析/嵌入/卡片/综述/写作，inline）    │
+│    research-llm-gateway（统一 LLM/Embedding 网关）           │
+│    ui-research-* 客户端包（聊天节点/研究区面板）             │
+└───────────────┬───────────────────────────┬─────────────────┘
+                │ 直连（MySQL）             │ 直连（PG）
+┌───────────────▼───────────┐   ┌──────────▼─────────────────┐
+│  MySQL（业务数据）         │   │  PostgreSQL + pgvector     │
+│ user/project/paper/...    │   │  paper_chunk 向量存储       │
+└───────────────────────────┘   └────────────────────────────┘
 ```
 
 ## 📁 项目结构
 
 ```
 researchos-ai/
-├── backend/                # Spring Boot 后端
-│   ├── src/main/java/
-│   │   ├── controller/     # API 控制器
-│   │   ├── service/        # 业务逻辑层
-│   │   ├── entity/         # 数据实体
-│   │   ├── dto/            # 数据传输对象
-│   │   ├── config/         # 配置类
-│   │   └── common/         # 通用工具
-│   └── Dockerfile
+├── deepseek-harness-master/  # DeepSeek Harness（DSH，前端 GUI + 宿主，:3080）
+│   └── packages/researchos/  # ResearchOS 融合包（bundle + AI worker + 网关 + UI）
 │
-├── ai-service/             # FastAPI AI 服务
-│   ├── app/
-│   │   ├── agents/         # LLM Agent 实现
-│   │   ├── rag/            # RAG 检索模块
-│   │   ├── parser/         # PDF 解析
-│   │   ├── worker/         # RabbitMQ 消费者
-│   │   └── api/            # API 路由
-│   └── Dockerfile
+├── infra/                    # 数据库基础设施
+│   ├── docker-compose.yml    # postgres + mysql
+│   ├── mysql-init/           # MySQL 建表脚本（首次初始化执行）
+│   └── DEPLOYMENT.md         # 部署指南
 │
-├── deepseek-harness-master/ # DeepSeek Harness（DSH，前端 GUI :3080）
-├── dsh-plugins/            # ResearchOS 的 DSH 插件包（research-* bundle + ui-research-* 客户端）
-│
-├── infra/                  # 基础设施配置
-│   ├── docker-compose.yml  # Docker Compose 编排
-│   └── DEPLOYMENT.md      # 部署指南
-│
-├── .github/workflows/      # CI/CD 配置
-│   └── ci.yml
-│
-├── .env.example            # 环境变量模板
-├── Makefile                # 快捷命令
-└── Implementation/         # 详细设计文档
+├── scripts/                  # DSH 网关启停脚本（dsh-gateway.sh）
+├── Implementation/           # 契约/实现文档
+├── .env.example              # 环境变量模板
+├── Makefile                  # 快捷命令
+└── plan.md                   # DSH 融合方案与里程碑
 ```
 
 ## 🧪 运行测试
 
-```bash
-# 运行所有服务测试
-make test
-
-# 分别运行
-make test-backend    # 后端 Maven 测试
-make test-ai         # AI Service pytest
-```
-
-## 📊 测试覆盖
-
-| 服务 | 测试类型 | 状态 |
-|------|----------|------|
-| Backend | 单元测试（H2） | ✅ |
-| Backend | 集成测试（Testcontainers） | 🔄 |
-| AI Service | PDF 解析 | ✅ |
-| AI Service | Embedding 服务 | ✅ |
-| AI Service | RAG 检索 | 🔄 |
+- research bundle / 客户端包：按 `deepseek-harness-master/packages/researchos/` 与
+  DSH `packages/client/AGENTS.md` 规范验证（DSH 自带 vitest 体系）。
+- 原 backend（JUnit）/ ai-service（pytest）测试随服务移除已归档在 git 历史
+  （`git show HEAD:backend/...`）。
 
 ## 🚢 部署
 
@@ -163,8 +114,10 @@ make test-ai         # AI Service pytest
 cp .env.example .env
 # 编辑 .env 配置生产环境参数
 
-cd infra
-docker compose --profile app up -d
+# 1. 启动数据库
+make infra-up
+# 2. 启动 DSH（生产建议 systemd/pm2 托管）
+make start-dsh
 ```
 
 ## 🛠️ 开发常用命令
@@ -173,10 +126,8 @@ docker compose --profile app up -d
 # 查看所有可用命令
 make help
 
-# 查看日志
+# 查看 DSH 日志
 make logs
-make logs-backend
-make logs-ai
 
 # 清理资源
 make clean

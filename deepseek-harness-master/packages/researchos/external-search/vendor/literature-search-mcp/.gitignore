@@ -1,0 +1,10 @@
+node_modules/
+# DSH 集成：research-external-search 直接 import 本包 dist 产物，
+# dist 必须随 vendor 入库，克隆后开箱即用（否则 DSH 启动即失败）。
+# dist/
+.test-dist/
+*.log
+.test-history-*/
+.test-service-*/
+.test-live-history.jsonl
+.env

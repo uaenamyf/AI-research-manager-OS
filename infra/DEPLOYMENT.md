@@ -1,9 +1,12 @@
 # ResearchOS 部署指南
 
+> 2026-08-19 更新：legacy backend / ai-service 已移除（AI 管道迁入 DSH
+> `research-ai-worker`）；应用层 = DSH 单实例（:3080），数据库仅 postgres + mysql。
+
 ## 目录
 
 1. [本地开发启动](#1-本地开发启动)
-2. [Docker 一键部署](#2-docker-一键部署)
+2. [基础设施（Docker）](#2-基础设施docker)
 3. [生产环境部署](#3-生产环境部署)
 4. [CI/CD 流水线](#4-cicd-流水线)
 5. [常见问题](#5-常见问题)
@@ -12,64 +15,45 @@
 
 ## 1. 本地开发启动
 
-### 方式 A：手动启动（推荐用于开发调试）
-
 ```bash
-# 步骤 1：启动基础设施（PostgreSQL + Redis + RabbitMQ）
+# 步骤 1：启动数据库（postgres + mysql）
 cd infra
 docker compose up -d
 
-# 步骤 2：启动后端（新终端）
-cd backend
-mvn spring-boot:run
-
-# 步骤 3：启动 AI Service（新终端）
-cd ai-service
-source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload
-
-# 步骤 4：启动前端（DSH GUI，新终端）
-cd deepseek-harness-master && pnpm dsh web   # :3080
+# 步骤 2：启动 DSH（前端 + 业务 bundle + AI 管道，:3080）
+cd ..
+bash scripts/dsh-gateway.sh start   # 或 make start-dsh
 ```
 
 访问地址：
-- 前端（DSH GUI）：http://localhost:3080
-- 后端 API：http://localhost:8080
-- AI Service：http://localhost:8000
-- RabbitMQ 管理：http://localhost:15672（guest/guest）
+- DSH GUI（研究区 + 业务 bundle）：http://localhost:3080
+- LLM 网关：http://localhost:3080/v1/chat/completions（OpenAI 兼容）
+- PostgreSQL：localhost:5432（`researchos/researchos`，向量库 paper_chunk）
+- MySQL：localhost:3306（`researchos/researchos`，业务表）
 
-### 方式 B：Docker Compose 全栈启动
+停止：
 
 ```bash
-# 复制环境变量模板
-cp .env.example .env
-# 编辑 .env，填入 LLM API Key 等必要配置
-
-# 启动全部服务（基础设施 + 应用）
-cd infra
-docker compose --profile app up -d
-
-# 查看日志
-docker compose logs -f backend
-docker compose logs -f ai-service
+bash scripts/dsh-gateway.sh stop    # 或 make stop-dsh
+cd infra && docker compose down
 ```
 
 ---
 
-## 2. Docker 一键部署
+## 2. 基础设施（Docker）
 
 ### 2.1 环境准备
 
 ```bash
-# 1. 复制并配置环境变量
+# 1. 复制并配置环境变量（仓库根目录）
 cp .env.example .env
 
 # 2. 必须修改的配置（生产环境）
-# - POSTGRES_PASSWORD
+# - POSTGRES_PASSWORD / MYSQL_PASSWORD
 # - JWT_SECRET（生成：openssl rand -base64 32）
 # - INTERNAL_TOKEN
-# - LLM_PROVIDER + 对应的 API Key
-# - STORAGE_* 配置
+# - OPENAI_API_KEY / RESEARCH_LLM_UPSTREAM_BASE_URL
+# - STRIPE_* / GOOGLE_*（启用对应功能时）
 ```
 
 ### 2.2 启动命令
@@ -77,15 +61,8 @@ cp .env.example .env
 ```bash
 cd infra
 
-# 启动基础设施（首次部署，或只需要 DB/Redis/RabbitMQ）
+# 启动数据库（postgres + mysql；首次空卷自动执行 mysql-init/V1__init.sql）
 docker compose up -d
-
-# 启动全部服务
-docker compose --profile app up -d
-
-# 只启动特定服务
-docker compose --profile app up -d backend
-docker compose --profile app up -d ai-service
 
 # 停止服务
 docker compose down
@@ -100,11 +77,11 @@ docker compose down -v
 # 检查容器状态
 docker compose ps
 
-# 检查后端健康状态
-curl http://localhost:8080/api/health
+# DSH / LLM 网关
+curl http://127.0.0.1:3080
 
-# 检查 AI Service 健康状态
-curl http://localhost:8000/health
+# 业务 bundle 路由
+curl http://127.0.0.1:3080/research-<domain>/...
 ```
 
 ---
@@ -116,6 +93,7 @@ curl http://localhost:8000/health
 - **最低配置**：2 CPU / 4GB RAM / 40GB SSD
 - **推荐配置**：4 CPU / 8GB RAM / 100GB SSD
 - **操作系统**：Ubuntu 22.04 LTS / Debian 12
+- **Node.js 22+**（DSH 运行环境；DSH checkout 见 `deepseek-harness-master/`）
 
 ### 3.2 生产环境配置优化
 
@@ -141,21 +119,33 @@ curl http://localhost:8000/health
 ### 3.3 数据库备份
 
 ```bash
-# 手动备份
+# PostgreSQL（向量库）
 docker exec researchos-postgres pg_dump -U researchos researchos > backup_$(date +%Y%m%d).sql
 
-# 恢复备份
+# MySQL（业务库）
+docker exec researchos-mysql mysqldump -uresearchos -presearchos researchos > mysql_backup_$(date +%Y%m%d).sql
+
+# 恢复备份（示例）
 docker exec -i researchos-postgres psql -U researchos researchos < backup_20260721.sql
 ```
 
-### 3.4 监控与告警
+### 3.4 论文文件备份
+
+论文 PDF 存储在 research-file 本地目录（默认 `~/.researchos/uploads`），备份时一并拷贝：
+
+```bash
+tar czf researchos-uploads-$(date +%Y%m%d).tar.gz ~/.researchos/uploads
+```
+
+### 3.5 监控与告警
 
 ```bash
 # 查看资源使用
 docker stats
 
 # 查看服务日志
-docker compose logs -f --tail=100 backend
+make logs          # DSH 网关日志（.dsh-gateway.log）
+make logs-infra    # 数据库日志
 ```
 
 ---
@@ -168,23 +158,21 @@ docker compose logs -f --tail=100 backend
 
 **`.github/workflows/ci.yml`（每次 push / PR）**
 
-- ✅ **后端测试**：Maven 单元测试（68 个用例）
-- ✅ **AI Service 测试**：pytest + 覆盖率报告（72 个用例）
-- ✅ **Docker 构建验证**：两个服务镜像构建验证
-- ✅ **E2E 测试**：启动 MySQL/Redis/RabbitMQ/Postgres + 真实后端，验证后端 API 全流程（已随旧 Next.js 前端移除，前端验证走 DSH GUI 手动验证，见 `dsh-plugins/README.md`）
+- ✅ **research bundle 语法检查**：node --check 全部 bundle / ai-worker / gateway / mcp
+- ✅ **MySQL init SQL 检查**：infra/mysql-init/V1__init.sql 存在且含建表语句
+- ✅ **Compose 校验**：docker compose config --quiet
 
 **`.github/workflows/cd.yml`（push 到 main / 手动触发）**
 
-- 构建两个服务镜像并推送至 GitHub Container Registry：
-  `ghcr.io/uaenamyf/ai-research-manager-os/{backend,ai-service}`（tag = SHA 前 8 位 + latest）
-- 可选自动部署：在 GitHub Repo Settings → Secrets and variables 配置后，push 到 main 会自动 SSH 部署：
+- 不再构建 backend / ai-service 镜像（服务已移除）
+- 可选自动部署：在 GitHub Repo Settings → Secrets and variables 配置后，push 到 main 会自动 SSH 部署（服务器拉代码 → `docker compose up -d` → `dsh-gateway.sh start`）：
   - **Variables**：`DEPLOY_ENABLED=true`、`DEPLOY_PATH=/opt/researchos`
   - **Secrets**：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`
 
-### 4.2 生产服务器部署（拉取 CD 镜像）
+### 4.2 生产服务器部署
 
 ```bash
-# 服务器上克隆仓库（只需 infra/ 与配置文件，用于 compose 编排）
+# 服务器上克隆仓库
 git clone https://github.com/uaenamyf/AI-research-manager-OS.git /opt/researchos
 cd /opt/researchos
 
@@ -192,42 +180,46 @@ cd /opt/researchos
 cp .env.example .env
 vi .env
 
-# 登录 GHCR（私有镜像时需要）
-echo $GITHUB_TOKEN | docker login ghcr.io -u <your-username> --password-stdin
+# 启动数据库（postgres + mysql）
+cd infra && docker compose --env-file ../.env up -d && cd ..
 
-# 拉取 CD 构建好的镜像并启动（docker-compose.prod.yml 把 build 替换为 image）
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --profile app up -d
+# 启动 DSH（应用层，需 Node 22 + deepseek-harness-master checkout）
+bash scripts/dsh-gateway.sh start
 ```
 
-### 4.3 本地执行测试
+> DSH checkout（`deepseek-harness-master/`）默认被 gitignore，服务器需自行放置或配置
+> `DSH_HOME_CHECKOUT` 环境变量指向外部 checkout。
+
+### 4.3 本地执行验证
 
 ```bash
-# 后端测试
-cd backend
-mvn test
+# 语法检查（research 融合包）
+ROOT=deepseek-harness-master/packages/researchos
+find "$ROOT" -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
 
-# AI Service 测试
-cd ai-service
-pytest tests/ -v --cov=app
+# compose 校验
+docker compose -f infra/docker-compose.yml config --quiet
 ```
 
 ---
 
 ## 5. 常见问题
 
-### Q1: 后端启动失败，提示数据库连接失败
+### Q1: 数据库未初始化（表不存在）
+
+**A**: MySQL 建表脚本在 `infra/mysql-init/V1__init.sql`，仅对**空数据卷**执行一次。
+已存在的卷不会重跑，可重置：
+
+```bash
+cd infra && docker compose down -v && docker compose up -d
+```
+
+### Q2: DSH 启动失败 / 3080 无响应
 
 **A**: 检查：
-1. PostgreSQL 容器是否运行：`docker compose ps`
-2. 环境变量 `DB_HOST` / `DB_PORT` 配置正确
-3. 数据库密码与 `.env` 一致
-
-### Q2: AI Service 无法连接 RabbitMQ
-
-**A**: 检查：
-1. RabbitMQ 容器健康状态：`docker compose ps rabbitmq`
-2. 等待 RabbitMQ 完全启动（约 10-20 秒）
-3. 检查 `RABBITMQ_URL` 格式：`amqp://user:pass@host:port`
+1. 网关日志：`make logs`（`.dsh-gateway.log`）
+2. `.env` 是否齐全（`OPENAI_API_KEY` / `OPENAI_BASE_URL` 为必填，`scripts/dsh-gateway.sh` 启动时校验）
+3. DSH checkout 是否存在：`deepseek-harness-master/`
 
 ### Q3: DSH GUI 调用接口报错
 
@@ -239,34 +231,27 @@ pytest tests/ -v --cov=app
 ### Q4: LLM API 调用失败
 
 **A**: 检查：
-1. `LLM_PROVIDER` 配置（openai / anthropic / volcengine）
-2. 对应的 API Key 正确配置
-3. 网络连通性（火山引擎需要国内网络）
+1. `OPENAI_API_KEY` / `RESEARCH_LLM_UPSTREAM_BASE_URL` / `OPENAI_DEFAULT_MODEL` 配置正确
+2. 网络连通性（火山引擎需要国内网络）
+3. 网关直连验证：`curl http://127.0.0.1:3080/v1/chat/completions`
 
-### Q5: Docker 构建失败
+### Q5: 论文 PDF 无法打开
 
-**A**: 常见原因：
-1. 网络问题导致依赖下载失败 → 重试或配置镜像
-2. 内存不足 → 增加 Docker 内存限制（至少 4GB）
+**A**: 检查：
+1. research-file 存储目录 `~/.researchos/uploads` 中文件是否存在
+2. MySQL `paper.pdf_url` 与本地文件 key 是否对应
 
 ---
 
 ## 6. 测试覆盖
 
-### 后端测试
-- [x] 应用启动测试
-- [x] 健康检查接口测试
-- [x] 订阅服务额度校验测试
-- [ ] 用户服务测试
-- [ ] 论文服务测试
-- [ ] 集成测试（Testcontainers）
+### 融合包（researchos bundles / ai-worker / gateway / mcp）
+- [x] JS 语法检查（node --check，CI 全量）
+- [x] Compose 配置校验（CI）
+- [ ] 浏览器端到端验证（研究区：目录树 / 论文详情 / PDF 打开 / 分析链路）
 
-### AI Service 测试
-- [x] PDF 解析测试
-- [x] 健康检查测试
-- [x] Embedding 服务测试
-- [ ] RAG 检索测试
-- [ ] Agent 测试（mock LLM）
+### legacy（已移除，git 历史可回退）
+- 后端 68 用例 / AI 服务 72 用例的历史测试记录见 git 历史 `HEAD:backend/`、`HEAD:ai-service/`。
 
 ---
 
@@ -276,14 +261,14 @@ pytest tests/ -v --cov=app
 # 1. 拉取最新代码
 git pull
 
-# 2. 停止旧容器
-cd infra
-docker compose --profile app down
+# 2. 重启 DSH
+bash scripts/dsh-gateway.sh stop || true
+bash scripts/dsh-gateway.sh start
 
-# 3. 重新构建并启动
-docker compose --profile app up -d --build
+# 3. 数据库升级（如有 schema 变更：对已有卷执行对应迁移）
+cd infra && docker compose up -d
 
 # 4. 验证
 docker compose ps
-curl http://localhost:8080/api/health
+curl http://127.0.0.1:3080
 ```

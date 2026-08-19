@@ -1,13 +1,13 @@
 # 40 - 数据库 schema 与迁移
 
-## 融合现状（2026-08-18）
+## 融合现状（2026-08-19）
 
-> 本节记录 ResearchOS × DSH 融合后的数据库访问现状；下方 legacy 小节（连接配置 / 建表脚本 / 数据迁移）仍有效，作为历史实现与契约依据保留。
+> 本节记录 ResearchOS × DSH 融合后的数据库访问现状；下方 legacy 小节（连接配置 / 建表脚本 / 数据迁移）仅作历史实现与契约依据保留。
 
 - **双库架构不变**：MySQL（researchos）仍为业务数据源（app_user / research_project / folder / paper / ai_task），PostgreSQL 仍为向量库（仅 `paper_chunk`）。
-- **访问方变更（Java/Python → DSH bundle）**：除 backend（JDBC + MyBatis-Plus）与 ai-service（asyncpg）外，融合后新增 DSH bundle 直连——`research-auth` / `research-project` / `research-folder` / `research-paper` 等 bundle 用 **mysql2** 直连 MySQL 业务表、用 **pg** 直连 PG `paper_chunk`（向量读写），连接配置由 `dsh-gateway.sh` 注入 `.env` 环境变量。backend（:8080）与 ai-service（:8000）仍运行，原连接保留。
+- **访问方变更（Java/Python → DSH bundle）**：legacy backend（JDBC + MyBatis-Plus）与 ai-service（asyncpg）已于 2026-08-19 移除；现由 DSH bundle 直连——`research-auth` / `research-project` / `research-folder` / `research-paper` 等 bundle 用 **mysql2** 直连 MySQL 业务表、research-ai-worker 用 **pg** 直连 PG `paper_chunk`（向量读写），连接配置由 `scripts/dsh-gateway.sh` 注入 `.env` 环境变量。
 - **embedding 维度对齐（已实测）**：`paper_chunk.embedding` 现为 **vector(2048)**，与统一 LLM 网关（research-llm-gateway，127.0.0.1:3080，`POST /v1/embeddings`）的 embedding 模型 **doubao-embedding-vision（2048 维）** 对齐，已实测通过（见「PostgreSQL 向量表」节纠错说明）。
-- **跨库一致性不变**：双库仍无物理外键（`paper_chunk.paper_id` 为逻辑外键），删除论文仍走 MQ `paper.delete` 由 ai-service 清理 PG chunk。2026-08-18 实际清理过 **3 篇已删论文的 428 个孤儿 chunk**（PG `paper_chunk` 569 → 141），清理后与 MySQL `paper` 论文集合完全一致。
+- **跨库一致性不变**：双库仍无物理外键（`paper_chunk.paper_id` 为逻辑外键），删除论文由 research-paper 删 MySQL `paper` 记录并清理 PG chunk（向量清理入口在 research-ai-worker）。2026-08-18 实际清理过 **3 篇已删论文的 428 个孤儿 chunk**（PG `paper_chunk` 569 → 141），清理后与 MySQL `paper` 论文集合完全一致。
 
 ## 双库架构（最终决定）
 
@@ -36,8 +36,8 @@ MySQL (researchos)                    PostgreSQL (researchos)
   - `MYSQL_URL=mysql://researchos:researchos@localhost:3306/researchos`（元数据池，只读 paper 等）
 - **Flyway 已禁用**（`spring.flyway.enabled: false`）：schema 由 `db/migration-mysql/V1__init.sql` 手工执行，避免与旧 PG 迁移混用。
 
-> 2026-08-18 融合现状：以上 JDBC / asyncpg 连接为 backend / ai-service 的 legacy 连接（两者仍运行）。
-> 融合后 DSH bundle 直连 MySQL / PG 的配置由 DSH 实例（127.0.0.1:3080，`dsh-gateway.sh` 注入 `.env`）侧提供，见「融合现状」节。
+> 2026-08-19 融合现状：以上 JDBC / asyncpg 连接为 backend / ai-service 的 legacy 连接（两者已移除，仅作历史参考）。
+> 现 DSH bundle 直连 MySQL / PG 的配置由 DSH 实例（127.0.0.1:3080，`scripts/dsh-gateway.sh` 注入 `.env`）侧提供，见「融合现状」节。
 
 ## MySQL 业务表（db/migration-mysql/V1__init.sql）
 

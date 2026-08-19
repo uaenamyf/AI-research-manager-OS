@@ -237,7 +237,7 @@ ResearchOS 目前是独立的三服务 Docker 工程（Next.js 前端 + Spring B
 1. 重启 3080 GUI（加载 research profile：15 bundle + 11 UI 包注入 boot）——**会打断当前 GUI 会话** ✅ 2026-08-18 已重启（12:13 手动 `pnpm dsh web`，boot 49 条目含 11 个 research UI 包）
 2. 停 Next.js 容器：`docker compose --profile app stop frontend`（:3000 下线）✅ 2026-08-18 已执行
 3. 验证：`:3000` 不可达；3080/3081 各触发词面板正常 ✅ 2026-08-18（见「Phase 4 出口执行结果」）
-4. **保留** backend + ai-service（双认证 + MQ 管道仍被 DSH bundle 使用，Phase 5 再评估）✅ 保持运行
+4. ~~**保留** backend + ai-service（双认证 + MQ 管道仍被 DSH bundle 使用，Phase 5 再评估）~~ **2026-08-19 已移除**：AI 管道迁入 `research-ai-worker`（inline 直调），双认证由 DSH bundle 自持（共享 `JWT_SECRET`），backend/ai-service 全部删除（源码在 git 历史可回退）
 5. **回退**：`docker compose --profile app start frontend`；3080 保持运行（双模式）——未执行，如需要随时可回退
 
 > 决策点：① 3080 重启打断会话——已发生（本次会话即重启后的实例），但**该实例为手动启动未注入网关 env**，见下方遗留；② 是否立即停 Next.js vs 保持双模式——**已执行立即停**（出口验证通过）。
