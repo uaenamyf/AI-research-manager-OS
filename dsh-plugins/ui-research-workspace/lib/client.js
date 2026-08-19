@@ -191,11 +191,7 @@ window.__ModuleLoader__.load({
 				".dsh-rr-tab { flex: none; padding: 8px 12px 7px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-tab:hover { color: var(--dsw-alias-label-primary, #111); }",
 				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill, #2563eb); font-weight: 500; }",
-				// 2026-08-19 myf: 激活的综述/写作 tab 上的 × 是「关闭当前 tab」
-				// 提示（再点一次同 tab 也会关闭）。默认隐藏，hover 到该 tab 才
-				// 显示，避免常驻的 × 看起来像删除按钮、与右窗栏顶部关闭按钮混淆。
-				".dsh-rr-tab-x { margin-left: 2px; font-size: 12px; line-height: 14px; color: var(--dsw-alias-label-tertiary, #999); opacity: 0; }",
-				".dsh-rr-tab:hover .dsh-rr-tab-x, .dsh-rr-tab:focus-visible .dsh-rr-tab-x { opacity: 1; }",
+
 				// Right-edge activity rail (ResearchOS, registered into dsh's
 				// 'activitybar' column — the window's far-right icon rail, mirroring
 				// VS Code's left activity bar / IDEA's right tool-window rail).
@@ -938,44 +934,25 @@ window.__ModuleLoader__.load({
 				return function () { if (timer) clearTimeout(timer); };
 			}, [paperId, nonce, tab]);
 			// 2026-08-19 myf: 综述 composer 已改为自加载论文目录，不再需要 region 同步选区
-			// 顶层 tab 条：仅在已打开某个 tab 时显示。综述 / 写作 由底部栏按钮
-			// 或直接点 tab 进入（2026-08-19 底部栏按钮已移除，tab 为唯一入口）。
-			// 再次点击激活中的综述 / 写作 tab = 关闭（右窗栏 tab 内容收起）。
+			// 顶层 tab 条：仅在已打开某个 tab 时显示。tab 仅作切换，不带关闭功能
+			// （综述/写作曾支持再点同 tab 关闭，2026-08-19 按用户反馈删除；关闭
+			// 详情由右窗栏顶部独立关闭按钮承担）。
 			function topTabs() {
 				if (!tab) return null;
-				var labels = { paper: "论文详细", preview: "外部预览", search: "在线文献检索", review: "综述", writing: "写作" };
 				var items = [
 					{ key: "paper", label: "论文详细" },
 					{ key: "search", label: "在线文献检索" },
 					{ key: "review", label: "综述" },
 					{ key: "writing", label: "写作" },
 				];
-				// 论文行点击 / 外部预览等只能从 paper 或 preview 进入；外部预览
-				// tab 用一个临时 label 让用户看得到当前激活什么。
 				return React.createElement("div", { className: "dsh-rr-tabs" },
 					items.map(function (it) {
 						return React.createElement("button", {
 							type: "button",
 							key: it.key,
-							// 2026-08-19 myf: 综述 / 写作 按钮仍可点击（再次点击关闭
-							// = toggle），其他 tab 直接切换。激活 tab 上的 × 为
-							// 关闭提示，仅 hover 时显示（见 .dsh-rr-tab-x 样式）。
 							className: "dsh-rr-tab" + (it.key === tab ? " dsh-rr-tab-on" : ""),
-							onClick: function () {
-								if (it.key === "paper" || it.key === "search" || it.key === "preview") {
-									setResearchPanelTab(it.key);
-								} else {
-									// 综述 / 写作：再点同 tab = 关闭；不同 tab = 切换
-									if (tab === it.key) setResearchPanelTab(null);
-									else setResearchPanelTab(it.key);
-								}
-							},
-						},
-							React.createElement("span", null, it.label),
-							(tab === it.key && (it.key === "review" || it.key === "writing"))
-								? React.createElement("span", { className: "dsh-rr-tab-x", title: "关闭" }, "×")
-								: null,
-						);
+							onClick: function () { setResearchPanelTab(it.key); },
+						}, it.label);
 					}),
 				);
 			}
@@ -1139,10 +1116,11 @@ window.__ModuleLoader__.load({
 			if (st === "FAILED") return "var(--dsw-alias-state-error-primary, #dc2626)";
 			return "var(--dsw-alias-label-tertiary, #9ca3af)";
 		}
-		function flattenFolders(tree, depth, out) {
+		function flattenFolders(tree, out) {
+			// 2026-08-19 myf: 文件夹仅一级（项目 → 文件夹 → 论文，无二级），
+			// 移动论文时目标只列出项目直属文件夹。
 			(tree || []).forEach(function (f) {
-				out.push({ id: f.id, name: f.name, depth: depth });
-				if (f.children && f.children.length) flattenFolders(f.children, depth + 1, out);
+				out.push({ id: f.id, name: f.name, depth: 0 });
 			});
 			return out;
 		}
@@ -1605,7 +1583,7 @@ window.__ModuleLoader__.load({
 					if (id === "rename") setDialog({ kind: "renameFolder", folder: target.folder, initial: target.folder.name });
 					else if (id === "delete") setDialog({ kind: "deleteFolder", folder: target.folder });
 				} else if (target.kind === "paper") {
-					if (id === "move") setDialog({ kind: "movePaper", paper: target.paper, folderOptions: flattenFolders(foldersByProject[target.paper.projectId] || [], 0, []) });
+					if (id === "move") setDialog({ kind: "movePaper", paper: target.paper, folderOptions: flattenFolders(foldersByProject[target.paper.projectId] || [], []) });
 					else if (id === "delete") setDialog({ kind: "deletePaper", paper: target.paper });
 				}
 			}
@@ -1644,7 +1622,7 @@ window.__ModuleLoader__.load({
 						),
 					),
 					expanded ? React.createElement("div", null,
-						(f.children || []).map(function (c) { return folderRow(c, depth + 1, projectId); }),
+						// 2026-08-19 myf: 文件夹仅一级，不再渲染二级子文件夹
 						papers.map(function (p) { return paperRow(p, depth + 1); }),
 					) : null,
 				);
@@ -1796,7 +1774,7 @@ window.__ModuleLoader__.load({
 				return subscribeResearchTree(loadDir);
 			}, [loadDir]);
 			var selected = papers ? papers.filter(function (p) { return checked[p.id]; }) : [];
-			// 分组目录渲染：项目 → 文件夹（嵌套）→ 论文；分组标题行点击折叠
+			// 分组目录渲染：项目 → 文件夹（一级）→ 论文；分组标题行点击折叠
 			function renderReviewPaper(p, padLeft) {
 				return React.createElement("label", { key: p.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 12px 7px " + padLeft + "px", cursor: "pointer", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05))" } },
 					React.createElement("input", { type: "checkbox", style: S.checkbox, checked: !!checked[p.id], onChange: function () { setChecked(function (c) { var n = Object.assign({}, c); n[p.id] = !n[p.id]; return n; }); } }),
@@ -1816,8 +1794,8 @@ window.__ModuleLoader__.load({
 						React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.name),
 					),
 					open ? React.createElement("div", null,
+						// 2026-08-19 myf: 文件夹仅一级，综述目录同样不渲染二级子文件夹
 						(byFolder[f.id] || []).map(function (p) { return renderReviewPaper(p, 36 + depth * 18); }),
-						(f.children || []).map(function (c) { return renderReviewFolder(c, depth + 1, byFolder); }),
 					) : null,
 				);
 			}
