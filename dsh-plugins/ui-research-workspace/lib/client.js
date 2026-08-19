@@ -191,6 +191,11 @@ window.__ModuleLoader__.load({
 				".dsh-rr-tab { flex: none; padding: 8px 12px 7px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-tab:hover { color: var(--dsw-alias-label-primary, #111); }",
 				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill, #2563eb); font-weight: 500; }",
+				// 2026-08-19 myf: 激活的综述/写作 tab 上的 × 是「关闭当前 tab」
+				// 提示（再点一次同 tab 也会关闭）。默认隐藏，hover 到该 tab 才
+				// 显示，避免常驻的 × 看起来像删除按钮、与右窗栏顶部关闭按钮混淆。
+				".dsh-rr-tab-x { margin-left: 2px; font-size: 12px; line-height: 14px; color: var(--dsw-alias-label-tertiary, #999); opacity: 0; }",
+				".dsh-rr-tab:hover .dsh-rr-tab-x, .dsh-rr-tab:focus-visible .dsh-rr-tab-x { opacity: 1; }",
 				// Right-edge activity rail (ResearchOS, registered into dsh's
 				// 'activitybar' column — the window's far-right icon rail, mirroring
 				// VS Code's left activity bar / IDEA's right tool-window rail).
@@ -320,6 +325,21 @@ window.__ModuleLoader__.load({
 			researchSubs.push(fn);
 			return function () {
 				researchSubs = researchSubs.filter(function (x) { return x !== fn; });
+			};
+		}
+
+		// 2026-08-19 myf: 研究树版本号——左侧 LibraryView 每次成功刷新树（新建/
+		// 移动文件夹、删除、上传等）后 bump，右窗综述目录订阅后及时同步刷新。
+		var researchTreeNonce = { v: 0 };
+		var researchTreeSubs = [];
+		function bumpResearchTree() {
+			researchTreeNonce.v++;
+			for (var i = 0; i < researchTreeSubs.length; i++) researchTreeSubs[i](researchTreeNonce.v);
+		}
+		function subscribeResearchTree(fn) {
+			researchTreeSubs.push(fn);
+			return function () {
+				researchTreeSubs = researchTreeSubs.filter(function (x) { return x !== fn; });
 			};
 		}
 
@@ -918,9 +938,9 @@ window.__ModuleLoader__.load({
 				return function () { if (timer) clearTimeout(timer); };
 			}, [paperId, nonce, tab]);
 			// 2026-08-19 myf: 综述 composer 已改为自加载论文目录，不再需要 region 同步选区
-			// 顶层 tab 条：仅在已打开某个 tab 时显示。综述 / 写作 不可直接点 tab
-			// 切换（必须从底部栏触发，避免与"打开右窗栏"动作混淆）；保留按钮仅供
-			// 用户在已经打开后再次点击 = 关闭。
+			// 顶层 tab 条：仅在已打开某个 tab 时显示。综述 / 写作 由底部栏按钮
+			// 或直接点 tab 进入（2026-08-19 底部栏按钮已移除，tab 为唯一入口）。
+			// 再次点击激活中的综述 / 写作 tab = 关闭（右窗栏 tab 内容收起）。
 			function topTabs() {
 				if (!tab) return null;
 				var labels = { paper: "论文详细", preview: "外部预览", search: "在线文献检索", review: "综述", writing: "写作" };
@@ -938,7 +958,8 @@ window.__ModuleLoader__.load({
 							type: "button",
 							key: it.key,
 							// 2026-08-19 myf: 综述 / 写作 按钮仍可点击（再次点击关闭
-							// = toggle），其他 tab 直接切换。
+							// = toggle），其他 tab 直接切换。激活 tab 上的 × 为
+							// 关闭提示，仅 hover 时显示（见 .dsh-rr-tab-x 样式）。
 							className: "dsh-rr-tab" + (it.key === tab ? " dsh-rr-tab-on" : ""),
 							onClick: function () {
 								if (it.key === "paper" || it.key === "search" || it.key === "preview") {
@@ -949,7 +970,12 @@ window.__ModuleLoader__.load({
 									else setResearchPanelTab(it.key);
 								}
 							},
-						}, it.label + (tab === it.key && (it.key === "review" || it.key === "writing") ? " ×" : ""));
+						},
+							React.createElement("span", null, it.label),
+							(tab === it.key && (it.key === "review" || it.key === "writing"))
+								? React.createElement("span", { className: "dsh-rr-tab-x", title: "关闭" }, "×")
+								: null,
+						);
 					}),
 				);
 			}
@@ -1496,6 +1522,8 @@ window.__ModuleLoader__.load({
 						results.forEach(function (r) { fbp[r.id] = r.folders; pbp[r.id] = r.papers; allPapers = allPapers.concat(r.papers); });
 						setFoldersByProject(fbp); setPapersByProject(pbp);
 						if (props.onPapers) props.onPapers(allPapers);
+						// 2026-08-19 myf: 树刷新完成广播版本号，右窗综述目录及时刷新
+						bumpResearchTree();
 					}).catch(function () { setErr("网络错误"); });
 				}).catch(function () { setErr("网络错误"); });
 			}, [props.onPapers]);
@@ -1540,6 +1568,9 @@ window.__ModuleLoader__.load({
 			}
 			function openProjectMenu(e, p) {
 				openMenuAt(e, { kind: "project", project: p }, [
+					// 2026-08-19 myf: 补上「新建文件夹」入口（此前 newFolder 对话框
+					// 无触发按钮），选中论文也能从「移动到…」归入该文件夹。
+					{ id: "newFolder", label: "新建文件夹", icon: IconFolderAdd },
 					{ id: "rename", label: "重命名", icon: IconEdit },
 					{ id: "delete", label: "删除项目", icon: IconTrash, danger: true },
 				]);
@@ -1567,7 +1598,8 @@ window.__ModuleLoader__.load({
 					return;
 				}
 				if (target.kind === "project") {
-					if (id === "rename") setDialog({ kind: "renameProject", project: target.project, initial: target.project.name });
+					if (id === "newFolder") setDialog({ kind: "newFolder", projectId: target.project.id });
+					else if (id === "rename") setDialog({ kind: "renameProject", project: target.project, initial: target.project.name });
 					else if (id === "delete") setDialog({ kind: "deleteProject", project: target.project });
 				} else if (target.kind === "folder") {
 					if (id === "rename") setDialog({ kind: "renameFolder", folder: target.folder, initial: target.folder.name });
@@ -1723,30 +1755,89 @@ window.__ModuleLoader__.load({
 			var [markdown, setMarkdown] = useState(null);
 			var [err, setErr] = useState(null);
 			// 2026-08-19 myf: 综述不再依赖左侧勾选同步——直接展示当前已上传论文的
-			// 目录（跨项目扁平列表），checkbox 勾选参与综述的论文，默认全选。
+			// 目录，并按 项目 → 文件夹 → 论文 分组（文件夹分类），checkbox 默认全选。
 			var [papers, setPapers] = useState(null); // null = 加载中
+			var [groups, setGroups] = useState(null); // [{ id, name, folders, papers }]
 			var [checked, setChecked] = useState({}); // paperId -> true/false
+			var [expandedGroups, setExpandedGroups] = useState({}); // 分组折叠态，默认展开
 			var [loadErr, setLoadErr] = useState(null);
-			useEffect(function () {
+			// 2026-08-19 myf: 目录加载函数——初始加载 + 订阅左侧树刷新广播（新建/移动
+			// 文件夹、删除、上传等）后自动重新拉取，右侧目录与左侧保持同步。
+			var loadDir = useCallback(function () {
+				setLoadErr(null);
 				api("/research-project?page=0&size=100").then(function (j) {
 					if (!ok(j)) { setLoadErr(j.message || "加载论文目录失败"); setPapers([]); return; }
 					var projs = (j.data && j.data.items) || [];
 					return Promise.all(projs.map(function (p) {
-						return api("/research-paper/projects/" + p.id + "/papers?folderId=-1&size=200").then(function (j2) {
-							var items = (ok(j2) && j2.data && j2.data.items) ? j2.data.items : [];
+						return Promise.all([
+							api("/research-folder/projects/" + p.id + "/folders/tree"),
+							api("/research-paper/projects/" + p.id + "/papers?folderId=-1&size=200"),
+						]).then(function (rs) {
+							var folders = (ok(rs[0]) && rs[0].data) ? rs[0].data : [];
+							var items = (ok(rs[1]) && rs[1].data && rs[1].data.items) ? rs[1].data.items : [];
 							items.forEach(function (it) { it.projectId = p.id; it.projectName = p.name; });
-							return items;
-						}).catch(function () { return []; });
-					})).then(function (groups) {
+							return { id: p.id, name: p.name, folders: folders, papers: items };
+						}).catch(function () { return { id: p.id, name: p.name, folders: [], papers: [] }; });
+					})).then(function (gs) {
 						var all = [];
-						groups.forEach(function (g) { all = all.concat(g); });
-						var chk = {};
-						all.forEach(function (pp) { chk[pp.id] = true; });
-						setPapers(all); setChecked(chk);
+						gs.forEach(function (g) { all = all.concat(g.papers); });
+						setGroups(gs); setPapers(all);
+						// 刷新时保留用户已勾选状态，新出现的论文默认勾选
+						setChecked(function (old) {
+							var chk = {};
+							all.forEach(function (pp) { chk[pp.id] = old && old[pp.id] !== undefined ? old[pp.id] : true; });
+							return chk;
+						});
 					});
 				}).catch(function () { setLoadErr("网络错误"); setPapers([]); });
 			}, []);
+			useEffect(function () {
+				loadDir();
+				return subscribeResearchTree(loadDir);
+			}, [loadDir]);
 			var selected = papers ? papers.filter(function (p) { return checked[p.id]; }) : [];
+			// 分组目录渲染：项目 → 文件夹（嵌套）→ 论文；分组标题行点击折叠
+			function renderReviewPaper(p, padLeft) {
+				return React.createElement("label", { key: p.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 12px 7px " + padLeft + "px", cursor: "pointer", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05))" } },
+					React.createElement("input", { type: "checkbox", style: S.checkbox, checked: !!checked[p.id], onChange: function () { setChecked(function (c) { var n = Object.assign({}, c); n[p.id] = !n[p.id]; return n; }); } }),
+					React.createElement("span", { style: Object.assign({}, S.statusDot, { background: dotColor(p.status) }), title: p.status || "" }),
+					React.createElement("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, color: "var(--dsw-alias-label-primary, #111)" } }, p.title || "(untitled)"),
+				);
+			}
+			function toggleGroup(k) {
+				setExpandedGroups(function (m) { var n = Object.assign({}, m); n[k] = !n[k]; return n; });
+			}
+			function renderReviewFolder(f, depth, byFolder) {
+				var key = "f-" + f.id;
+				var open = expandedGroups[key] !== false;
+				return React.createElement("div", { key: key },
+					React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "5px 12px 5px " + (12 + depth * 18) + "px", cursor: "pointer", fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", fontWeight: 600, userSelect: "none" }, onClick: function () { toggleGroup(key); } },
+						React.createElement("span", { style: { display: "inline-flex", width: 13, flex: "none" } }, open ? React.createElement(IconFolderOpen, { size: 13 }) : React.createElement(IconFolderClose, { size: 13 })),
+						React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.name),
+					),
+					open ? React.createElement("div", null,
+						(byFolder[f.id] || []).map(function (p) { return renderReviewPaper(p, 36 + depth * 18); }),
+						(f.children || []).map(function (c) { return renderReviewFolder(c, depth + 1, byFolder); }),
+					) : null,
+				);
+			}
+			function renderReviewGroup(g) {
+				var key = "proj-" + g.id;
+				var open = expandedGroups[key] !== false;
+				var byFolder = {};
+				g.papers.forEach(function (p) { var k = p.folderId == null ? "root" : p.folderId; (byFolder[k] = byFolder[k] || []).push(p); });
+				return React.createElement("div", { key: key },
+					React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", fontWeight: 700, userSelect: "none", background: "var(--dsw-alias-bg-layer-2, rgba(0,0,0,.02))" }, onClick: function () { toggleGroup(key); } },
+						React.createElement("span", { style: { display: "inline-flex", width: 13, flex: "none" } }, open ? React.createElement(IconFolderOpen, { size: 13 }) : React.createElement(IconFolderClose, { size: 13 })),
+						React.createElement("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, g.name),
+						React.createElement("span", { style: { flex: "none", fontSize: 11, color: "var(--dsw-alias-label-tertiary, #999)" } }, g.papers.length + " 篇"),
+					),
+					open ? React.createElement("div", null,
+						(byFolder.root || []).map(function (p) { return renderReviewPaper(p, 36); }),
+						g.folders.map(function (f) { return renderReviewFolder(f, 0, byFolder); }),
+					) : null,
+				);
+			}
 			useEffect(function () {
 				if (taskId == null) return;
 				var timer = setInterval(function () {
@@ -1774,19 +1865,12 @@ window.__ModuleLoader__.load({
 					React.createElement("span", { style: S.label }, "生成综述 · 已选 " + selected.length + " / " + (papers ? papers.length : "…") + " 篇"),
 					React.createElement("button", { style: S.iconBtn, title: "返回", onClick: onBack }, "←"),
 				),
-				// 当前已上传论文目录：checkbox 勾选参与综述，默认全选
+				// 当前已上传论文目录：按 项目 → 文件夹 分组（可折叠），checkbox 勾选参与综述，默认全选
 				React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", borderTop: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.06))", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.06))" } },
 					loadErr ? React.createElement("p", { style: S.err, padding: 8 }, loadErr)
 						: papers == null ? React.createElement("p", { style: S.empty }, "加载论文目录…")
 						: papers.length === 0 ? React.createElement("p", { style: S.empty }, "暂无已上传论文")
-						: papers.map(function (p) {
-							return React.createElement("label", { key: p.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.05))" } },
-								React.createElement("input", { type: "checkbox", style: S.checkbox, checked: !!checked[p.id], onChange: function () { setChecked(function (c) { var n = Object.assign({}, c); n[p.id] = !n[p.id]; return n; }); } }),
-								React.createElement("span", { style: Object.assign({}, S.statusDot, { background: dotColor(p.status) }), title: p.status || "" }),
-								React.createElement("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, color: "var(--dsw-alias-label-primary, #111)" } }, p.title || "(untitled)"),
-								p.projectName ? React.createElement("span", { style: { flex: "none", fontSize: 11, color: "var(--dsw-alias-label-tertiary, #999)" } }, p.projectName) : null,
-							);
-						}),
+						: groups.map(function (g) { return renderReviewGroup(g); }),
 				),
 				React.createElement("div", { style: { padding: "0 12px" } },
 					React.createElement("div", { style: S.field },
