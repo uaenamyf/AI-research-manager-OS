@@ -58,6 +58,15 @@ window.__ModuleLoader__.load({
 				React.createElement("path", { fillRule: "evenodd", clipRule: "evenodd", d: "M7.00018 0.353516C10.6708 0.353535 13.6468 3.32958 13.6469 7.00018C13.6468 10.6708 10.6708 13.6468 7.00018 13.6469C3.32957 13.6468 0.353535 10.6708 0.353516 7.00018C0.353535 3.32957 3.32957 0.353531 7.00018 0.353516ZM5.44643 7.59661C5.49463 8.97506 5.70762 10.191 6.02136 11.0793C6.20141 11.5891 6.40328 11.9585 6.59898 12.1889C6.79501 12.4196 6.93213 12.454 7.00018 12.454C7.06822 12.454 7.20533 12.4197 7.40138 12.1889C7.59708 11.9585 7.79895 11.589 7.979 11.0793C8.29274 10.191 8.50574 8.97506 8.55394 7.59661H5.44643ZM1.57861 7.59661C1.80785 9.70467 3.2386 11.4509 5.1715 12.1388C5.07135 11.9317 4.97972 11.7098 4.89746 11.477C4.53084 10.4391 4.30224 9.0828 4.25357 7.59661H1.57861ZM9.74679 7.59661C9.69813 9.0828 9.46952 10.4391 9.1029 11.477C9.0206 11.7099 8.92818 11.9316 8.82797 12.1388C10.7613 11.4511 12.1925 9.70496 12.4218 7.59661H9.74679ZM5.1706 1.8616C3.23814 2.54963 1.80876 4.29604 1.5795 6.40376H4.25357C4.30224 4.91756 4.53083 3.56129 4.89746 2.5234C4.97968 2.29066 5.07051 2.0686 5.1706 1.8616ZM7.00018 1.54637C6.93213 1.54638 6.79503 1.5807 6.59898 1.81145C6.40332 2.04177 6.20139 2.41058 6.02136 2.92012C5.70754 3.80851 5.49461 5.02499 5.44643 6.40376H8.55394C8.50575 5.025 8.29282 3.80851 7.979 2.92012C7.79898 2.41059 7.59705 2.04177 7.40138 1.81145C7.20531 1.58067 7.06823 1.54637 7.00018 1.54637ZM8.82887 1.8616C8.92902 2.0687 9.02064 2.29053 9.1029 2.5234C9.46953 3.56129 9.69812 4.91756 9.74679 6.40376H12.4209C12.1916 4.29575 10.7618 2.54943 8.82887 1.8616Z", fill: "currentColor" }),
 			);
 		}
+		// IconResearch16 (document + magnifier): activity-bar 研究区 entry.
+		function IconResearch(props) {
+			return React.createElement("svg", { width: props.size || 16, height: props.size || 16, viewBox: "0 0 16 16", fill: "none", xmlns: "http://www.w3.org/2000/svg" },
+				React.createElement("path", { d: "M4.2 1.8h5.3a1 1 0 0 1 .7.3l1.7 1.7a1 1 0 0 1 .3.7v8.7a1 1 0 0 1-1 1H4.2a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1Z", stroke: "currentColor", strokeWidth: 1.3, strokeLinejoin: "round" }),
+				React.createElement("path", { d: "M9.8 2.2V4a1 1 0 0 0 1 1h1.6", stroke: "currentColor", strokeWidth: 1.3, strokeLinejoin: "round" }),
+				React.createElement("circle", { cx: "7.2", cy: "9.4", r: "1.9", stroke: "currentColor", strokeWidth: 1.3 }),
+				React.createElement("path", { d: "m8.7 10.9 1.5 1.5", stroke: "currentColor", strokeWidth: 1.3, strokeLinecap: "round" }),
+			);
+		}
 		// IconPersonalizationOutline16 (view options) — workspace header twin.
 		function IconViewOptions(props) {
 			return React.createElement("svg", { width: props.size || 16, height: props.size || 16, viewBox: "0 0 16 16", fill: "none", xmlns: "http://www.w3.org/2000/svg" },
@@ -182,6 +191,16 @@ window.__ModuleLoader__.load({
 				".dsh-rr-tab { flex: none; padding: 8px 12px 7px; border: none; border-bottom: 2px solid transparent; background: transparent; font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
 				".dsh-rr-tab:hover { color: var(--dsw-alias-label-primary, #111); }",
 				".dsh-rr-tab.dsh-rr-tab-on { color: var(--dsw-alias-label-primary, #111); border-bottom-color: var(--dsw-alias-button-primary-fill, #2563eb); font-weight: 500; }",
+				// Right-column activity bar (vertical icon nav, VS Code style):
+				// sits on the left edge of the research seat, always visible so
+				// the user can reopen the tab content even after collapsing it.
+				".dsh-rr-actbar { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px; padding: 6px 0; box-sizing: border-box; border-right: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.12)); }",
+				".dsh-rr-act { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary, #666); cursor: pointer; }",
+				".dsh-rr-act:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.05)); color: var(--dsw-alias-label-primary, #111); }",
+				".dsh-rr-act.dsh-rr-act-on { color: var(--dsw-alias-label-primary, #111); background: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,.06)); }",
+				".dsh-rr-act.dsh-rr-act-on::before { content: \"\"; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--dsw-alias-button-primary-fill, #2563eb); }",
+				".dsh-rr-act-tip { position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); z-index: 80; padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-3, #333); color: var(--dsw-alias-label-on-color, #fff); font-size: 11px; line-height: 16px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 120ms var(--ds-ease-in-out, ease); }",
+				".dsh-rr-act:hover .dsh-rr-act-tip { opacity: 1; }",
 				// Modal overlay + card (mirrors primitives Modal family)
 				".dsh-rr-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: var(--dsw-alias-bg-mask-1, rgba(0,0,0,.5)); }",
 				".dsh-rr-modal { width: 320px; max-width: calc(100vw - 32px); padding: 16px; border-radius: 12px; background: var(--dsw-alias-bg-layer-2, #fff); box-shadow: 0 16px 48px rgba(0,0,0,.2); }",
@@ -360,9 +379,12 @@ window.__ModuleLoader__.load({
 		// 任何 setResearchDetail / setResearchPreview / setResearchSearch 都会自动
 		// 切到对应 tab。底部栏「综述 / 写作」按钮调用 setResearchPanelTab 切到
 		// 对应 composer（toggle：再次点击同 tab 关闭 = null）。
-		var researchPanelTab = { kind: null };
+		var researchPanelTab = { kind: null, lastKind: null };
 		var researchPanelTabSubs = [];
 		function setResearchPanelTab(kind) {
+			// 2026-08-19 myf: 记录上次打开过的 tab —— 竖栏「研究区」收起内容后
+			// 再点一次能恢复用户上次停留的 tab，而不是固定回论文详细。
+			if (kind) researchPanelTab.lastKind = kind;
 			researchPanelTab.kind = kind;
 			for (var i = 0; i < researchPanelTabSubs.length; i++) researchPanelTabSubs[i](kind);
 		}
@@ -933,73 +955,107 @@ window.__ModuleLoader__.load({
 					}),
 				);
 			}
-			if (!tab) return null;
-			if (tab === "review") {
-				// 2026-08-19 myf: 综述 composer。papers 来自 region 同步的 selection
-				// store（点击底部栏「综述」时已选）。关闭 = setResearchPanelTab(null)。
-				return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement(ReviewComposer, { papers: reviewSel, onBack: function () { setResearchPanelTab(null); } }),
-				);
+			// 右窗栏功能竖栏（activity bar，VS Code 风格）：常驻右窗栏左侧。
+			// 当前只有「研究区」；未来在此追加更多功能 icon（写作台、设置等）。
+			// 点击研究区 = toggle：有 tab 内容则收起（回到空态），空态再点恢复
+			// 上次停留的 tab（lastKind）。
+			var activityItems = [
+				{ key: "research", label: "研究区", title: "研究区：论文详细 / 在线文献检索 / 综述 / 写作", icon: IconResearch },
+			];
+			function activityBar() {
+				return React.createElement("div", { className: "dsh-rr-actbar" }, activityItems.map(function (it) {
+					return React.createElement("button", {
+						type: "button",
+						key: it.key,
+						className: "dsh-rr-act" + (tab ? " dsh-rr-act-on" : ""),
+						title: it.title,
+						onClick: function () {
+							if (tab) setResearchPanelTab(null);
+							else setResearchPanelTab(researchPanelTab.lastKind || "paper");
+						},
+					},
+						React.createElement(it.icon, { size: 16 }),
+						React.createElement("span", { className: "dsh-rr-act-tip" }, it.label),
+					);
+				}));
 			}
-			if (tab === "writing") {
-				return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement(WritingComposer, { onBack: function () { setResearchPanelTab(null); } }),
-				);
-			}
-			if (tab === "search") {
-				return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					search ? React.createElement(SearchResultsPanel, { search: search })
-						: React.createElement("p", { style: S.empty }, "在文献检索按钮上发起一次检索"),
-				);
-			}
-			if (tab === "paper") {
-				if (paperId == null) return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement("p", { style: S.empty }, "点击研究区一篇论文查看详情"),
-				);
-				if (!detail) return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement("p", { style: S.empty }, "加载论文详情…"),
-				);
-				var pdfSrc = detail.pdfUrl || detail.pdf_url || null;
-				return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
-					innerTab === "card" ? React.createElement(PaperDetail, { detail: detail, card: card })
-						: pdfSrc ? React.createElement(PdfPreview, { src: pdfSrc, title: detail.title || "(PDF)" })
-						: React.createElement("p", { style: S.empty }, "该论文没有可预览的 PDF 文件"),
-				);
-			}
-			if (tab === "preview") {
-				var p = preview;
-				if (!p) return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement("p", { style: S.empty }, "点击在线文献检索结果中的论文查看"),
-				);
-				return React.createElement("div", { style: S.rsRoot },
-					topTabs(),
-					React.createElement("div", { style: S.rsHead },
-						React.createElement("div", null,
-							React.createElement("p", { style: S.rsTitle }, p.title || "(untitled)"),
-							React.createElement("p", { style: S.rsMeta }, sourceLabel(p.source) ? sourceLabel(p.source) + " · " : "" + (p.year ? p.year + " · " : "") + (p.doi ? "DOI: " + p.doi : "")),
+			function tabContent() {
+				if (tab === "review") {
+					// 2026-08-19 myf: 综述 composer。papers 来自 region 同步的 selection
+					// store（点击底部栏「综述」时已选）。关闭 = setResearchPanelTab(null)。
+					return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement(ReviewComposer, { papers: reviewSel, onBack: function () { setResearchPanelTab(null); } }),
+					);
+				}
+				if (tab === "writing") {
+					return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement(WritingComposer, { onBack: function () { setResearchPanelTab(null); } }),
+					);
+				}
+				if (tab === "search") {
+					return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						search ? React.createElement(SearchResultsPanel, { search: search })
+							: React.createElement("p", { style: S.empty }, "在文献检索按钮上发起一次检索"),
+					);
+				}
+				if (tab === "paper") {
+					if (paperId == null) return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement("p", { style: S.empty }, "点击研究区一篇论文查看详情"),
+					);
+					if (!detail) return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement("p", { style: S.empty }, "加载论文详情…"),
+					);
+					var pdfSrc = detail.pdfUrl || detail.pdf_url || null;
+					return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
+						innerTab === "card" ? React.createElement(PaperDetail, { detail: detail, card: card })
+							: pdfSrc ? React.createElement(PdfPreview, { src: pdfSrc, title: detail.title || "(PDF)" })
+							: React.createElement("p", { style: S.empty }, "该论文没有可预览的 PDF 文件"),
+					);
+				}
+				if (tab === "preview") {
+					var p = preview;
+					if (!p) return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement("p", { style: S.empty }, "点击在线文献检索结果中的论文查看"),
+					);
+					return React.createElement("div", { style: S.rsRoot },
+						topTabs(),
+						React.createElement("div", { style: S.rsHead },
+							React.createElement("div", null,
+								React.createElement("p", { style: S.rsTitle }, p.title || "(untitled)"),
+								React.createElement("p", { style: S.rsMeta }, sourceLabel(p.source) ? sourceLabel(p.source) + " · " : "" + (p.year ? p.year + " · " : "") + (p.doi ? "DOI: " + p.doi : "")),
+							),
 						),
-					),
-					React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
-					innerTab === "card" ? React.createElement(ExternalPaperCard, { paper: p })
-						: p.pdf_url ? React.createElement(PdfPreview, { src: p.pdf_url, title: p.title || "(PDF)" })
-						: React.createElement("p", { style: S.empty }, "该文献没有可预览的 PDF 文件"),
-					React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" } },
-						p.url ? React.createElement("a", { key: "src", href: p.url, target: "_blank", rel: "noopener", style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "打开原文 ↗") : null,
-						p.pdf_url ? React.createElement("a", { key: "dl", href: proxyPdfUrl(p), download: pdfDownloadLabel(p), style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "下载 PDF") : null,
-						React.createElement("button", { key: "imp", type: "button", style: S.btnPrimary, onClick: function () { setResearchImport(p); } }, "导入到研究区"),
-						React.createElement("button", { key: "back", type: "button", style: S.btn, onClick: function () { setResearchPanelTab("search"); } }, "返回结果列表"),
-					),
-				);
+						React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
+						innerTab === "card" ? React.createElement(ExternalPaperCard, { paper: p })
+							: p.pdf_url ? React.createElement(PdfPreview, { src: p.pdf_url, title: p.title || "(PDF)" })
+							: React.createElement("p", { style: S.empty }, "该文献没有可预览的 PDF 文件"),
+						React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" } },
+							p.url ? React.createElement("a", { key: "src", href: p.url, target: "_blank", rel: "noopener", style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "打开原文 ↗") : null,
+							p.pdf_url ? React.createElement("a", { key: "dl", href: proxyPdfUrl(p), download: pdfDownloadLabel(p), style: Object.assign({}, S.btn, { textDecoration: "none", display: "inline-block" }) }, "下载 PDF") : null,
+							React.createElement("button", { key: "imp", type: "button", style: S.btnPrimary, onClick: function () { setResearchImport(p); } }, "导入到研究区"),
+							React.createElement("button", { key: "back", type: "button", style: S.btn, onClick: function () { setResearchPanelTab("search"); } }, "返回结果列表"),
+						),
+					);
+				}
+				return null;
 			}
-			return null;
+			// 外层：竖栏常驻，内容区由 tab 驱动。tab=null 时显示空态提示（竖栏
+			// 仍在，点「研究区」恢复 lastKind）。
+			return React.createElement("div", { style: { display: "flex", minHeight: 0, flex: 1 } },
+				activityBar(),
+				React.createElement("div", { style: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" } },
+					tab ? tabContent()
+						: React.createElement("p", { style: S.empty }, "点击左侧「研究区」或选择研究区论文，打开论文详细 / 在线文献检索"),
+				),
+			);
 		}
 
 		// 2026-08-19 myf: 用于把 region 已选论文同步给 detail panel 的综述 composer
@@ -1026,7 +1082,8 @@ window.__ModuleLoader__.load({
 			if (tab === "search") return React.createElement("span", null, "在线文献检索");
 			if (tab === "review") return React.createElement("span", null, "综述");
 			if (tab === "writing") return React.createElement("span", null, "写作助手");
-			return React.createElement("span", null, "详情");
+			// 2026-08-19 myf: 右窗栏竖栏常驻后，空态标题显示「研究区」而非 dsh 默认「详情」
+			return React.createElement("span", null, "研究区");
 		}
 
 		// ── time / status helpers ─────────────────────────────────────
@@ -1765,15 +1822,6 @@ window.__ModuleLoader__.load({
 			// 卸载重挂 sidebar.research 时选区不丢，否则刚选完就丢。
 			var [sel, setSel] = useState(researchSelection);
 			useEffect(function () { return subscribeResearchSelection(setSel); }, []);
-			// 2026-08-19 myf: dsh 切 conversation 时只重挂 sidebar.research
-			// 不重挂 right column slot —— 模块级 paperId/tab 会带着上一个
-			// 会话的内容残留到新会话。挂在 authReady=true 这一帧清一次
-			// （每个 region 实例只清一次，等价于 dsh 切 conv 时复位）。
-			useEffect(function () {
-				if (!authReady) return;
-				setResearchDetail(null);
-				setResearchPanelTab(null);
-			}, [authReady]);
 			var [focused, setFocused] = useState(null);
 			var [items, setItems] = useState([]);
 			// 2026-08-19 myf: 批量删除确认弹窗 + 删除后刷新树（refreshTick 触发 LibraryView 重载）
