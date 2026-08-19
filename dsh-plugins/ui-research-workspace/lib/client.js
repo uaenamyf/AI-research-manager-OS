@@ -1686,9 +1686,8 @@ window.__ModuleLoader__.load({
 						),
 					),
 					React.createElement("div", { style: searchOpen ? Object.assign({}, S.headerActions, S.headerActionsHidden) : S.headerActions },
-						// 2026-08-19 myf: 在线检索按钮同时打开右侧详情栏——右侧栏默认收起
-						// (layout details=0)，仅设置 researchSearch 状态用户会看不到任何反应
-						React.createElement("button", { type: "button", style: S.iconBtn, title: "检索在线文献库", onClick: function () { setResearchDetail(null); setResearchPreview(null); setResearchSearch({ q: "", title: "", author: "", doi: "", year_from: "", year_to: "", open_access: false, results: null, loading: false, error: null, form: true }); if (props.openDetails) props.openDetails(); } }, React.createElement(IconGlobe, { size: 16 })),
+						// 2026-08-19 myf: 移除「检索在线文献库」入口——在线检索已完全
+						// 在右窗栏「在线文献检索」tab 内完成（自带检索表单），左侧不再需要
 						React.createElement("button", { type: "button", style: S.iconBtn, title: "视图设置", onClick: function (e) { openViewMenu(e); } }, React.createElement(IconViewOptions, { size: 16 })),
 						React.createElement("button", { type: "button", style: S.iconBtn, title: "新建项目", onClick: function () { setDialog({ kind: "newProject" }); } }, React.createElement(IconFolderAdd, { size: 16 })),
 					),
