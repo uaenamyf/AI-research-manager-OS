@@ -1,6 +1,33 @@
 # 40 - 数据库 schema 与迁移
 
-## 融合现状（2026-08-19）
+## 融合现状（2026-08-22）：全 SQLite 化（零外部数据库）
+
+> **2026-08-22 重大变更**：MySQL + PostgreSQL/pgvector 已全部替换为 **SQLite**
+> （`node:sqlite`，Node 22.5+ 内置，零 npm 依赖）。本章下方所有 MySQL/PG 描述
+> 均为历史实现，仅作回退/迁移参考，不再对应运行代码。
+
+- **存储位置**：单文件数据库 `$RESEARCH_DATA_DIR/researchos.db`（默认
+  `~/.researchos/data/researchos.db`，可用 `.env` 的 `RESEARCH_DATA_DIR` 覆盖）；
+  上传 PDF 在 `$RESEARCH_STORAGE_LOCAL_DIR`（默认 `~/.researchos/uploads`）。
+  两者首次启动自动创建，无需初始化。
+- **表结构**：9 张表全量内置 —— 8 张业务表（`app_user` / `research_project` /
+  `folder` / `paper` / `ai_task` / `annotation` / `conversation` / `manuscript`）
+  + 1 张向量表 `paper_chunk`（`embedding` = Float32Array BLOB，默认 2048 维）。
+  时间列默认值用 `strftime('%Y-%m-%d %H:%M:%f','now','localtime')` 保持原
+  MySQL 本地时间语义。
+- **抽象层**：`deepseek-harness-master/packages/researchos/lib/db.js` 提供
+  `createPool()`（**mysql2 兼容接口**：`query` 返回 `[rows]` / `[{insertId, affectedRows}]`，
+  bundle SQL 基本零改动）、`getDb()`（惰性初始化 + PRAGMA WAL/foreign_keys）、
+  `insertChunks` / `searchChunks` / `deleteChunksByPaper`（JS 余弦相似度全量扫描，
+  千级 chunk 毫秒级）。集中改写 `NOW(6)`/`NOW()` → SQLite strftime；`FIELD()` /
+  `IN (?)` 数组参数在调用点修复。
+- **访问方**：12 个 `research-*` bundle、research-ai-worker、research-mcp 全部
+  经 `lib/db.js` 访问 SQLite，不再 import mysql2/pg（依赖已从 package.json 移除）。
+- **数据迁移（老用户）**：`scripts/migrate-mysql2sqlite.mjs` 已随 infra 删除（2026-08-22，git 历史 `HEAD:scripts/migrate-mysql2sqlite.mjs` 可回退，需自行起 MySQL/PG 容器配合）。
+
+---
+
+## 历史融合现状（2026-08-19，已过时）
 
 > 本节记录 ResearchOS × DSH 融合后的数据库访问现状；下方 legacy 小节（连接配置 / 建表脚本 / 数据迁移）仅作历史实现与契约依据保留。
 

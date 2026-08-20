@@ -5,7 +5,9 @@
 >
 > 配套：根 `AGENTS.md`（协作规范）、`CLAUDE.md`（编码规范）、`Implementation/`（契约文档）。
 >
-> 📌 **后续更新（2026-08-19）**：旧 Next.js 前端已彻底移除（删 `frontend/` 目录、docker-compose 服务、CI 步骤），下方「回退命令」均不再可用，仅作历史记录；当前前端 = DSH GUI :3080。
+> 📌 **后续更新（2026-08-22）**：**数据库全 SQLite 化** —— MySQL / PostgreSQL / Redis / Docker（`infra/`）已彻底移除，
+运行时零外部数据库、clone 即用；`lib/db.js`（node:sqlite）承载 8 业务表 + `paper_chunk` 向量 BLOB（JS 余弦检索）。
+下方所有涉及 compose/容器/MySQL/PG 的内容均为历史记录，不再对应运行代码。
 
 > 📌 **后续更新（2026-08-20）**：DSH 已由「整仓拷贝」转为 **git submodule**（见 `AGENTS.md` §0.1）：
 > - `deepseek-harness-master/` = submodule，远端 = fork `uaenamyf/dsh-researchOS`，其 `main` 分支 = 自定义版本（rc.8 + researchos 自定义 + 修复 15 个上游文件）；upstream = `deepseek-ai/deepseek-harness`（tag 命名 `dsh-v0.1.0-rc.N`）。

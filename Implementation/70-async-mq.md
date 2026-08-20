@@ -4,6 +4,8 @@
 
 > **RabbitMQ 已随 Phase 5 下线**（2026-08-19，legacy backend / ai-service 一并移除）：AI 管道现由 research-ai-worker **inline 直调**（`RESEARCH_AI_INLINE=1`，无 MQ），状态由 research-* bundle 直写 MySQL、向量由 research-ai-worker 直写 PG。下方 legacy 小节（拓扑 / 消息格式 / 重试与死信 / 回调 / 跨库清理）仅作历史参考；compose 中相关服务已注释保留便于回退。
 
+> **2026-08-22 更新（全 SQLite 化）**：业务状态与向量均落 SQLite 单文件（`lib/db.js`）；跨库清理（backend 发 MQ 通知 ai-service 清 PG chunk）已简化为 research-paper 删 SQLite `paper` 行后直调 `deleteChunksByPaper`。RabbitMQ 仅保留为 `RESEARCH_AI_INLINE` 未开启时的 fallback（amqplib 依赖保留）。
+
 - 遗留说明：exchange `researchos.ai.task`（direct）+ `q.paper.analyze` / `q.review.generate` / `q.paper.cleanup` + 死信 `q.ai.dlq`（`researchos.ai.dlx`）曾由 backend 声明、ai-service 消费；现无生产者与消费者。
 - Redis 亦未使用（0 key、无引用），随 Phase 5 一并下线。
 

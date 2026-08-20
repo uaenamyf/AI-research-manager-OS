@@ -2,7 +2,8 @@
 # ResearchOS CD 工作流
 # 功能：push 到 main 时，可选部署到服务器（DSH 融合包形态）
 # 说明：legacy backend/ai-service 已于 2026-08-19 移除，不再构建
-#       backend / ai-service 容器镜像；应用层 = DSH 融合包
+#       backend / ai-service 容器镜像；数据库已全 SQLite 化
+#       （2026-08-22，infra/docker 已删）；应用层 = DSH 融合包
 #       （deepseek-harness-master/packages/researchos/），由服务器
 #       上的 scripts/dsh-gateway.sh 启动。
 # 启用方式（GitHub Repo Settings -> Secrets and variables）：
@@ -37,9 +38,6 @@ jobs:
             set -e
             cd ${{ vars.DEPLOY_PATH }}
             git pull --ff-only || true
-            # 数据库基础设施（postgres + mysql）
-            docker compose -f infra/docker-compose.yml --env-file .env up -d
-            # DSH 融合包（前端 + 业务 bundle + AI 管道，:3080）
+            # DSH 融合包（前端 + 业务 bundle + AI 管道，:3080；零数据库依赖）
             bash scripts/dsh-gateway.sh stop || true
             bash scripts/dsh-gateway.sh start
-            docker image prune -f

@@ -7,9 +7,9 @@
 
 - **验证即文档**：每个 `research-*` bundle、`research-mcp`、`ui-research-*` 包的验证结论（端点、正负例、真实链路、boot 注入条目数）记录在 `deepseek-harness-master/packages/researchos/` 对应 Phase 章节；改动 bundle 后需同步更新。
 - **可拔插回归（融合验收项）**：`dsh plugin --profile web remove|add <包>` + 重启 DSH，验证卸载后其余 bundle 正常、重装后功能恢复（已实测：卸载 `research-folder` 后 auth / project / paper / export / subscription 全部正常）。
-- **测试数据还原约定**：UI 面板端到端验证产生的数据验证后须清理还原（如 settings 保存、上传建论文 paper、项目/文件夹 CRUD、注册的测试用户均删除还原），保持 MySQL / PG 数据健康。
+- **测试数据还原约定**：UI 面板端到端验证产生的数据验证后须清理还原（如 settings 保存、上传建论文 paper、项目/文件夹 CRUD、注册的测试用户均删除还原），保持 SQLite 数据健康。
 - **LLM / 网关验证**：chat / embeddings 经共享网关走真实上游（不 mock）；验证命令与预期（如 2048 维向量、boot 49 条目含 11 个 UI 包）见根 `TESTING.md`。
-- **双库一致性**：孤儿 chunk 清理经正规契约通道（research-paper 删除论文 → research-ai-worker 清理 PG chunk）执行，不直接手改 PG（见 plan.md「Phase 5 数据核对结果」）。
+- **向量数据一致性**：孤儿 chunk 清理经正规契约通道（research-paper 删除论文 → research-ai-worker 清理 SQLite `paper_chunk`）执行，不直接手改库（见 plan.md「Phase 5 数据核对结果」）。
 
 ## 各层测试工具与范围（legacy，已随服务移除）
 

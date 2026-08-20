@@ -1,9 +1,10 @@
 # ============================================================
 # ResearchOS CI 工作流
-# 功能：research bundle 语法检查、MySQL 建表脚本校验
+# 功能：research bundle 语法检查、SQLite schema 校验
 # 说明：legacy backend/ai-service 已于 2026-08-19 移除（AI 管道迁入 DSH
-#       research-ai-worker）；应用层 = DSH 融合包（deepseek-harness-master/
-#       packages/researchos/），按 DSH 规范做静态验证，不构建容器镜像。
+#       research-ai-worker）；数据库已全 SQLite 化（2026-08-22，infra/docker 已删）；
+#       应用层 = DSH 融合包（deepseek-harness-master/packages/researchos/），
+#       按 DSH 规范做静态验证，不构建容器镜像。
 # ============================================================
 
 name: CI
@@ -41,13 +42,8 @@ jobs:
             | xargs -0 -n1 node --check
           echo "SYNTAX_OK"
 
-      - name: MySQL init SQL sanity
+      - name: SQLite schema sanity (lib/db.js)
         run: |
-          test -s infra/mysql-init/V1__init.sql
-          grep -q "CREATE TABLE" infra/mysql-init/V1__init.sql
-          echo "SQL_OK"
-
-      - name: Compose validation
-        run: |
-          docker compose -f infra/docker-compose.yml config --quiet
-          echo "COMPOSE_VALID"
+          grep -q "CREATE TABLE IF NOT EXISTS app_user" deepseek-harness-master/packages/researchos/lib/db.js
+          grep -q "CREATE TABLE IF NOT EXISTS paper_chunk" deepseek-harness-master/packages/researchos/lib/db.js
+          echo "SCHEMA_OK"

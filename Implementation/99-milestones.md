@@ -24,7 +24,7 @@
 
 | # | 任务 | 服务 | 状态 |
 | --- | --- | --- | --- |
-| 1.1 | 仓库初始化 + docker-compose 跑通 | infra | ✅ |
+| 1.1 | 仓库初始化 + docker-compose 跑通（infra 已删，2026-08-22，git 历史可查） | infra | ✅ |
 | 1.2 | MySQL 业务表建表 + PG pgvector 扩展 | backend | ✅ |
 | 1.3 | Spring Security + JWT 注册登录 | backend | ✅ |
 | 1.4 | Google OAuth 登录 | backend | ✅ 代码完成（OAuth2ClientConfig + 登录/注册页按钮），待配置真实凭据联调 |

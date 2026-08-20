@@ -3,12 +3,13 @@
 > 2026-08-19 更新：legacy backend（Java/Spring）与 ai-service（Python/FastAPI）已
 > 移除（测试源码在 git 历史 `HEAD:backend/`、`HEAD:ai-service/` 可回退）；当前应用层 =
 > DSH 融合包（`deepseek-harness-master/packages/researchos/`），验证方式如下。
+> 2026-08-22 更新：数据库全 SQLite 化（`infra/` docker 已删除），数据层验证直接查 SQLite。
 
 ## 目录
 
 - [快速开始](#快速开始)
 - [融合包验证（bundle / UI 包 / ai-worker）](#融合包验证bundle--ui-包--ai-worker)
-- [基础设施验证](#基础设施验证)
+- [数据层验证（SQLite）](#数据层验证sqlite)
 - [浏览器端到端验证（研究区）](#浏览器端到端验证研究区)
 - [CI 流水线](#ci-流水线)
 
@@ -17,13 +18,10 @@
 ## 快速开始
 
 ```bash
-# 1. 启动数据库（postgres + mysql）
-make infra-up
-
-# 2. 启动 DSH（前端 + 业务 bundle + AI 管道，:3080）
+# 1. 启动 DSH（前端 + 业务 bundle + AI 管道，:3080；零数据库依赖）
 make start-dsh
 
-# 3. 打开浏览器验证研究区
+# 2. 打开浏览器验证研究区
 #    http://127.0.0.1:3080
 ```
 
@@ -31,8 +29,9 @@ make start-dsh
 
 ```bash
 make stop-dsh
-make infra-down
 ```
+
+> 2026-08-22 起运行时零外部数据库（SQLite 单文件自动创建），无需 `make infra-up`。
 
 ---
 
@@ -54,9 +53,6 @@ make infra-down
 # 语法检查（整个 researchos 目录）
 ROOT=deepseek-harness-master/packages/researchos
 find "$ROOT" -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
-
-# compose 配置校验
-docker compose -f infra/docker-compose.yml config --quiet
 ```
 
 > DSH 本体（`deepseek-harness-master/`）为其自带测试体系（vitest 等），改动 DSH 本体时
@@ -64,18 +60,17 @@ docker compose -f infra/docker-compose.yml config --quiet
 
 ---
 
-## 基础设施验证
+## 数据层验证（SQLite）
 
 ```bash
-# 数据库健康检查
-docker compose -f infra/docker-compose.yml ps
-# postgres / mysql 均应为 healthy
-
-# MySQL 业务表
-docker exec researchos-mysql mysql -uresearchos -presearchos researchos -e "SHOW TABLES;"
-
-# PG 向量表
-docker exec researchos-postgres psql -U researchos -d researchos -c "\dt paper_chunk"
+# 数据库文件与表结构
+node --input-type=module -e "
+import { getDb } from './deepseek-harness-master/packages/researchos/lib/db.js'
+const db = getDb()
+console.log('tables:', db.prepare(\"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\").all().map(r => r.name).join(', '))
+console.log('papers:', db.prepare('SELECT COUNT(*) n FROM paper').get().n)
+console.log('chunks:', db.prepare('SELECT COUNT(*) n FROM paper_chunk').get().n)
+"
 ```
 
 ---
@@ -109,9 +104,7 @@ GitHub Actions 配置在 `.github/workflows/ci.yml`
 ├─────────────────────────────────────────────────────────┤
 │  1. ResearchOS Bundles Syntax                           │
 │      ├─ node --check 全部 bundle / ai-worker / gateway  │
-│      └─ MySQL init SQL sanity 检查                      │
-│  2. Compose Validation                                  │
-│      └─ docker compose config --quiet                   │
+│      └─ SQLite schema sanity（lib/db.js 含建表）        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -121,9 +114,6 @@ GitHub Actions 配置在 `.github/workflows/ci.yml`
 # 1. 语法检查
 ROOT=deepseek-harness-master/packages/researchos
 find "$ROOT" -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
-
-# 2. compose 校验
-docker compose -f infra/docker-compose.yml config --quiet
 ```
 
 ---
@@ -139,14 +129,13 @@ make logs      # tail -f .dsh-gateway.log
 make status    # pid 是否存活
 ```
 
-### Q: 数据库未初始化（表不存在）
+### Q: 数据库文件未初始化（表不存在）
 
-**A:** MySQL 建表脚本在 `infra/mysql-init/V1__init.sql`（首次空数据卷自动执行）。
-已存在的卷不会重跑，可删除卷重置：
+**A:** 2026-08-22 起数据库为 SQLite 单文件（`~/.researchos/data/researchos.db`），首次启动
+`lib/db.js` 自动建表，无需手工初始化。若想重置，删除数据库文件即可：
 
 ```bash
-docker compose -f infra/docker-compose.yml down -v
-make infra-up
+rm -f ~/.researchos/data/researchos.db   # 下次启动自动重建（make reset 亦可）
 ```
 
 ---

@@ -3,6 +3,7 @@
 ## 融合现状（2026-08-19）
 
 > ResearchOS 已融入 DeepSeek Harness（DSH）：业务能力由 12 个 research bundles（auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway）+ research-mcp（stdio MCP server）承载，AI 管道由 research-ai-worker（`RESEARCH_AI_INLINE=1` inline，无 MQ）承载，统一 LLM 网关为 research-llm-gateway（驻 127.0.0.1:3080，OpenAI 兼容 `/v1/chat/completions` + `/v1/embeddings`）。前端 = DSH GUI（旧 Next.js :3000 已于 2026-08-19 移除；backend / ai-service 亦于同日移除）。
+> **2026-08-22 更新（全 SQLite 化）**：MySQL/PG 已替换为 SQLite 单文件（`~/.researchos/data/researchos.db`，`lib/db.js` 抽象层，mysql2 兼容 `createPool()`）；下文涉及 MySQL/PG 的链路（① 中 mysql2 直连、② 中写 MySQL/PG）均已改为经 `lib/db.js` 访问 SQLite，向量检索走 JS 余弦（`searchChunks`）。旧数据迁移脚本已随 infra 删除（git 历史可查）。
 > 本节补充 DSH 侧四条数据流；下方 6.1 / 6.4 / 6.5（上传分析 / Review / 删除论文）等 legacy 链路仅作历史参考。
 
 ### ① Bundle CRUD 流（同步 REST）

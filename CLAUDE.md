@@ -1,8 +1,9 @@
 # CLAUDE.md - ResearchOS AI 编码规范
 
 > 本文件是项目统一的编码规范。当前工程 = DeepSeek Harness（DSH）单实例承载全部
-> ResearchOS 能力（bundle / AI worker / 网关 / UI 包），数据库仅保留 postgres + mysql；
-> legacy backend（Java）与 ai-service（Python）已于 2026-08-19 移除（git 历史可回退）。
+> ResearchOS 能力（bundle / AI worker / 网关 / UI 包），数据库全 SQLite 化（2026-08-22，
+> `node:sqlite` 单文件，零外部数据库）；legacy backend（Java）与 ai-service（Python）
+> 已于 2026-08-19 移除（git 历史可回退）。
 >
 > - 多服务协作规则见 `AGENTS.md`（本文档的配套文档）。
 > - 实现方案与契约见 `Implementation/` 文件夹。
@@ -82,11 +83,10 @@
 
 # 6. 数据库与迁移
 
-- **双库架构**：业务数据在 MySQL（research-* bundle 维护），AI 向量在 PostgreSQL `paper_chunk`（research-ai-worker 维护）。
-- MySQL 建表脚本：`infra/mysql-init/V{n}__{desc}.sql`（docker-entrypoint-initdb.d 首次初始化执行，来源为已移除的 `backend/src/main/resources/db/migration-mysql/`，git 历史可查）。
-- PG 迁移脚本：原 `backend/src/main/resources/db/migration/V{n}__{desc}.sql`（git 历史可查；当前 PG 直接由 pgvector 镜像 + research-ai-worker 建表）。
+- **SQLite 单文件（2026-08-22 起，零外部数据库）**：`~/.researchos/data/researchos.db`（`node:sqlite`，`lib/db.js` 内置 schema，首次启动自动建表）。8 张业务表 + `paper_chunk`（embedding BLOB，默认 2048 维，JS 余弦检索）。
+- **历史（已移除）**：legacy MySQL 建表脚本（原 `infra/mysql-init/V{n}__{desc}.sql`，2026-08-22 随 infra 删除；来源为已移除的 `backend/src/main/resources/db/migration-mysql/`，git 历史可查）；PG 迁移脚本（原 `backend/src/main/resources/db/migration/V{n}__{desc}.sql`，git 历史可查）。
 - 表结构变更必须同步更新 `Implementation/40-database.md`。
-- 删除论文时 research-paper 删 MySQL `paper` 记录并清理 PG chunk（向量清理入口在 research-ai-worker）。
+- 删除论文时 research-paper 删 SQLite `paper` 记录并清理 `paper_chunk`（向量清理入口在 research-ai-worker，`deleteChunksByPaper`）。
 
 # 7. 依赖管理
 

@@ -2,44 +2,46 @@
 
 > AI 驱动的学术研究助手 - PDF 智能解析、文献综述、问答助手
 >
-> **融合现状（2026-08-19）**：全部能力已融入 DeepSeek Harness（DSH）单实例，
+> **融合现状（2026-08-22）**：全部能力已融入 DeepSeek Harness（DSH）单实例，
 > 浏览器单一入口 `http://localhost:3080`（研究区 = `packages/researchos/` 的
 > `research-*` bundle + `ui-research-*` 客户端包 + research-ai-worker AI 管道）。
-> legacy backend（Spring Boot）与 ai-service（FastAPI）已于 2026-08-19 移除，
-> 仅保留 postgres + mysql 数据库层。详见根 `plan.md`。
+> **零数据库依赖**：MySQL/PostgreSQL 已全部替换为 SQLite（`node:sqlite`，随应用
+> 自动创建于 `~/.researchos/data/researchos.db`），向量存 BLOB + JS 余弦检索，
+> 无需安装任何数据库或 Docker，**clone 即用**。详见根 `plan.md`。
 
-## 🚀 快速开始
-
-### 方式 1：基础设施 + DSH 网关
+## 🚀 快速开始（clone 即用，无需数据库/Docker）
 
 ```bash
-# 1. 复制环境变量配置
+# 1. clone（含 DSH submodule）
+git clone --recurse-submodules <repo-url>
+cd AI-research-manager-OS
+
+# 2. 安装 DSH 依赖（一次性，需 Node 22.5+，建议 24+）
+cd deepseek-harness-master && pnpm install && cd ..
+
+# 3. 复制环境变量并填入 LLM key
 cp .env.example .env
-# 编辑 .env，填入 LLM API Key 等必要配置
+# 编辑 .env：OPENAI_API_KEY（必填）+ RESEARCH_LLM_UPSTREAM_BASE_URL / OPENAI_DEFAULT_MODEL
 
-# 2. 启动数据库（postgres + mysql）
-make infra-up
-
-# 3. 启动 DSH（前端 + 业务 bundle + AI 管道，:3080）
+# 4. 启动 DSH（前端 + 业务 bundle + AI 管道，:3080）
 make start-dsh
 ```
 
+打开 http://localhost:3080 即可注册/登录使用。数据库文件与上传 PDF 在首次启动时
+自动创建（`~/.researchos/data/researchos.db`、`~/.researchos/uploads`），无需任何初始化。
+
 > **环境变量说明**：`scripts/dsh-gateway.sh` 从**仓库根目录** `.env` 读取
-> LLM key / JWT / MySQL 等并注入 DSH 进程。
+> LLM key / JWT 等并注入 DSH 进程。
 >
 > **LLM 配置**：统一 LLM 网关（research-llm-gateway）读取 `OPENAI_API_KEY` +
 > `RESEARCH_LLM_UPSTREAM_BASE_URL` + `OPENAI_DEFAULT_MODEL`，研究区全部 AI 能力
 > （论文分析/卡片/综述/写作/嵌入）经该网关单点出口。
 
-### 方式 2：本地开发启动
+### 从旧版（MySQL/PG）数据迁移
 
-```bash
-# 1. 启动基础设施
-make infra-up
-
-# 2. 启动 DSH（新终端）
-make start-dsh   # scripts/dsh-gateway.sh start，http://localhost:3080
-```
+> 已删除（2026-08-22）：原 `infra/`（docker-compose）与 `scripts/migrate-mysql2sqlite.mjs`
+> 已移除。若你有旧 MySQL/PG 数据，迁移脚本保留在 git 历史
+> （`git show HEAD:scripts/migrate-mysql2sqlite.mjs`，需自行起 MySQL/PG 容器配合使用）。
 
 访问地址：
 - 前端（DSH GUI）：http://localhost:3080
@@ -50,13 +52,12 @@ make start-dsh   # scripts/dsh-gateway.sh start，http://localhost:3080
 | 功能 | 状态 | 描述 |
 |------|------|------|
 | 📄 PDF 智能解析 | ✅ | 自动提取标题、作者、摘要、章节结构 |
-| 🎯 向量化检索 | ✅ | pgvector 向量数据库语义检索 |
+| 🎯 向量化检索 | ✅ | SQLite BLOB + JS 余弦相似度语义检索（零外部服务） |
 | 💬 论文问答 | ✅ | 基于 RAG 的智能问答（流式输出） |
 | 📝 文献综述 | ✅ | 跨论文自动生成文献综述 |
 | 👤 用户系统 | ✅ | JWT 认证、多租户隔离 |
 | 💳 额度控制 | ✅ | FREE/PRO/RESEARCHER 三级计划（`ENFORCE_QUOTA` 开关，开发默认关闭） |
-| 📁 S3 存储 | ✅ | 私有对象存储 + 预签名上传 |
-| 🐳 Docker 部署 | ✅ | 生产级容器化部署 |
+| 📁 本地文件存储 | ✅ | PDF 存本地目录 `~/.researchos/uploads`（无需对象存储） |
 | ✅ 单元测试 | ✅ | 后端/AI 服务测试覆盖 |
 | 🔄 CI/CD | ✅ | GitHub Actions 自动化流水线 |
 | 💳 Stripe 支付 | ✅ | Checkout 订阅 + webhook 回调（research-subscription bundle，需配置密钥） |
@@ -71,12 +72,12 @@ make start-dsh   # scripts/dsh-gateway.sh start，http://localhost:3080
 │    research-ai-worker（解析/嵌入/卡片/综述/写作，inline）    │
 │    research-llm-gateway（统一 LLM/Embedding 网关）           │
 │    ui-research-* 客户端包（聊天节点/研究区面板）             │
-└───────────────┬───────────────────────────┬─────────────────┘
-                │ 直连（MySQL）             │ 直连（PG）
-┌───────────────▼───────────┐   ┌──────────▼─────────────────┐
-│  MySQL（业务数据）         │   │  PostgreSQL + pgvector     │
-│ user/project/paper/...    │   │  paper_chunk 向量存储       │
-└───────────────────────────┘   └────────────────────────────┘
+└───────────────────────────┬─────────────────────────────────┘
+                            │ node:sqlite（零外部数据库）
+              ┌─────────────▼──────────────┐
+              │ ~/.researchos/data/researchos.db │
+              │ 业务表 + paper_chunk（BLOB）│
+              └────────────────────────────┘
 ```
 
 ## 📁 项目结构
@@ -85,13 +86,9 @@ make start-dsh   # scripts/dsh-gateway.sh start，http://localhost:3080
 researchos-ai/
 ├── deepseek-harness-master/  # DeepSeek Harness（DSH，前端 GUI + 宿主，:3080）
 │   └── packages/researchos/  # ResearchOS 融合包（bundle + AI worker + 网关 + UI）
+│       └── lib/db.js         # SQLite 抽象层（schema + 向量检索，node:sqlite）
 │
-├── infra/                    # 数据库基础设施
-│   ├── docker-compose.yml    # postgres + mysql
-│   ├── mysql-init/           # MySQL 建表脚本（首次初始化执行）
-│   └── DEPLOYMENT.md         # 部署指南
-│
-├── scripts/                  # DSH 网关启停脚本（dsh-gateway.sh）
+├── scripts/                  # DSH 网关启停（dsh-gateway.sh）
 ├── Implementation/           # 契约/实现文档
 ├── .env.example              # 环境变量模板
 ├── Makefile                  # 快捷命令
@@ -107,18 +104,15 @@ researchos-ai/
 
 ## 🚢 部署
 
-详细部署指南请参考 [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md)
+零数据库依赖，单进程即可跑。生产建议 systemd/pm2 托管 `make start-dsh`。
 
 ```bash
-# 生产环境启动
 cp .env.example .env
-# 编辑 .env 配置生产环境参数
-
-# 1. 启动数据库
-make infra-up
-# 2. 启动 DSH（生产建议 systemd/pm2 托管）
+# 编辑 .env 配置生产环境参数（JWT_SECRET / INTERNAL_TOKEN / LLM key）
 make start-dsh
 ```
+
+备份 = 复制 `~/.researchos/data/researchos.db` + `~/.researchos/uploads/`。
 
 ## 🛠️ 开发常用命令
 
@@ -128,9 +122,6 @@ make help
 
 # 查看 DSH 日志
 make logs
-
-# 清理资源
-make clean
 ```
 
 ## 📝 环境变量
@@ -140,10 +131,13 @@ make clean
 | 变量 | 说明 |
 |------|------|
 | `JWT_SECRET` | JWT 签名密钥（生产必须修改） |
-| `INTERNAL_TOKEN` | 后端 <-> AI 服务内部通信密钥 |
-| `LLM_PROVIDER` | LLM 提供商（openai/anthropic/volcengine） |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `VOLC_*` | 对应 LLM API 密钥 |
-| `STORAGE_*` | S3/R2 对象存储配置 |
+| `INTERNAL_TOKEN` | 内部服务通信密钥 |
+| `OPENAI_API_KEY` | LLM 密钥（必填，统一网关出口） |
+| `RESEARCH_LLM_UPSTREAM_BASE_URL` / `OPENAI_DEFAULT_MODEL` | 兼容端点上/模型 |
+| `EMBEDDING_MODEL` / `EMBEDDING_DIM` | 嵌入模型与维度（默认 2048） |
+| `RESEARCH_DATA_DIR` / `RESEARCH_STORAGE_LOCAL_DIR` | SQLite 目录 / PDF 目录（默认 `~/.researchos/...`） |
+| `STRIPE_*` | Stripe 订阅配置（可选） |
+| `GOOGLE_CLIENT_ID/SECRET` | Google OAuth（可选） |
 
 ## 🤝 贡献
 
@@ -161,5 +155,4 @@ MIT License
 
 如有问题，请提交 Issue 或查看：
 - [Implementation/README.md](Implementation/README.md) - 详细设计文档
-- [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md) - 部署指南
 - [CLAUDE.md](CLAUDE.md) - 编码规范

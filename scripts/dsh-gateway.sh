@@ -43,27 +43,21 @@ start() {
   export RESEARCH_LLM_MODEL="$(grep '^OPENAI_DEFAULT_MODEL=' "$ENV_FILE" | cut -d= -f2- || true)"
   export RESEARCH_EMBEDDING_API_KEY="$RESEARCH_LLM_API_KEY"
   export RESEARCH_EMBEDDING_BASE_URL="$RESEARCH_LLM_BASE_URL"
-  # Phase 3 research-auth: shared JWT secret (dual-auth with Spring Boot) + MySQL creds
+  # 2026-08-22 uaenamyf: 全 SQLite 化 —— 数据库已从 MySQL/PG 迁移到
+  # node:sqlite（$RESEARCH_DATA_DIR/researchos.db，默认 ~/.researchos/data），
+  # 不再需要 RESEARCH_MYSQL_* 注入；数据目录与上传目录随应用自动创建。
+  export RESEARCH_DATA_DIR="${RESEARCH_DATA_DIR:-$(grep '^RESEARCH_DATA_DIR=' "$ENV_FILE" | cut -d= -f2- || true)}"
+  # Phase 3 research-auth: shared JWT secret (dual-auth with Spring Boot)
   export JWT_SECRET="$(grep '^JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)"
-  export RESEARCH_MYSQL_HOST="${RESEARCH_MYSQL_HOST:-127.0.0.1}"
-  export RESEARCH_MYSQL_PORT="${RESEARCH_MYSQL_PORT:-${MYSQL_PORT:-3306}}"
-  export RESEARCH_MYSQL_USER="${RESEARCH_MYSQL_USER:-${MYSQL_USER:-researchos}}"
-  export RESEARCH_MYSQL_PASSWORD="${RESEARCH_MYSQL_PASSWORD:-$(grep '^MYSQL_PASSWORD=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  export RESEARCH_MYSQL_DATABASE="${RESEARCH_MYSQL_DATABASE:-${MYSQL_DB:-researchos}}"
-  # Phase 3 research-paper: RabbitMQ URL for AI task publish (researchos.ai.task exchange)
-  export RESEARCH_RABBITMQ_URL="${RESEARCH_RABBITMQ_URL:-amqp://${RABBIT_USER:-guest}:${RABBIT_PASS:-guest}@127.0.0.1:${RABBIT_PORT:-5672}}"
+  # 2026-08-20 myf: RESEARCH_RABBITMQ_URL 注入已移除（RabbitMQ 彻底下线，
+  # AI 管道直调 research-ai-worker bundle，见 research-paper/review bundle 注释）
+  # 2026-08-20 myf: STRIPE 注入已移除（research-subscription bundle 随登录/订阅
+  # 功能下线，见 server/index.js 与 server/bundles/auth.js 注释）
   # Phase 3 research-file: local storage dir + internal token
   export RESEARCH_STORAGE_LOCAL_DIR="${RESEARCH_STORAGE_LOCAL_DIR:-$HOME/.researchos/uploads}"
   export RESEARCH_INTERNAL_TOKEN="${RESEARCH_INTERNAL_TOKEN:-$(grep '^INTERNAL_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)}"
   # 2026-08-19 myf: RESEARCH_BACKEND_URL 已随 legacy backend 退役移除（文件全量
   # 走 research-file 本地存储；ai-worker 直接读 research-file）
-  # Phase 3 research-subscription: Stripe config (checkout + webhook)
-  export RESEARCH_STRIPE_SECRET_KEY="${RESEARCH_STRIPE_SECRET_KEY:-$(grep '^STRIPE_SECRET_KEY=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  export RESEARCH_STRIPE_WEBHOOK_SECRET="${RESEARCH_STRIPE_WEBHOOK_SECRET:-$(grep '^STRIPE_WEBHOOK_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  export RESEARCH_STRIPE_PRICE_PRO="${RESEARCH_STRIPE_PRICE_PRO:-$(grep '^STRIPE_PRICE_PRO=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  export RESEARCH_STRIPE_PRICE_RESEARCHER="${RESEARCH_STRIPE_PRICE_RESEARCHER:-$(grep '^STRIPE_PRICE_RESEARCHER=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  export RESEARCH_FRONTEND_BASE_URL="${RESEARCH_FRONTEND_BASE_URL:-http://localhost:3000}"
-  # Phase 5 AI 管道迁入 DSH 开关（research-paper/review 直调 research-ai-worker，不发 MQ）
   export RESEARCH_AI_INLINE="$(grep '^RESEARCH_AI_INLINE=' "$ENV_FILE" | cut -d= -f2- || true)"
   # 2026-08-20 myf: 工作区栏目单根（默认 = 父仓库根，DSH checkout 的上一级）
   export RESEARCH_WORKSPACE_DIR="${RESEARCH_WORKSPACE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"

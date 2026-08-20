@@ -60,3 +60,8 @@ deepseek-harness-master/**/node_modules/
 # dsh 常驻进程运行时产物（PID/日志，随启停变化，位于仓库根）
 .dsh-gateway.pid
 .dsh-gateway.log
+
+# SQLite 数据文件（默认位于 ~/.researchos/data；若覆盖 RESEARCH_DATA_DIR
+# 到仓库内则避免误提交）
+researchos.db
+*.db.bak-*

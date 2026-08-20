@@ -17,13 +17,13 @@
 
 ### 0.1 当前形态
 
-- **DSH 单实例驻 `127.0.0.1:3080`**（`scripts/dsh-gateway.sh` 启动，自动注入 `.env` 的 key / JWT / MySQL 等环境变量），单个 DSH 进程承载：
+- **DSH 单实例驻 `127.0.0.1:3080`**（`scripts/dsh-gateway.sh` 启动，自动注入 `.env` 的 key / JWT / 数据目录等环境变量），单个 DSH 进程承载：
   - **统一 LLM 网关 `research-llm-gateway`**（plan.md 中称 `dsh-llm-gateway`）：OpenAI 兼容直连代理，`POST /v1/chat/completions` + `POST /v1/embeddings`；上游 key/模型单点收口（chat `ark-code-latest` / embedding `doubao-embedding-vision`，来源 `.env`）。
-  - **12 个 `research-*` 业务 bundle**：auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway；经 `ctx.webServer` 暴露 `/research-*` 路由，直连 MySQL（业务表）+ PG（`paper_chunk` 向量）。
+  - **12 个 `research-*` 业务 bundle**：auth / project / folder / paper / file / writing / review / paper-card / export / settings / subscription / llm-gateway；经 `ctx.webServer` 暴露 `/research-*` 路由，经 `lib/db.js` 访问 **SQLite 单文件**（`~/.researchos/data/researchos.db`，业务表 + `paper_chunk` 向量 BLOB，JS 余弦检索）。
   - **`research-mcp`**：stdio MCP server（`packages/researchos/mcp/server.js`，由 dsh mcp-client 拉起），工具 `literature_search` / `literature_get` / `literature_cite` / `vector_search`，向 DSH agent 暴露文献检索/读取/引用/向量检索。
   - **11 个 `ui-research-*` UI 包**（hello 探针 + 10 个业务节点）：聊天节点（library / paper / citation）+ 关键词触发面板（dashboard / writing / settings / literature / review / upload / project 等，多数已随融合卸载，仅保留必要节点），遵循 DSH `ConversationNodeDefinition` / slot / props 规范接入浏览器 GUI。
 - **前端 = DSH GUI**：旧 Next.js frontend（:3000）已于 2026-08-19 移除（无回退）。
-- **legacy backend（Spring Boot :8080）与 ai-service（FastAPI :8000）已于 2026-08-19 移除**：AI 管道（解析/嵌入/卡片/综述/写作）已全部迁入 DSH `research-ai-worker`（`RESEARCH_AI_INLINE=1` 直调 inline，无 RabbitMQ）；文件存储由 research-file 本地目录（`~/.researchos/uploads`）承载，ai-worker 直接经 research-file 读 PDF；Redis / RabbitMQ 已随 Phase 5 下线（compose 中注释保留便于回退）。数据库仅保留 postgres + mysql（`infra/docker-compose.yml`），DSH bundle 直连。
+- **legacy backend（Spring Boot :8080）与 ai-service（FastAPI :8000）已于 2026-08-19 移除**：AI 管道（解析/嵌入/卡片/综述/写作）已全部迁入 DSH `research-ai-worker`（`RESEARCH_AI_INLINE=1` 直调 inline，无 RabbitMQ）；文件存储由 research-file 本地目录（`~/.researchos/uploads`）承载，ai-worker 直接经 research-file 读 PDF；Redis / RabbitMQ 已随 Phase 5 下线。**数据库全 SQLite 化（2026-08-22）**：MySQL / PostgreSQL / Docker（`infra/`）已彻底移除，运行时零外部数据库、clone 即用。
 
 ### 0.2 契约要点
 

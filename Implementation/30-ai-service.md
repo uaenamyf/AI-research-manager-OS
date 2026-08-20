@@ -4,6 +4,10 @@
 
 > **legacy ai-service（FastAPI :8000）已于 2026-08-19 移除**：AI 管道（PDF 解析 / embedding / 卡片 / 综述 / 写作）已全部迁入 DSH `research-ai-worker`（`RESEARCH_AI_INLINE=1` inline 直调，无 RabbitMQ）；源码在 git 历史 `HEAD:ai-service/` 可回退。
 > 下方原内容为 legacy 契约/结构描述，仅作历史参考，不再对应运行代码。
+>
+> **2026-08-22 更新（全 SQLite 化）**：research-ai-worker 的向量层已由 pgvector 改为 SQLite BLOB
+> （`lib/db.js` 的 `insertChunks` / `searchChunks` / `deleteChunksByPaper`，JS 余弦检索）；`ai-worker/lib/vector.js`
+> 不再接收 pg pool，`ai-worker/lib/config.js` 已删除 `PG_URL` / `MYSQL` 导出，`pg` / `mysql2` 依赖已从 package.json 移除。
 
 ### 迁移映射（ai-service → research-ai-worker）
 
