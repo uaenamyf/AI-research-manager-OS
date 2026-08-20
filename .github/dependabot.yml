@@ -1,32 +1,8 @@
 version: 2
 
-updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    exclude-paths:
-      # Vendored Cordis sources follow vendor/README.md instead of registry updates.
-      - "vendor/**"
-    schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
-
-  - package-ecosystem: "uv"
-    directory: "/python/sdk"
-    schedule:
-      interval: "cron"
-      cronjob: "0 4 * * *"
-      timezone: "Asia/Shanghai"
-    cooldown:
-      default-days: 30
-    labels:
-      - "kind/dependency"
-      - "area/infra"
+# 2026-08-20 uaenamyf: Dependabot 自动更新已禁用（会不断创建 dependabot/* 分支，
+# 与本仓库「只维护 main 分支」的约定冲突）。需要时按需手动更新依赖。
+updates: []
 
   - package-ecosystem: "github-actions"
     directory: "/"
