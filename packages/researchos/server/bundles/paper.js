@@ -139,6 +139,9 @@ function toPaperDto(row) {
     starRating: row.star_rating ?? null,
     createdTime: normTime(row.created_time),
     summary: parseSummary(row.summary),
+    // 2026-08-20 myf: FAILED 时 ai-worker 把 { error } 写入 summary 字段，
+    // 前端导入进度条用它展示失败原因。
+    error: row.status === 'FAILED' ? ((parseSummary(row.summary) || {}).error ?? null) : null,
   }
 }
 

@@ -2196,6 +2196,10 @@ var rwsDiffApi = {};
 			var [importProjectId, setImportProjectId] = useState("");
 			var [busy, setBusy] = useState(false);
 			var [msg, setMsg] = useState(null);
+			// 2026-08-20 myf: 外部导入解析进度：{ paperId, status: PROCESSING/READY/FAILED, error }
+			// 提交成功后轮询 /research-paper/papers/:id 直到 READY/FAILED，进度条反馈给用户。
+			var [imp, setImp] = useState(null);
+			var impTimerRef = useRef(null);
 			// 2026-08-19 myf: 批量移动弹窗打开时主动拉一次每个**项目**的文件夹树，
 			// 跨项目也能选（用户想把 test 的论文搬到 abc 项目下某文件夹时也能选）。
 			// 不只拉选中论文所属项目，改为拉 props.projects 全部项目——确保任何
@@ -2206,7 +2210,8 @@ var rwsDiffApi = {};
 				setText2("");
 				setTargetFolder(dialog && dialog.kind === "movePapers" ? "" : "root");
 				setImportProjectId("");
-				setBusy(false); setMsg(null);
+				setBusy(false); setMsg(null); setImp(null);
+				if (impTimerRef.current) { clearTimeout(impTimerRef.current); impTimerRef.current = null; }
 				if (dialog && dialog.kind === "movePapers") {
 					var allProjs = props.projects || [];
 					if (!allProjs.length) { setFreshFolders({}); return; }
@@ -2225,6 +2230,10 @@ var rwsDiffApi = {};
 					setFreshFolders({});
 				}
 			}, [dialog]);
+			// 组件卸载时清理轮询定时器
+			useEffect(function () {
+				return function () { if (impTimerRef.current) { clearTimeout(impTimerRef.current); impTimerRef.current = null; } };
+			}, []);
 			var kind = dialog ? dialog.kind : null;
 			var title = kind === "newProject" ? "新建项目"
 				: kind === "newFolder" ? "新建文件夹"
@@ -2311,8 +2320,38 @@ var rwsDiffApi = {};
 				var opts = { method: req.method, credentials: "include" };
 				if (req.body) { opts.headers = { "content-type": "application/json" }; opts.body = JSON.stringify(req.body); }
 				api(req.url, opts).then(function (j) {
-					if (ok(j)) props.onDone && props.onDone(kind, dialog);
-					else { setMsg(j.message || "操作失败"); setBusy(false); }
+					if (!ok(j)) { setMsg(j.message || "操作失败"); setBusy(false); return; }
+					// 2026-08-20 myf: 外部导入成功后进入解析进度：轮询论文状态
+					// 直到 READY（自动关窗+刷新）或 FAILED（展示失败原因，可手动关闭）。
+					// 无 pdfUrl 的纯元数据导入（UPLOADED）无需等待，直接完成。
+					if (kind === "importExternal" && j.data && j.data.id && j.data.status === "PROCESSING") {
+						var paperId = j.data.id;
+						setImp({ paperId: paperId, status: "PROCESSING", error: null });
+						var tries = 0;
+						(function poll() {
+							if (tries >= 120) {  // 6 分钟上限
+								setImp({ paperId: paperId, status: "FAILED", error: "解析超时（6 分钟），请稍后在论文列表查看状态" });
+								setBusy(false);
+								return;
+							}
+							tries++;
+							api("/research-paper/papers/" + paperId).then(function (p) {
+								var st = p && p.data ? p.data.status : null;
+								if (st === "READY") {
+									setImp({ paperId: paperId, status: "READY", error: null });
+									setBusy(false);
+									setTimeout(function () { props.onDone && props.onDone(kind, dialog); }, 1200);
+								} else if (st === "FAILED") {
+									setImp({ paperId: paperId, status: "FAILED", error: (p.data && p.data.error) || "解析失败" });
+									setBusy(false);
+								} else {
+									impTimerRef.current = setTimeout(poll, 3000);
+								}
+							}).catch(function () { impTimerRef.current = setTimeout(poll, 3000); });
+						})();
+						return;
+					}
+					props.onDone && props.onDone(kind, dialog);
 				}).catch(function () { setMsg("网络错误"); setBusy(false); });
 			}
 
@@ -2378,6 +2417,33 @@ var rwsDiffApi = {};
 				}
 				if (kind === "importExternal") {
 					var ext = dialog.paper || {};
+					if (imp) {
+						// 2026-08-20 myf: 导入解析进度条（复用上传队列的动画条样式）
+						var impDone = imp.status === "READY" || imp.status === "FAILED";
+						var impColor = imp.status === "FAILED" ? "var(--dsw-alias-state-error-primary, #dc2626)"
+							: imp.status === "READY" ? "var(--dsw-alias-state-success-primary, #16a34a)"
+							: "var(--dsw-alias-button-primary-fill)";
+						return React.createElement("div", null,
+							React.createElement("p", { style: S.text }, ext.title || "(untitled)"),
+							React.createElement("p", { style: S.detailMeta }, (Array.isArray(ext.authors) && ext.authors.length ? ext.authors.join(", ") : "—") + (ext.year ? " · " + ext.year : "") + (ext.doi ? " · DOI: " + ext.doi : "") + (ext.source ? " · " + ext.source : "")),
+							React.createElement("div", { style: { height: 8 } }),
+							React.createElement("style", null, "@keyframes dshImpSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }"),
+							React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+								React.createElement("span", { style: { fontWeight: 600, fontSize: 12, color: "var(--dsw-alias-label-primary, #111)" } },
+									imp.status === "READY" ? "导入成功"
+										: imp.status === "FAILED" ? "导入失败"
+										: "正在解析 PDF…"),
+								React.createElement("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-secondary, #666)" } },
+									imp.status === "READY" ? "✓ 已就绪"
+										: imp.status === "FAILED" ? "解析出错"
+										: "下载 → 解析 → 向量化 → 生成卡片"),
+							),
+							React.createElement("div", { style: { width: "100%", height: 6, borderRadius: 3, background: "var(--dsw-alias-bg-skeleton, rgba(0,0,0,.06))", overflow: "hidden" } },
+								React.createElement("div", { style: Object.assign({ width: impDone ? "100%" : "40%", height: "100%", background: impColor, transition: "width 0.2s" }, imp.status === "PROCESSING" ? { animation: "dshImpSlide 1.4s linear infinite" } : {}) }),
+							),
+							imp.status === "FAILED" ? React.createElement("p", { style: Object.assign({}, S.err, { padding: 0, marginTop: 8, wordBreak: "break-all" }) }, imp.error || "解析失败") : null,
+						);
+					}
 					return React.createElement("div", null,
 						React.createElement("p", { style: S.text }, ext.title || "(untitled)"),
 						React.createElement("p", { style: S.detailMeta }, (Array.isArray(ext.authors) && ext.authors.length ? ext.authors.join(", ") : "—") + (ext.year ? " · " + ext.year : "") + (ext.doi ? " · DOI: " + ext.doi : "") + (ext.source ? " · " + ext.source : "")),
@@ -2399,7 +2465,9 @@ var rwsDiffApi = {};
 				onClose: function () { if (!busy) props.onClose(); },
 				footer: [
 					React.createElement("button", { key: "cancel", type: "button", style: S.btn, disabled: busy, onClick: function () { if (!busy) props.onClose(); } }, "取消"),
-					React.createElement("button", { key: "ok", type: "button", style: S.btnPrimary, disabled: busy, onClick: submit }, busy ? "处理中…" : (confirmOnly ? "删除" : "确定")),
+					// 2026-08-20 myf: 导入解析完成（READY/FAILED）后确定按钮变「关闭」，
+					// 失败时允许用户读完错误原因再手动关闭。
+					React.createElement("button", { key: "ok", type: "button", style: S.btnPrimary, disabled: busy, onClick: (imp && (imp.status === "READY" || imp.status === "FAILED")) ? function () { props.onClose(); } : submit }, busy ? "处理中…" : ((imp && (imp.status === "READY" || imp.status === "FAILED")) ? "关闭" : (confirmOnly ? "删除" : "确定"))),
 				],
 			}, [
 				body(),
