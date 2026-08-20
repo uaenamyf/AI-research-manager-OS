@@ -1,4 +1,0 @@
-# ui-research-workspace bundle patch: self-mount into the web profile.
-- insert:
-    - id: ui-research-workspace
-      name: '@researchos/ui-research-workspace'

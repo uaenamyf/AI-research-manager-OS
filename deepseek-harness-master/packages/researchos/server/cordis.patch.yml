@@ -1,8 +1,0 @@
-# researchos-server bundle patch: single Cordis entry that mounts all 11
-# sub-bundles (auth, project, folder, paper, file, writing, review,
-# paper-card, export, settings, subscription) under the web profile.
-# Sub-bundles are kept as separate sub-modules under bundles/ to preserve
-# each one's own module scope (no top-level const/function collisions).
-- insert:
-    - id: researchos-server
-      name: '@researchos/dsh-researchos-server'

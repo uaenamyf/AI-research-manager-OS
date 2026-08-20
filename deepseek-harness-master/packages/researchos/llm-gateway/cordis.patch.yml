@@ -1,4 +1,0 @@
-# Phase 0 LLM gateway spike patch: mounts the gateway plugin over the profile.
-- insert:
-    - id: research-llm-gateway
-      name: '@researchos/dsh-llm-gateway'

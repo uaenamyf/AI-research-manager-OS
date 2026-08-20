@@ -1,4 +1,0 @@
-# research-ai-worker bundle patch: self-mount into the web profile.
-- insert:
-    - id: research-ai-worker
-      name: '@researchos/dsh-research-ai-worker'

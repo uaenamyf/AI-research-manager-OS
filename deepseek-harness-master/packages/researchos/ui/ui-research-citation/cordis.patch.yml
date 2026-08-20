@@ -1,4 +1,0 @@
-# Phase 4 ui-research-citation patch: mounts the ResearchOS citation card client UI over the profile.
-- insert:
-    - id: ui-research-citation
-      name: '@researchos/ui-research-citation'

@@ -1,4 +1,0 @@
-# Phase 4 ui-research-paper patch: mounts the ResearchOS paper card client UI over the profile.
-- insert:
-    - id: ui-research-paper
-      name: '@researchos/ui-research-paper'
