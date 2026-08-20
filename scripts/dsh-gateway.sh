@@ -65,6 +65,33 @@ start() {
   export RESEARCH_FRONTEND_BASE_URL="${RESEARCH_FRONTEND_BASE_URL:-http://localhost:3000}"
   # Phase 5 AI 管道迁入 DSH 开关（research-paper/review 直调 research-ai-worker，不发 MQ）
   export RESEARCH_AI_INLINE="$(grep '^RESEARCH_AI_INLINE=' "$ENV_FILE" | cut -d= -f2- || true)"
+  # 2026-08-20 myf: 工作区栏目单根（默认 = 父仓库根，DSH checkout 的上一级）
+  export RESEARCH_WORKSPACE_DIR="${RESEARCH_WORKSPACE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+  # 2026-08-20 myf: 多根支持 —— research-workspace bundle 接受逗号分隔的
+  # 绝对路径白名单，UI 跟随左侧 DSH workspace 切换根。默认扫描父目录
+  # (mmmyyyfff) 下所有顶层目录（AI-research-manager-OS + 兄弟项目
+  # ARIS-in-AI-Offer-main / AegisOS / closed_set_identification / 等），
+  # 让左侧 DSH workspace 列表里任何已注册项目都能成为右侧 panel 根。
+  # 显式 RESEARCH_WORKSPACE_ROOTS= 时按用户值（用冒号/分号/逗号分隔）。
+  if [ -n "${RESEARCH_WORKSPACE_ROOTS:-}" ]; then
+    export RESEARCH_WORKSPACE_ROOTS
+  else
+    PARENT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+    if [ -d "$PARENT_DIR" ]; then
+      _roots=""
+      for d in "$PARENT_DIR"/*/; do
+        [ -d "$d" ] || continue
+        if [ -z "$_roots" ]; then
+          _roots="$d"
+        else
+          _roots="$_roots,$d"
+        fi
+      done
+      export RESEARCH_WORKSPACE_ROOTS="${_roots:-$RESEARCH_WORKSPACE_DIR}"
+    else
+      export RESEARCH_WORKSPACE_ROOTS="$RESEARCH_WORKSPACE_DIR"
+    fi
+  fi
   # 研究区无登录 UI 的静默引导（dev-only；RESEARCH_ANON_ENABLED != 1 时 /research-auth/anon 404）
   export RESEARCH_ANON_ENABLED="$(grep '^RESEARCH_ANON_ENABLED=' "$ENV_FILE" | cut -d= -f2- || true)"
   export RESEARCH_ANON_EMAIL="$(grep '^RESEARCH_ANON_EMAIL=' "$ENV_FILE" | cut -d= -f2- || true)"
