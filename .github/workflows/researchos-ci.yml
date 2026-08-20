@@ -1,0 +1,49 @@
+# ============================================================
+# ResearchOS CI 工作流
+# 功能：research bundle 语法检查、SQLite schema 校验
+# 说明：legacy backend/ai-service 已于 2026-08-19 移除（AI 管道迁入 DSH
+#       research-ai-worker）；数据库已全 SQLite 化（2026-08-22，infra/docker 已删）；
+#       应用层 = DSH 融合包（deepseek-harness-master/packages/researchos/），
+#       按 DSH 规范做静态验证，不构建容器镜像。
+# ============================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # Job 1: research bundle 语法检查（node --check）
+  # ────────────────────────────────────────────────────────────
+  researchos-syntax:
+    name: ResearchOS Bundles Syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Syntax check (server bundles / ai-worker / gateway / mcp)
+        run: |
+          ROOT=packages/researchos
+          find "$ROOT" -name '*.js' -not -path '*/node_modules/*' -print0 \
+            | xargs -0 -n1 node --check
+          echo "SYNTAX_OK"
+
+      - name: SQLite schema sanity (lib/db.js)
+        run: |
+          grep -q "CREATE TABLE IF NOT EXISTS app_user" packages/researchos/lib/db.js
+          grep -q "CREATE TABLE IF NOT EXISTS paper_chunk" packages/researchos/lib/db.js
+          echo "SCHEMA_OK"

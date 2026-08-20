@@ -1,0 +1,20 @@
+{
+  "name": "@researchos/ui-research-workspace",
+  "description": "ResearchOS fusion — the Research Workspace region: a sidebar section parallel to the Workspace browser (registered into the patched sidebar.research hole). Hosts the independent ResearchOS UI (literature library, paper detail, review generation, writing, settings) calling the /research-* bundles directly, while the agent-driven chat nodes stay for the conversation.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}

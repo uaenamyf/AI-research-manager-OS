@@ -1,22 +1,82 @@
-# AI-research-manager-OS（已迁移 → 单仓库）
+# DeepSeek Harness
 
-> ⚠️ **本仓库已废弃**（2026-08-22）。全部代码与文档已迁移到单一仓库：
+English | [中文](README.zh.md)
 
-## 🔗 新仓库：https://github.com/uaenamyf/dsh-researchOS
+DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
 
-- 这是 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
-  的 fork，`packages/researchos/` 承载全部 ResearchOS AI 能力：
-  PDF 解析、RAG 问答、文献综述、写作助手、统一 LLM 网关、research-mcp。
-- **零外部数据库、零 Docker、clone 即用**（SQLite-only，`node:sqlite`）。
-- 使用方式见新仓库根 README 与 `packages/researchos/README.md`。
+It uses an architecture where **everything is a plugin**, and is powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://github.com/cordiverse/paper).
+
+## Developer preview
+
+DeepSeek Harness is currently in _developer preview_ and is iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
+
+## Run
+
+### Run from `npm`
+
+Install `Node.js`, then run:
 
 ```sh
-git clone https://github.com/uaenamyf/dsh-researchOS.git
-cd dsh-researchOS
+npx @deepseek-ai/dsh web
+```
+
+The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).
+
+### Run from source
+
+To run from a repository checkout:
+
+```sh
+git clone https://github.com/deepseek-ai/deepseek-harness.git
+cd deepseek-harness
 pnpm install
-cp packages/researchos/.env.example packages/researchos/.env   # 填 OPENAI_API_KEY
+pnpm run build
+pnpm dsh web
+```
+
+`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
+
+## ResearchOS integration (academic research assistant)
+
+> 2026-08-22: This fork ships **ResearchOS**, an AI-powered academic research
+> workbench (paper parsing, RAG Q&A, literature review, writing assistant) as a
+> first-class DSH plugin suite. **Zero external database** (SQLite-only,
+> `node:sqlite`) and **zero Docker** — clone, fill in one API key, run.
+
+```sh
+git clone https://github.com/uaenamyf/AI-research-manager-OS.git
+cd AI-research-manager-OS
+pnpm install
+pnpm run build
+cp packages/researchos/.env.example packages/researchos/.env   # fill OPENAI_API_KEY
 make -C packages/researchos start-dsh                          # → http://localhost:3080
 ```
 
-本仓库历史提交（`dev` 分支）保留作存档；本地目录 `deepseek-harness-master/`
-是迁移后的工作副本（原 submodule 已解绑，不再跟踪）。
+Everything lives in [`packages/researchos/`](packages/researchos/README.md):
+`research-*` server bundles, `ui-research-*` client packages (research workspace /
+library / paper chat / citation), the inline AI pipeline (`research-ai-worker`:
+PDF parse → embedding → Paper Card → review → writing), the unified LLM/Embedding
+gateway, and a stdio MCP server for literature search. See the
+[ResearchOS README](packages/researchos/README.md) for details.
+
+## Community and support
+
+- Feel free to submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
+- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
+- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Development
+
+Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md).
+
+For agents, follow [AGENTS.md](AGENTS.md).
+
+## License
+
+[MIT](LICENSE)
+
+Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
