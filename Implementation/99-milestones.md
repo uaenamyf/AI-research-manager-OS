@@ -18,7 +18,7 @@
 | Phase 4 | 前端 UI 11 包（ui-research-hello 探针 + 10 业务节点）+ Next.js 移除 | ✅ 11 包注入 boot（49 条目）；旧 Next.js :3000 已于 2026-08-19 移除 |
 | Phase 5 | 数据迁移与收尾 | 🟡 收尾中：数据核对 ✅（MySQL/PG 最终一致、孤儿 chunk 已清理、向量 2048 维对齐）；AI 管道迁入 research-ai-worker ✅（inline，MQ 已下线）、legacy 服务移除 ✅（2026-08-19）；可拔插全量回归 / 合入 main 待办 |
 
-> Phase 5 待办：① 可拔插全量回归（卸载全部 research-* → DSH 裸跑正常 → 重装恢复，需重启 GUI，待用户择时）；② `Implementation/` 文档更新（本文档即本次更新的一部分）；③ `refactor/integrate-into-dsh` 合入 `main`（PR）。
+> Phase 5 待办：① 可拔插全量回归（卸载全部 research-* → DSH 裸跑正常 → 重装恢复，需重启 GUI，待用户择时）；② `Implementation/` 文档更新（本文档即本次更新的一部分）；③ 开发线已合入 `dev`（原 `refactor/integrate-into-dsh` 已合并删除），GitHub 默认分支建议改为 `dev`（需用户操作）。
 
 ## Sprint 1（2 周）基础平台
 
