@@ -12,7 +12,8 @@
 
 ## 0. 融合现状（2026-08-18）
 
-> ResearchOS 已融入 DeepSeek Harness（DSH）：融合方案见根 `plan.md`，bundle 实现记录见 `dsh-plugins/README.md`，开发分支 `feat/dsh-integration`（`dev` 保持原工程可运行状态，作为回退基线）。
+> ResearchOS 已融入 DeepSeek Harness（DSH）：融合方案见根 `plan.md`，bundle 实现记录见 `dsh-plugins/README.md`。
+> **2026-08-20 更新**：DSH 已转为 **git submodule**（`deepseek-harness-master/`，远端 = fork `uaenamyf/dsh-researchOS`，main = 自定义版本；upstream = `deepseek-ai/deepseek-harness`）；实际开发分支 = `refactor/integrate-into-dsh`（`dev` 保持原工程可运行状态，作为回退基线）；每次 DSH 升级运行 `scripts/upgrade-dsh.sh <tag>`（见 `plan.md` 顶部更新）。
 
 ### 0.1 当前形态
 

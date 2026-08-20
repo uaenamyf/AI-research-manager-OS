@@ -92,6 +92,9 @@
 
 - 新增依赖必须更新对应 `package.json`（DSH 融合包在 `deepseek-harness-master/packages/researchos/`），并同步更新 `Implementation/00-overview.md` 的技术栈表（版本锁定）。
 - DSH 本体依赖（pnpm workspace）见 `deepseek-harness-master/package.json` / `pnpm-workspace.yaml`。
+- **DSH 升级（submodule）**：`deepseek-harness-master` 是 submodule（fork `uaenamyf/dsh-researchOS` 的 main = 自定义版本，upstream = `deepseek-ai/deepseek-harness`）。每次上游发版运行 `scripts/upgrade-dsh.sh <tag>`（如 `rc.9`）：
+  - fetch upstream tag → 从 main 建 `upgrade/<tag>` 分支 → merge（冲突预期仅限修改过的上游文件）→ `pnpm install` + `build:lib:host/client` + `build:web` → `pnpm vitest run packages/client/ui-layout` → `--push` 更新 fork main + 父仓库 submodule 指针。
+  - 注意：submodule 内的 `node_modules` / `lib` / `dist` / `vendor/*/lib` 是构建产物（git 不跟踪），升级 merge 后如缺失需重建或从备份恢复，不能只靠 git 内容。
 
 # 8. 测试要求
 

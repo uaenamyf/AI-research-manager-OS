@@ -7,17 +7,24 @@
 >
 > 📌 **后续更新（2026-08-19）**：旧 Next.js 前端已彻底移除（删 `frontend/` 目录、docker-compose 服务、CI 步骤），下方「回退命令」均不再可用，仅作历史记录；当前前端 = DSH GUI :3080。
 
+> 📌 **后续更新（2026-08-20）**：DSH 已由「整仓拷贝」转为 **git submodule**（见 `AGENTS.md` §0.1）：
+> - `deepseek-harness-master/` = submodule，远端 = fork `uaenamyf/dsh-researchOS`，其 `main` 分支 = 自定义版本（rc.8 + researchos 自定义 + 修复 15 个上游文件）；upstream = `deepseek-ai/deepseek-harness`（tag 命名 `dsh-v0.1.0-rc.N`）。
+> - 实际开发分支 = `refactor/integrate-into-dsh`（替代下方全部 `feat/dsh-integration` 引用；`dev` 仍为回退基线）。
+> - **后续每次 DSH 升级**：运行 `scripts/upgrade-dsh.sh <tag>`（fetch upstream tag → merge 到 `upgrade/<tag>` 分支 → 构建/测试 → `--push` 更新 fork main + 父仓库 submodule 指针）。预期冲突仅出现在修改过的上游文件，researchos 纯新增零冲突。
+
 ---
 
 ## 0. 分支与协作策略（重要）
 
+> 2026-08-20 更新：主线分支名已改为 `refactor/integrate-into-dsh`（下方 `feat/dsh-integration` 均指同一开发线，合并/回退策略不变）；DSH 本体已 submodule 化，升级走 `scripts/upgrade-dsh.sh`。
+
 - 本融合项目的全部开发在**独立新分支**上进行，**不直接动 `dev`/`main`**：
-  - 主线开发分支：`feat/dsh-integration`（从 `dev` 切出）
-  - 大型子阶段可再开子分支（如 `feat/dsh-llm-gateway`、`feat/dsh-research-paper`），合回 `feat/dsh-integration`
+  - 主线开发分支：`refactor/integrate-into-dsh`（从 `dev` 切出）
+  - 大型子阶段可再开子分支（如 `feat/dsh-llm-gateway`、`feat/dsh-research-paper`），合回 `refactor/integrate-into-dsh`
 - `dev` 保持 ResearchOS 当前可运行状态，作为**回退基线**：融合过程中任何一步出问题，切回 `dev` 即可恢复原工程。
-- 阶段性成果（每完成一个 bundle/里程碑）合入 `feat/dsh-integration` 并打 tag（如 `dsh-m0-verified`、`dsh-p1-gateway`），便于回滚定位。
+- 阶段性成果（每完成一个 bundle/里程碑）合入 `refactor/integrate-into-dsh` 并打 tag（如 `dsh-m0-verified`、`dsh-p1-gateway`），便于回滚定位。
 - 每次合并前跑对应服务测试（`make test-*`）；跨服务契约变更遵循根 `AGENTS.md` §5。
-- 融合完成、验收通过后，`feat/dsh-integration` 再经 PR 合入 `main`（`main` 保持保护）。
+- 融合完成、验收通过后，`refactor/integrate-into-dsh` 再经 PR 合入 `main`（`main` 保持保护）。
 
 ---
 
