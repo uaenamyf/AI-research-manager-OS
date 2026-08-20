@@ -65,3 +65,7 @@ deepseek-harness-master/**/node_modules/
 # 到仓库内则避免误提交）
 researchos.db
 *.db.bak-*
+
+# 已废弃：单一仓库为 uaenamyf/dsh-researchOS（fork），本目录不再跟踪
+# （原 submodule 已解绑，目录保留为工作副本）
+deepseek-harness-master/

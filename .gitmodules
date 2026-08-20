@@ -1,4 +1,0 @@
-[submodule "deepseek-harness-master"]
-	path = deepseek-harness-master
-        url = https://github.com/uaenamyf/dsh-researchOS.git
-	branch = main
