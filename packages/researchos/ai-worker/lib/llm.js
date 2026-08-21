@@ -48,7 +48,17 @@ async function callOnce(system, user, override, timeoutMs) {
     }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  if (!res.ok) throw new Error(`llm http ${res.status}: ${(await res.text()).slice(0, 300)}`)
+  if (!res.ok) {
+    // 2026-08-21 uaenamyf: 提取上游/网关返回的 message（含「暂未配置 API Key…」中文提示），
+    // 而非整段 JSON —— analyze FAILED / 综述 / 写作的错误信息更可读。
+    const detail = await res.text().catch(() => '')
+    let msg = `llm http ${res.status}`
+    try {
+      const j = JSON.parse(detail)
+      if (j?.error?.message) msg = j.error.message
+    } catch { /* non-JSON body — keep status-only */ }
+    throw new Error(msg)
+  }
   const j = await res.json()
   const content = j?.choices?.[0]?.message?.content
   if (typeof content !== 'string' || !content.trim()) throw new Error('llm empty content')

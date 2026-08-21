@@ -31,7 +31,16 @@ async function embedOnce(batch, log, override) {
         body: JSON.stringify({ input: batch, model }),
         signal: AbortSignal.timeout(90000),
       })
-      if (!res.ok) throw new Error(`embeddings HTTP ${res.status}: ${await res.text()}`)
+      if (!res.ok) {
+        // 2026-08-21 uaenamyf: 提取 message（含「暂未配置 Embedding API Key…」中文提示）
+        const detail = await res.text().catch(() => '')
+        let msg = `embeddings HTTP ${res.status}`
+        try {
+          const j = JSON.parse(detail)
+          if (j?.error?.message) msg = j.error.message
+        } catch { /* non-JSON body — keep status-only */ }
+        throw new Error(msg)
+      }
       const j = await res.json()
       let data = Array.isArray(j.data) ? [...j.data] : []
       if (data.length && typeof data[0].index === 'number') {

@@ -45,7 +45,7 @@ const JWT_SECRET =
   process.env.JWT_SECRET ||
   'dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWRvLW5vdC11c2UtaW4tcHJvZHVjdGlvbi1lbnZpcm9ubWVudA=='
 
-const GATEWAY = (process.env.RESEARCH_GATEWAY_URL || 'http://127.0.0.1:3081').replace(/\/+$/, '')
+const GATEWAY = (process.env.RESEARCH_GATEWAY_URL || 'http://127.0.0.1:3080').replace(/\/+$/, '')
 const MODEL = process.env.RESEARCH_LLM_MODEL || 'ark-code-latest'
 
 const MAX_TEXT_CHARS = 12000
@@ -179,7 +179,16 @@ async function callLLM(system, user) {
     }),
     signal: AbortSignal.timeout(120000),
   })
-  if (!resp.ok) throw new Error(`llm http ${resp.status}`)
+  if (!resp.ok) {
+    // 2026-08-21 uaenamyf: 携带网关返回的中文提示（如「暂未配置 API Key…」）
+    const detail = await resp.text().catch(() => '')
+    let msg = `llm http ${resp.status}`
+    try {
+      const j = JSON.parse(detail)
+      if (j?.error?.message) msg = j.error.message
+    } catch { /* non-JSON body — keep status-only */ }
+    throw new Error(msg)
+  }
   const j = await resp.json()
   const content = j?.choices?.[0]?.message?.content
   if (typeof content !== 'string' || !content.trim()) throw new Error('llm empty content')

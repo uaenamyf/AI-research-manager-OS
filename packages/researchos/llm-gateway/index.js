@@ -25,6 +25,12 @@ const EMB_BASE = process.env.RESEARCH_EMBEDDING_BASE_URL || LLM_BASE
 const EMB_KEY = process.env.RESEARCH_EMBEDDING_API_KEY || LLM_KEY
 const EMB_MODEL = process.env.RESEARCH_EMBEDDING_MODEL || process.env.EMBEDDING_MODEL || 'doubao-embedding-vision'
 
+// 2026-08-21 uaenamyf: 未配置 API Key 时的统一中文提示。走网关的调用（论文问答 /
+// 写作 / 综述 / 卡片）在没有系统 key 时会收到这条消息；用户在 设置 → 研究区大模型
+// 配置自己的 key 后走 override 直连，不再经过网关 key 检查。
+const NO_KEY_MESSAGE = '暂未配置 API Key：请前往「设置 → 研究区大模型」配置 LLM / Embedding 的 API Key 后使用'
+const NO_EMBED_KEY_MESSAGE = '暂未配置 Embedding API Key：请前往「设置 → 研究区大模型」配置嵌入向量的 API Key 后使用'
+
 // ── rate limiting (per-key token bucket; 0 = unlimited) ────────────────────
 // 2026-08-18 uaenamyf: Phase 1 遗留「网关限流」落地。按调用方身份（Authorization /
 // X-API-Key 头，缺省回退客户端 IP）做每客户端滑动窗口限流，防止单方打爆上游配额。
@@ -148,6 +154,8 @@ export function apply(ctx) {
         return json(res, 405, { error: { message: 'method not allowed', type: 'invalid_request_error' } })
       }
       if (rateLimited(clientKey(req))) return tooMany(req, res)
+      // 2026-08-21 uaenamyf: 未配置系统 key 时直接提示，避免 401/502 英文报错
+      if (!LLM_KEY) return json(res, 400, { error: { message: NO_KEY_MESSAGE, type: 'config_error' } })
       let body
       try {
         body = withModel(await readJson(req), LLM_MODEL)
@@ -178,6 +186,8 @@ export function apply(ctx) {
         return json(res, 405, { error: { message: 'method not allowed', type: 'invalid_request_error' } })
       }
       if (rateLimited(clientKey(req))) return tooMany(req, res)
+      // 2026-08-21 uaenamyf: 嵌入同样检查 key
+      if (!EMB_KEY) return json(res, 400, { error: { message: NO_EMBED_KEY_MESSAGE, type: 'config_error' } })
       let body
       try {
         body = withModel(await readJson(req), EMB_MODEL)
