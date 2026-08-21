@@ -133,6 +133,13 @@ export const PROFILE_TEMPLATES: Record<string, readonly string[]> = {
 
 /** Installation-owned bundle tuples normalized to the shipped template. */
 const INSTALLATION_OWNED_PROFILE_TUPLES: Record<string, readonly string[]> = {
+  // 2026-08-21 uaenamyf: web = base + web-app + researchos (shipped template).
+  // A profile that still lists exactly the pre-researchos web tuple (created
+  // before the researchos merge) is installation-owned and is re-normalized to
+  // the shipped template — so `pnpm dsh web` on an existing checkout picks up
+  // the research workspace without manual `dsh plugin add`. Any other bundle
+  // list is user-owned and preserved.
+  web: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
   headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless'],
 }
 

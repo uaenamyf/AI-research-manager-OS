@@ -3,3 +3,17 @@
 - insert:
     - id: research-external-search
       name: '@researchos/dsh-research-external-search'
+    # 2026-08-21 uaenamyf: research-mcp（stdio MCP server）随研究区一起挂载——
+    # 之前它由 profile 手工 patch 注入（旧路径指向 deepseek-harness-master/），
+    # 单仓库化后改为 bundle 自带。cwd 即仓库根（pnpm dsh web 的启动目录），
+    # mcp/server.js 位于 packages/researchos/mcp/ 下。
+    - id: mcp-client
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        transport: stdio
+        serverName: research
+        command: node
+        args:
+          - !!js process.cwd() + '/packages/researchos/mcp/server.js'
+        toolCallTimeoutMs: 30000
+        failOnStartupError: false

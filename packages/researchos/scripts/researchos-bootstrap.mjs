@@ -63,7 +63,9 @@ function injectEnv() {
   if (envValue('JWT_SECRET')) process.env.JWT_SECRET = envValue('JWT_SECRET')
   if (envValue('INTERNAL_TOKEN')) process.env.RESEARCH_INTERNAL_TOKEN = envValue('INTERNAL_TOKEN')
   if (envValue('RESEARCH_AI_INLINE')) process.env.RESEARCH_AI_INLINE = envValue('RESEARCH_AI_INLINE')
-  if (envValue('RESEARCH_ANON_ENABLED')) process.env.RESEARCH_ANON_ENABLED = envValue('RESEARCH_ANON_ENABLED')
+  // 2026-08-21 uaenamyf: 无登录是研究区核心卖点 —— anon 引导默认开启。
+  // .env 显式 RESEARCH_ANON_ENABLED=0 可关闭；未配置 = 启用。
+  process.env.RESEARCH_ANON_ENABLED = envValue('RESEARCH_ANON_ENABLED') ?? '1'
   if (envValue('RESEARCH_ANON_EMAIL')) process.env.RESEARCH_ANON_EMAIL = envValue('RESEARCH_ANON_EMAIL')
   if (envValue('RESEARCH_ANON_USER_ID')) process.env.RESEARCH_ANON_USER_ID = envValue('RESEARCH_ANON_USER_ID')
   process.env.RESEARCH_STORAGE_LOCAL_DIR ||= join(process.env.HOME || '', '.researchos', 'uploads')
