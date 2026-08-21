@@ -24,8 +24,8 @@
 
 - **没有数据库要装**：MySQL / PostgreSQL / Redis / RabbitMQ 已全部下线，业务数据与
   论文向量统一存 **SQLite 单文件**（`node:sqlite`），向量为 BLOB + JS 余弦检索。
-- **没有 Docker Compose**：不再需要起一堆容器，`make -C packages/researchos start-dsh`
-  一个命令跑起前端 + 业务 bundle + AI 管道 + LLM 网关 + MCP server。
+- **没有 Docker Compose**：不再需要起一堆容器，`pnpm dsh web` 一个命令跑起
+  前端 + 业务 bundle + AI 管道 + LLM 网关 + MCP server。
 - **所有 AI 能力插件化**：PDF 解析、Embedding、Paper Card、综述、写作全部内置于
   `research-ai-worker`，AI 管道 inline 直调（无 MQ），可按需拔插。
 - **统一 LLM 网关**：`research-llm-gateway` 把 key / 模型单点收口为本地
@@ -83,37 +83,33 @@
 git clone https://github.com/uaenamyf/AI-research-manager-OS.git
 cd AI-research-manager-OS
 
-# 2. 安装依赖并构建（一次性；构建产物不入库）
+# 2. 安装依赖并构建（一次性；postinstall 自动构建外部检索 vendor MCP；构建产物不入库）
 pnpm install
 pnpm run build
-# 外部检索 MCP server（文献检索用）
-cd packages/researchos/external-search/vendor/literature-search-mcp && npm install && npm run build && cd ../../../..
 
-# 3. 配置 LLM key（只需改这一个文件）
-cp packages/researchos/.env.example packages/researchos/.env
-# 编辑 packages/researchos/.env，必填：
-#   OPENAI_API_KEY=你的 key
-# 可选（默认走火山方舟 ark-code-latest）：
-#   RESEARCH_LLM_UPSTREAM_BASE_URL / OPENAI_DEFAULT_MODEL / EMBEDDING_MODEL
-
-# 4. 启动（前端 + 业务 + AI 管道 + 网关，:3080）
-make -C packages/researchos start-dsh
+# 3. 启动（前端 + 业务 + AI 管道 + 网关，:3080）
+pnpm dsh web
 ```
 
-打开 http://localhost:3080 —— **无需注册登录**，直接进入研究区。SQLite 数据库与
-上传目录在首次启动自动创建（`~/.researchos/data/researchos.db`、
-`~/.researchos/uploads`），无需任何初始化。
+打开 http://localhost:3080 后，在 **设置 → 研究区大模型** 配置你的 LLM 与
+Embedding（Base URL / 模型名 / Key）即可——这是主配置路径，按用户持久化到
+SQLite，论文解析、综述、写作、嵌入任务都会读取。留空则回退内置默认（火山方舟
+端点）。
 
-> 研究区 AI 默认走统一网关（`.env` 的 key）；也可在 **设置 → 研究区大模型**
-> 为当前用户配置独立的 LLM / Embedding（Base URL / 模型名 / Key），保存后该用户
-> 的解析、综述、写作与向量化任务按此配置执行，留空则回落系统默认。
+> 可选：复制 `packages/researchos/.env.example` 为 `packages/researchos/.env`
+> 可提供**系统级默认**（如 `OPENAI_API_KEY` / `RESEARCH_LLM_UPSTREAM_BASE_URL` /
+> `OPENAI_DEFAULT_MODEL` / `EMBEDDING_MODEL`）。不是必需——UI 设置足够。
+
+SQLite 数据库与上传目录在首次启动自动创建（`~/.researchos/data/researchos.db`、
+`~/.researchos/uploads`），无需任何初始化。
 
 常用命令（`make -C packages/researchos help` 查看全部）：
 
 | 命令 | 作用 |
 |------|------|
-| `make -C packages/researchos start-dsh` / `stop-dsh` | 启动 / 停止 DSH（自动注入 `.env`） |
-| `make -C packages/researchos status` / `logs` | 进程状态 / 日志 |
+| `pnpm dsh web` | 启动研究工作台（默认 `:3080`）—— 推荐方式 |
+| `make -C packages/researchos start-dsh` / `stop-dsh` | 守护进程式启动/停止（旧 shell 包装器，PID 文件） |
+| `make -C packages/researchos status` / `logs` | 进程状态 / 日志（shell 包装器） |
 | `make -C packages/researchos reset` | 重置本地数据（SQLite + 上传文件） |
 
 ## 🔌 与 DeepSeek Harness 的关系

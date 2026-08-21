@@ -81,7 +81,15 @@
     "commander": "^15.0.0",
     "@deepseek-ai/cordis": "workspace:^",
     "js-yaml": "^4.2.0",
-    "node-addon-require-builtin": "^0.1.4"
+    "node-addon-require-builtin": "^0.1.4",
+    "@researchos/dsh-llm-gateway": "workspace:*",
+    "@researchos/dsh-researchos-server": "workspace:*",
+    "@researchos/dsh-research-ai-worker": "workspace:*",
+    "@researchos/dsh-research-external-search": "workspace:*",
+    "@researchos/ui-research-library": "workspace:*",
+    "@researchos/ui-research-paper": "workspace:*",
+    "@researchos/ui-research-citation": "workspace:*",
+    "@researchos/ui-research-workspace": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",

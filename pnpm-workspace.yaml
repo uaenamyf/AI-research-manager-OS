@@ -1,6 +1,18 @@
 packages:
   - vendor/*
   - packages/*/*
+  # ResearchOS fusion: every research-* bundle + ui-research-* client package
+  # (2026-08-21 uaenamyf, single-repo layout). Their package.json declares
+  # dsh.bundle/dsh.client + cordis.patch.yml self-mount.
+  - packages/researchos/server
+  - packages/researchos/ai-worker
+  - packages/researchos/llm-gateway
+  - packages/researchos/external-search
+  - packages/researchos/mcp
+  - packages/researchos/ui/ui-research-workspace
+  - packages/researchos/ui/ui-research-library
+  - packages/researchos/ui/ui-research-paper
+  - packages/researchos/ui/ui-research-citation
   # The Landlock launcher is developed with its harness consumers but keeps
   # its native build and publication scripts under native/landlock-run.
   - native/landlock-run

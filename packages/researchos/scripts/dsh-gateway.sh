@@ -60,36 +60,29 @@ start() {
   need_env OPENAI_API_KEY
   need_env OPENAI_BASE_URL
 
-  export RESEARCH_LLM_API_KEY="$(grep '^OPENAI_API_KEY=' "$ENV_FILE" | cut -d= -f2-)"
-  # 2026-08-17 uaenamyf: gateway 上游改取 RESEARCH_LLM_UPSTREAM_BASE_URL（真实上游），
-  # 不再用 OPENAI_BASE_URL —— Phase 1 切换后 OPENAI_BASE_URL 已指向网关自身，否则网关自环 fetch 失败。
-  export RESEARCH_LLM_BASE_URL="$(grep '^RESEARCH_LLM_UPSTREAM_BASE_URL=' "$ENV_FILE" | cut -d= -f2- || grep '^OPENAI_BASE_URL=' "$ENV_FILE" | cut -d= -f2- || true)"
-  export RESEARCH_LLM_MODEL="$(grep '^OPENAI_DEFAULT_MODEL=' "$ENV_FILE" | cut -d= -f2- || true)"
-  export RESEARCH_EMBEDDING_API_KEY="$RESEARCH_LLM_API_KEY"
-  export RESEARCH_EMBEDDING_BASE_URL="$RESEARCH_LLM_BASE_URL"
-  # 2026-08-22 uaenamyf: 全 SQLite 化 —— 数据库已从 MySQL/PG 迁移到
-  # node:sqlite（$RESEARCH_DATA_DIR/researchos.db，默认 ~/.researchos/data），
-  # 不再需要 RESEARCH_MYSQL_* 注入；数据目录与上传目录随应用自动创建。
-  export RESEARCH_DATA_DIR="${RESEARCH_DATA_DIR:-$(grep '^RESEARCH_DATA_DIR=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  # Phase 3 research-auth: shared JWT secret (dual-auth with Spring Boot)
-  export JWT_SECRET="$(grep '^JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)"
-  # 2026-08-20 myf: RESEARCH_RABBITMQ_URL 注入已移除（RabbitMQ 彻底下线，
-  # AI 管道直调 research-ai-worker bundle，见 research-paper/review bundle 注释）
-  # 2026-08-20 myf: STRIPE 注入已移除（research-subscription bundle 随登录/订阅
-  # 功能下线，见 server/index.js 与 server/bundles/auth.js 注释）
-  # Phase 3 research-file: local storage dir + internal token
-  export RESEARCH_STORAGE_LOCAL_DIR="${RESEARCH_STORAGE_LOCAL_DIR:-$HOME/.researchos/uploads}"
-  export RESEARCH_INTERNAL_TOKEN="${RESEARCH_INTERNAL_TOKEN:-$(grep '^INTERNAL_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)}"
-  # 2026-08-19 myf: RESEARCH_BACKEND_URL 已随 legacy backend 退役移除（文件全量
-  # 走 research-file 本地存储；ai-worker 直接读 research-file）
-  export RESEARCH_AI_INLINE="$(grep '^RESEARCH_AI_INLINE=' "$ENV_FILE" | cut -d= -f2- || true)"
-  # 2026-08-20 myf: 工作区栏目单根（默认 = fork 根，DSH checkout 所在仓库）
-  export RESEARCH_WORKSPACE_DIR="${RESEARCH_WORKSPACE_DIR:-$FORK_ROOT}"
+  # 2026-08-21 uaenamyf: env 注入统一走 researchos-bootstrap.mjs（与 `pnpm dsh
+  # web` 同一真相源：.env 自动创建 + RESEARCH_* 注入 + vendor 构建检查）。
+  # 子 shell 内 export 不会影响当前 shell，因此用 eval 导入其 process.env 快照：
+  # bootstrap 脚本打印 "KEY=VALUE" 行（不含秘密），本脚本据此 export。
+  node packages/researchos/scripts/researchos-bootstrap.mjs >/dev/null 2>&1 || true
+  eval "$(node --input-type=module -e "
+    const m = await import('./packages/researchos/scripts/researchos-bootstrap.mjs');
+    m.bootstrapResearchOS();
+    for (const k of ['RESEARCH_LLM_API_KEY','RESEARCH_LLM_BASE_URL','RESEARCH_LLM_MODEL',
+                     'RESEARCH_EMBEDDING_API_KEY','RESEARCH_EMBEDDING_BASE_URL',
+                     'RESEARCH_DATA_DIR','JWT_SECRET','RESEARCH_INTERNAL_TOKEN',
+                     'RESEARCH_AI_INLINE','RESEARCH_ANON_ENABLED','RESEARCH_ANON_EMAIL',
+                     'RESEARCH_ANON_USER_ID']) {
+      if (process.env[k]) console.log(k + '=\"' + process.env[k].replace(/\"/g,'\\\\\"') + '\"');
+    }
+    console.log('RESEARCH_STORAGE_LOCAL_DIR=\"' + process.env.RESEARCH_STORAGE_LOCAL_DIR + '\"');
+    console.log('RESEARCH_WORKSPACE_DIR=\"' + process.env.RESEARCH_WORKSPACE_DIR + '\"');
+  ")"
   # 2026-08-20 myf: 多根支持 —— research-workspace bundle 接受逗号分隔的
   # 绝对路径白名单，UI 跟随左侧 DSH workspace 切换根。默认扫描 fork 父目录
   # 下所有顶层目录（让左侧 DSH workspace 列表里任何已注册项目都能成为
   # 右侧 panel 根）。显式 RESEARCH_WORKSPACE_ROOTS= 时按用户值
-  # （用冒号/分号/逗号分隔）。
+  # （用冒号/分号/逗号分隔）。bootstrap 只设单根（RESEARCH_WORKSPACE_DIR）。
   if [ -n "${RESEARCH_WORKSPACE_ROOTS:-}" ]; then
     export RESEARCH_WORKSPACE_ROOTS
   else
@@ -109,10 +102,6 @@ start() {
       export RESEARCH_WORKSPACE_ROOTS="$RESEARCH_WORKSPACE_DIR"
     fi
   fi
-  # 研究区无登录 UI 的静默引导（dev-only；RESEARCH_ANON_ENABLED != 1 时 /research-auth/anon 404）
-  export RESEARCH_ANON_ENABLED="$(grep '^RESEARCH_ANON_ENABLED=' "$ENV_FILE" | cut -d= -f2- || true)"
-  export RESEARCH_ANON_EMAIL="$(grep '^RESEARCH_ANON_EMAIL=' "$ENV_FILE" | cut -d= -f2- || true)"
-  export RESEARCH_ANON_USER_ID="$(grep '^RESEARCH_ANON_USER_ID=' "$ENV_FILE" | cut -d= -f2- || true)"
 
   # Always pin the webserver port via a patch overlay: dsh defaults to 3080,
   # which is typically the live GUI. If the requested port is taken, bump it.

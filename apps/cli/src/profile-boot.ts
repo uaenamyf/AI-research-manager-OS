@@ -38,6 +38,39 @@ import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@dee
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
+// 2026-08-21 uaenamyf: ResearchOS single-repo bootstrap — make `pnpm dsh web`
+// reach the research workbench on a fresh clone with no manual setup. Injects
+// researchos env (from packages/researchos/.env, auto-created from the example)
+// and builds the literature-search-mcp vendor on first run. A missing env file
+// or vendor is tolerated: bundles degrade gracefully, UI still loads.
+// The bootstrap is a plain-JS .mjs resolved from the repo root via
+// import.meta.url (apps/cli/src → repo root in source, apps/cli/lib → repo
+// root in built). We run it synchronously in a child process that prints the
+// resolved RESEARCH_* env as KEY=VALUE lines; the parent then applies them
+// before the tree composes. This keeps prepareProfile synchronous and avoids
+// tsc seeing the untyped module.
+import { execFileSync } from 'node:child_process'
+
+function bootstrapResearchOS(): void {
+  const script = fileURLToPath(new URL('../../../packages/researchos/scripts/researchos-bootstrap.mjs', import.meta.url))
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', `
+    const m = await import(${JSON.stringify(`file://${script}`)});
+    m.bootstrapResearchOS();
+    for (const k of ['RESEARCH_LLM_API_KEY','RESEARCH_LLM_BASE_URL','RESEARCH_LLM_MODEL',
+                     'RESEARCH_EMBEDDING_API_KEY','RESEARCH_EMBEDDING_BASE_URL',
+                     'RESEARCH_DATA_DIR','JWT_SECRET','RESEARCH_INTERNAL_TOKEN',
+                     'RESEARCH_AI_INLINE','RESEARCH_ANON_ENABLED','RESEARCH_ANON_EMAIL',
+                     'RESEARCH_ANON_USER_ID','RESEARCH_STORAGE_LOCAL_DIR','RESEARCH_WORKSPACE_DIR']) {
+      if (process.env[k]) console.log(k + '=' + JSON.stringify(process.env[k]));
+    }
+  `], { encoding: 'utf8' })
+  for (const line of out.split('\n')) {
+    const eq = line.indexOf('=')
+    if (eq <= 0) continue
+    process.env[line.slice(0, eq)] = JSON.parse(line.slice(eq + 1))
+  }
+}
+
 const NAME = 'dsh'
 
 /**
@@ -96,6 +129,15 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
  * @returns the loaded profile.
  */
 export function prepareProfile(name: string, userLayer = true): Profile {
+  // 2026-08-21 uaenamyf: ResearchOS bootstrap before the tree composes —
+  // .env (auto-create), RESEARCH_* env injection, vendor MCP build. Never
+  // throws for missing optional config; a broken vendor build is the only
+  // hard failure (external-search cannot load without it).
+  try {
+    bootstrapResearchOS()
+  } catch (error) {
+    process.stderr.write(`[researchos] bootstrap warning: ${String(error)}\n`)
+  }
   healProfilesModuleFallback(INSTALL_ANCHOR)
   const profile = loadProfile(NAME, name, INSTALL_ANCHOR, undefined, { userLayer })
   writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)

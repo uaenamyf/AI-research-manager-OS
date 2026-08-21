@@ -86,32 +86,32 @@ It runs on a single Node process, talks to a single SQLite file, and survives `g
 
 The full architecture mirrors the [DSH official architecture doc](docs/architecture.md) — a plugin tree rooted at `ctx.webServer` (server bundles) and `ctx.slots` (UI packages). The "everything is a plugin" rule holds: removing any `research-*` package does not break the rest.
 
-## 🚀 快速开始（clone 即用）
+## 🚀 Quick start (clone-and-run)
 
-**前置**：Node.js ≥ 22.5（建议 24+）、pnpm、git。
+**Prerequisites**: Node.js ≥ 22.5 (24+ recommended), pnpm, git.
 
 ```sh
 git clone https://github.com/uaenamyf/AI-research-manager-OS.git
 cd AI-research-manager-OS
-pnpm install
+pnpm install          # postinstall 自动构建 literature-search-mcp vendor
 pnpm run build
-# 构建外部检索 vendor 包（MCP）
-cd packages/researchos/external-search/vendor/literature-search-mcp && npm install && npm run build && cd ../../../..
-cp packages/researchos/.env.example packages/researchos/.env   # 填 OPENAI_API_KEY
-make -C packages/researchos start-dsh                          # → http://localhost:3080
+pnpm dsh web          # → http://localhost:3080
 ```
 
 Open <http://localhost:3080>. **No login, no signup** — it opens the research workbench directly. The SQLite database and upload directory are created on first start.
 
-> Your per-user research LLM and embedding live in **Settings → 研究区大模型**. Leave them empty to use the system default (the one in `.env`); set them to override per user. Saved through `PATCH /research-settings` → SQLite `app_user.settings.research`.
+> Configure your research LLM + embedding in **Settings → 研究区大模型** — that's the primary path, persisted per user (SQLite `app_user.settings.research`) and read by every parse/review/write/embed job. Leave fields empty to fall back to the built-in defaults (Volcengine Ark endpoint). An optional `packages/researchos/.env` (copy of `.env.example`) can supply system-wide defaults, but is **not required** — the UI settings are enough.
 
 Useful commands (`make -C packages/researchos help` for the full list):
 
 | Command | Effect |
 |---------|--------|
-| `make -C packages/researchos start-dsh` / `stop-dsh` | Start / stop the gateway |
-| `make -C packages/researchos status` / `logs` | Process status / tail log |
+| `pnpm dsh web` | Launch the research workbench (default `:3080`) — the recommended way |
+| `make -C packages/researchos start-dsh` / `stop-dsh` | Same as above via the legacy shell wrapper (background daemon, PID file) |
+| `make -C packages/researchos status` / `logs` | Process status / tail log (shell wrapper) |
 | `make -C packages/researchos reset` | Wipe local data (SQLite + uploads) |
+
+> The old `make start-dsh` path is kept for daemon-style usage; `pnpm dsh web` is now the primary entry — it bootstraps researchos env + vendor automatically.
 
 ## 🔬 ResearchOS innovations (what this fork adds on top of DSH)
 
@@ -165,7 +165,7 @@ ResearchOS is a DSH plugin suite, not a fork of DSH itself. All the changes belo
 ### 7. Unified LLM / Embedding gateway
 
 - `research-llm-gateway` exposes `/v1/chat/completions` and `/v1/embeddings` as **OpenAI-compatible** endpoints on the same DSH port.
-- `scripts/dsh-gateway.sh` injects `RESEARCH_LLM_API_KEY` / `RESEARCH_LLM_BASE_URL` / `RESEARCH_EMBEDDING_*` from `.env` and (optionally) `user_id` for per-user override.
+- `pnpm dsh web` bootstraps researchos env (from `packages/researchos/.env`, auto-created from the example) via `packages/researchos/scripts/researchos-bootstrap.mjs`; the gateway serves `/v1/chat/completions` + `/v1/embeddings` on the same port. Per-user overrides (`user_id`) ride on the request.
 - Falls back gracefully: if the user override fails (bad key, bad URL), the worker logs and retries with the system default.
 
 ### 8. research-mcp (DSH agent tool)
@@ -197,7 +197,8 @@ packages/researchos/
 ├── ui/                # ui-research-* 客户端包
 ├── external-search/   # 在线文献检索（多源 MCP 包装）
 ├── lib/               # SQLite 抽象层（db.js：schema + 向量检索）
-├── scripts/           # dsh-gateway.sh（启停）、upgrade-dsh.sh（上游升级）
+├── scripts/           # researchos-bootstrap.mjs（env+vendor 引导）、build-vendor.mjs、
+│                      #   upgrade-dsh.sh（上游升级）、dsh-gateway.sh（守护进程式启停）
 ├── Makefile           # start-dsh / stop-dsh / status / logs / reset
 └── README.md          # 模块级 README（本文件同级）
 ```

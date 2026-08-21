@@ -303,6 +303,30 @@ importers:
       '@deepseek-ai/dsh-workflow-worker-thread':
         specifier: workspace:^
         version: link:../../packages/workflow/workflow-worker-thread
+      '@researchos/dsh-llm-gateway':
+        specifier: workspace:*
+        version: link:../../packages/researchos/llm-gateway
+      '@researchos/dsh-research-ai-worker':
+        specifier: workspace:*
+        version: link:../../packages/researchos/ai-worker
+      '@researchos/dsh-research-external-search':
+        specifier: workspace:*
+        version: link:../../packages/researchos/external-search
+      '@researchos/dsh-researchos-server':
+        specifier: workspace:*
+        version: link:../../packages/researchos/server
+      '@researchos/ui-research-citation':
+        specifier: workspace:*
+        version: link:../../packages/researchos/ui/ui-research-citation
+      '@researchos/ui-research-library':
+        specifier: workspace:*
+        version: link:../../packages/researchos/ui/ui-research-library
+      '@researchos/ui-research-paper':
+        specifier: workspace:*
+        version: link:../../packages/researchos/ui/ui-research-paper
+      '@researchos/ui-research-workspace':
+        specifier: workspace:*
+        version: link:../../packages/researchos/ui/ui-research-workspace
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -5945,6 +5969,30 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
+
+  packages/researchos/ui/ui-research-citation:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: '*'
+        version: link:../../../../vendor/cordis
+
+  packages/researchos/ui/ui-research-library:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: '*'
+        version: link:../../../../vendor/cordis
+
+  packages/researchos/ui/ui-research-paper:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: '*'
+        version: link:../../../../vendor/cordis
+
+  packages/researchos/ui/ui-research-workspace:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: '*'
+        version: link:../../../../vendor/cordis
 
   packages/runtime-diagnostics/invariants:
     dependencies:

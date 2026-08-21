@@ -75,6 +75,9 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
   // No repository field in the published manifest.
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
+  // Installed manifest (busboy@1.6.0) lacks license/repo metadata; MIT per the
+  // mscdex/busboy repo.
+  'busboy': { license: 'MIT', repo: 'https://github.com/mscdex/busboy' },
 }
 
 /**

@@ -93,25 +93,25 @@
 ```sh
 git clone https://github.com/uaenamyf/AI-research-manager-OS.git
 cd AI-research-manager-OS
-pnpm install
+pnpm install          # postinstall 自动构建 literature-search-mcp vendor
 pnpm run build
-# 构建外部检索 vendor 包（MCP）
-cd packages/researchos/external-search/vendor/literature-search-mcp && npm install && npm run build && cd ../../../..
-cp packages/researchos/.env.example packages/researchos/.env   # 填 OPENAI_API_KEY
-make -C packages/researchos start-dsh                          # → http://localhost:3080
+pnpm dsh web          # → http://localhost:3080
 ```
 
 打开 <http://localhost:3080> 即可——**不需要注册、登录**，直接进入研究区。SQLite 数据库与上传目录在首次启动时自动创建。
 
-> 按用户的 LLM/Embedding 配置位于 **设置 → 研究区大模型**。留空时使用系统默认值（来自 `.env`），填了之后该用户的论文解析、综述、写作、嵌入全部走这套配置。通过 `PATCH /research-settings` 落库到 `app_user.settings.research`。
+> 研究区 LLM / Embedding 配置在 **设置 → 研究区大模型** —— 这是主路径，按用户持久化（SQLite `app_user.settings.research`），每次解析 / 综述 / 写作 / 嵌入任务都会读取。留空时回退到内置默认值（火山方舟端点）。可选的 `packages/researchos/.env`（复制自 `.env.example`）可提供系统级默认，但**不是必需**——UI 设置即可。
 
 常用命令（`make -C packages/researchos help` 查看全部）：
 
 | 命令 | 作用 |
 |------|------|
-| `make -C packages/researchos start-dsh` / `stop-dsh` | 启动 / 停止 DSH |
-| `make -C packages/researchos status` / `logs` | 进程状态 / 跟踪日志 |
+| `pnpm dsh web` | 启动研究工作台（默认 `:3080`）—— 推荐方式 |
+| `make -C packages/researchos start-dsh` / `stop-dsh` | 通过旧 shell 包装器以守护进程方式启动/停止（PID 文件） |
+| `make -C packages/researchos status` / `logs` | 进程状态 / 跟踪日志（shell 包装器） |
 | `make -C packages/researchos reset` | 重置本地数据（SQLite + 上传文件） |
+
+> 旧的 `make start-dsh` 路径保留用于守护进程式用法；`pnpm dsh web` 现在是主入口——它会自动完成 researchos env + vendor 引导。
 
 ## 🔬 ResearchOS 创新点（本项目在 DSH 之上新增的能力）
 
@@ -165,7 +165,7 @@ ResearchOS 是一个 DSH 插件套件，**不是对 DSH 本体的 fork**。下�
 ### 7. 统一 LLM / Embedding 网关
 
 - `research-llm-gateway` 在同一 DSH 端口上提供 `/v1/chat/completions` 和 `/v1/embeddings`（**OpenAI 兼容**）。
-- `scripts/dsh-gateway.sh` 从 `.env` 注入 `RESEARCH_LLM_API_KEY` / `RESEARCH_LLM_BASE_URL` / `RESEARCH_EMBEDDING_*`，并（可选）传入 `user_id` 以做按用户覆写。
+- `pnpm dsh web` 通过 `packages/researchos/scripts/researchos-bootstrap.mjs` 引导 researchos env（来自 `packages/researchos/.env`，缺失时自动从模板创建）；网关在同一端口提供 `/v1/chat/completions` + `/v1/embeddings`。按用户覆写（`user_id`）随请求携带。
 - 优雅回退：用户覆写失败（key 错、URL 错）时，worker 会记日志并用系统默认值重试。
 
 ### 8. research-mcp（DSH agent 工具）
@@ -197,7 +197,8 @@ packages/researchos/
 ├── ui/                # ui-research-* 客户端包
 ├── external-search/   # 在线文献检索（多源 MCP 包装）
 ├── lib/               # SQLite 抽象层（db.js：schema + 向量检索）
-├── scripts/           # dsh-gateway.sh（启停）、upgrade-dsh.sh（上游升级）
+├── scripts/           # researchos-bootstrap.mjs（env+vendor 引导）、build-vendor.mjs、
+│                      #   upgrade-dsh.sh（上游升级）、dsh-gateway.sh（守护进程式启停）
 ├── Makefile           # start-dsh / stop-dsh / status / logs / reset
 └── README.md          # 模块级 README（本文件同级）
 ```

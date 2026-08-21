@@ -112,7 +112,22 @@ export function resolveProfileDir(name: string, home: string = resolveDshHome())
 
 /** The shipped profile templates auto-initialized on first use, by name. */
 export const PROFILE_TEMPLATES: Record<string, readonly string[]> = {
-  web: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
+  // 2026-08-21 uaenamyf: ResearchOS single-repo — the web profile ships the
+  // research workspace + AI pipeline out of the box. A fresh `pnpm dsh web`
+  // therefore boots the research workbench without `dsh plugin add` or
+  // profile hand-editing.
+  web: [
+    '@deepseek-ai/dsh-base',
+    '@deepseek-ai/dsh-web-app',
+    '@researchos/dsh-llm-gateway',
+    '@researchos/dsh-researchos-server',
+    '@researchos/dsh-research-ai-worker',
+    '@researchos/dsh-research-external-search',
+    '@researchos/ui-research-library',
+    '@researchos/ui-research-paper',
+    '@researchos/ui-research-citation',
+    '@researchos/ui-research-workspace',
+  ],
   headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
 }
 
