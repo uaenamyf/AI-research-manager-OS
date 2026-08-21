@@ -31,7 +31,12 @@ async function callOnce(system, user, override, timeoutMs) {
     if (override.model) model = override.model
   }
 
-  const res = await fetch(`${base}/v1/chat/completions`, {
+  // 2026-08-21 uaenamyf: 用户填的 baseUrl 可能是 https://api.deepseek.com/v1
+  //（已含 /v1）或 https://api.deepseek.com（不含）。前者若再拼 /v1 会变成
+  // /v1/v1/chat/completions → 404 → 「AI service temporarily unavailable:
+  // fetch fail」。按是否已以 /v1 结尾决定是否补路径，OpenAI 兼容端点两者皆可。
+  const basePath = /\/v1$/i.test(base) ? '' : '/v1'
+  const res = await fetch(`${base}${basePath}/chat/completions`, {
     method: 'POST',
     headers,
     body: JSON.stringify({

@@ -20,9 +20,12 @@ async function embedOnce(batch, log, override) {
   const headers = hasOverride && override.apiKey
     ? { 'content-type': 'application/json', authorization: `Bearer ${override.apiKey}` }
     : { 'content-type': 'application/json' }
+  // 2026-08-21 uaenamyf: 与 llm.js 同理 —— 用户填的 baseUrl 若已含 /v1 则不再
+  // 补 /v1，避免 /v1/v1/embeddings → 404 → AI service unavailable。
+  const basePath = /\/v1$/i.test(base) ? '' : '/v1'
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const res = await fetch(`${base}/v1/embeddings`, {
+      const res = await fetch(`${base}${basePath}/embeddings`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ input: batch, model }),
