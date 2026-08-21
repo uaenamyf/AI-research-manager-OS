@@ -25,8 +25,8 @@ import { execSync } from 'node:child_process'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // packages/researchos/ (script lives at scripts/ under it)
 const RESEARCHOS_DIR = join(__dirname, '..')
-// repo root = 3 levels up from packages/researchos/scripts/
-const REPO_ROOT = join(RESEARCHOS_DIR, '..', '..', '..')
+// repo root = 2 levels up from packages/researchos/ (researchos → packages → root)
+const REPO_ROOT = join(RESEARCHOS_DIR, '..', '..')
 
 const ENV_FILE = join(RESEARCHOS_DIR, '.env')
 const VENDOR_DIR = join(RESEARCHOS_DIR, 'external-search', 'vendor', 'literature-search-mcp')
