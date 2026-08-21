@@ -48,7 +48,12 @@ function resolveWorkspaceRoots() {
   if (raw && raw.trim()) {
     candidates = raw.split(',').map(function (s) { return s.trim() }).filter(Boolean)
   } else {
-    const fallback = process.env.RESEARCH_WORKSPACE_DIR || path.resolve(process.cwd(), '..')
+    const cwd = process.cwd()
+    const fallback = process.env.RESEARCH_WORKSPACE_DIR || (
+      fs.existsSync(path.join(cwd, '.git')) || fs.existsSync(path.join(cwd, 'packages'))
+        ? cwd
+        : path.resolve(cwd, '..')
+    )
     candidates = [fallback]
   }
   // 2026-08-20 myf: 启动时解析 + 校验每个根（绝对路径 + 存在 + 是目录），

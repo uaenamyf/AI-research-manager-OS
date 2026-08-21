@@ -888,6 +888,7 @@ window.__ModuleLoader__.load({
 						if (!ok(j)) return;
 						setDetail(j.data);
 						var st = j.data && j.data.status;
+						if (st === "PROCESSING" && j.data.result && j.data.result.progress) setProgress(j.data.result.progress);
 						if (st === "PROCESSING" || st === "UPLOADED") timer = setTimeout(fetchAll, 3000);
 					});
 					api("/research-paper/papers/" + paperId + "/card").then(function (j) { if (ok(j) && j.data) setCard(j.data); });
@@ -1686,7 +1687,17 @@ var rwsDiffApi = {};
 				var unsub2 = rwsSessions && rwsSessions.list
 					? rwsSessions.list.subscribe(function () { setActiveRoot(deriveActiveRoot()); })
 					: null;
-				setActiveRoot(deriveActiveRoot());
+				var currentRoot = deriveActiveRoot();
+				setActiveRoot(currentRoot);
+				// DSH 持久化的 workspace 记录包含绝对路径，跨设备 clone 后可能仍指向
+				// 旧机器。以服务端当前 clone 返回的 allowlist 为准，发现旧路径失效时
+				// 自动切换到当前仓库根，避免后端报 workspace root not in allowlist。
+				api("/research-workspace/roots").then(function (j) {
+					if (!ok(j) || !j.data || !Array.isArray(j.data.roots) || !j.data.roots.length) return;
+					if (!currentRoot || j.data.roots.indexOf(currentRoot) === -1) {
+						setActiveRoot(j.data.default || j.data.roots[0]);
+					}
+				}).catch(function () { /* workspace service may be unavailable during boot */ });
 				return function () {
 					if (unsub) unsub();
 					if (unsub2) unsub2();
@@ -2950,6 +2961,7 @@ var rwsDiffApi = {};
 			var [taskId, setTaskId] = useState(null);
 			var [markdown, setMarkdown] = useState(null);
 			var [err, setErr] = useState(null);
+			var [progress, setProgress] = useState(null);
 			// 2026-08-19 myf: 综述不再依赖左侧勾选同步——直接展示当前已上传论文的
 			// 目录，并按 项目 → 文件夹 → 论文 分组（文件夹分类），checkbox 默认全选。
 			var [papers, setPapers] = useState(null); // null = 加载中
@@ -2981,7 +2993,7 @@ var rwsDiffApi = {};
 						// 刷新时保留用户已勾选状态，新出现的论文默认勾选
 						setChecked(function (old) {
 							var chk = {};
-							all.forEach(function (pp) { chk[pp.id] = old && old[pp.id] !== undefined ? old[pp.id] : true; });
+									all.forEach(function (pp) { chk[pp.id] = old && old[pp.id] !== undefined ? old[pp.id] : false; });
 							return chk;
 						});
 					});
@@ -3006,14 +3018,16 @@ var rwsDiffApi = {};
 			function renderReviewFolder(f, depth, byFolder) {
 				var key = "f-" + f.id;
 				var open = expandedGroups[key] !== false;
+				var children = Array.isArray(f.children) ? f.children : [];
 				return React.createElement("div", { key: key },
-					React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "5px 12px 5px " + (12 + depth * 18) + "px", cursor: "pointer", fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", fontWeight: 600, userSelect: "none" }, onClick: function () { toggleGroup(key); } },
-						React.createElement("span", { style: { display: "inline-flex", width: 13, flex: "none" } }, open ? React.createElement(IconFolderOpen, { size: 13 }) : React.createElement(IconFolderClose, { size: 13 })),
-						React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.name),
+					React.createElement("div", { className: "dsh-rr-frow dsh-rr-review-row", style: { paddingLeft: (8 + depth * 22) + "px" }, onClick: function () { toggleGroup(key); } },
+						React.createElement("span", { className: "dsh-rr-slot dsh-rr-ficon" }, open ? React.createElement(IconFolderOpen, { size: 16 }) : React.createElement(IconFolderClose, { size: 16 })),
+						React.createElement("span", { className: "dsh-rr-slot dsh-rr-chevron" }, React.createElement(IconChevronRight, { className: "dsh-rr-arrow" + (open ? " dsh-rr-open" : "") })),
+						React.createElement("span", { className: "dsh-rr-ftitle" }, f.name),
 					),
 					open ? React.createElement("div", null,
-						// 2026-08-19 myf: 文件夹仅一级，综述目录同样不渲染二级子文件夹
 						(byFolder[f.id] || []).map(function (p) { return renderReviewPaper(p, 36 + depth * 18); }),
+						children.map(function (child) { return renderReviewFolder(child, depth + 1, byFolder); }),
 					) : null,
 				);
 			}
@@ -3023,10 +3037,12 @@ var rwsDiffApi = {};
 				var byFolder = {};
 				g.papers.forEach(function (p) { var k = p.folderId == null ? "root" : p.folderId; (byFolder[k] = byFolder[k] || []).push(p); });
 				return React.createElement("div", { key: key },
-					React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", fontWeight: 700, userSelect: "none", background: "var(--dsw-alias-bg-layer-2, rgba(0,0,0,.02))" }, onClick: function () { toggleGroup(key); } },
-						React.createElement("span", { style: { display: "inline-flex", width: 13, flex: "none" } }, open ? React.createElement(IconFolderOpen, { size: 13 }) : React.createElement(IconFolderClose, { size: 13 })),
-						React.createElement("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, g.name),
+					React.createElement("div", { className: "dsh-rr-frow dsh-rr-review-row", style: { paddingLeft: 8 }, onClick: function () { toggleGroup(key); } },
+						React.createElement("span", { className: "dsh-rr-slot dsh-rr-ficon" }, open ? React.createElement(IconFolderOpen, { size: 16 }) : React.createElement(IconFolderClose, { size: 16 })),
+						React.createElement("span", { className: "dsh-rr-slot dsh-rr-chevron" }, React.createElement(IconChevronRight, { className: "dsh-rr-arrow" + (open ? " dsh-rr-open" : "") })),
+						React.createElement("span", { className: "dsh-rr-ftitle" }, g.name),
 						React.createElement("span", { style: { flex: "none", fontSize: 11, color: "var(--dsw-alias-label-tertiary, #999)" } }, g.papers.length + " 篇"),
+						React.createElement("button", { type: "button", style: Object.assign({}, S.btn, { padding: "3px 7px", fontSize: 11 }), onClick: function (e) { e.stopPropagation(); var allSelected = g.papers.length > 0 && g.papers.every(function (p) { return checked[p.id]; }); setChecked(function (old) { var next = Object.assign({}, old); g.papers.forEach(function (p) { next[p.id] = !allSelected; }); return next; }); } }, g.papers.length > 0 && g.papers.every(function (p) { return checked[p.id]; }) ? "不全选" : "全选"),
 					),
 					open ? React.createElement("div", null,
 						(byFolder.root || []).map(function (p) { return renderReviewPaper(p, 36); }),
@@ -3041,8 +3057,8 @@ var rwsDiffApi = {};
 						if (!ok(j)) return;
 						var st = j.data && j.data.status;
 						// 2026-08-19 myf: 成功时同时清空 taskId，按钮从「生成中…」恢复为「生成综述」
-						if (st === "SUCCESS") { clearInterval(timer); setTaskId(null); setMarkdown((j.data.result && j.data.result.markdown) || "(empty)"); }
-						else if (st === "FAILED") { clearInterval(timer); setErr(j.data.error || "综述生成失败"); setTaskId(null); }
+						if (st === "SUCCESS") { clearInterval(timer); setTaskId(null); setProgress({ percent: 100, message: "综述生成完成" }); setMarkdown((j.data.result && j.data.result.markdown) || "(empty)"); }
+						else if (st === "FAILED") { clearInterval(timer); setErr(j.data.error || "综述生成失败"); setTaskId(null); setProgress(null); }
 					});
 				}, 3000);
 				return function () { clearInterval(timer); };
@@ -3051,6 +3067,7 @@ var rwsDiffApi = {};
 				if (!topic.trim()) { setErr("请输入综述主题"); return; }
 				if (!selected.length) { setErr("请至少选择一篇论文"); return; }
 				setErr(null); setMarkdown(null);
+				setProgress({ percent: 0, message: "准备读取完整论文…" });
 				api("/research-review/generate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paperIds: selected.map(function (p) { return p.id; }), topic: topic.trim() }) })
 					.then(function (j) {
 						if (!ok(j)) { setErr(j.message || "提交失败"); return; }
@@ -3067,9 +3084,18 @@ var rwsDiffApi = {};
 						: groups.map(function (g) { return renderReviewGroup(g); }),
 				),
 				React.createElement("div", { style: { padding: "0 12px" } },
+					progress ? React.createElement("div", { style: { margin: "8px 0 10px" } },
+						React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)", marginBottom: 5 } },
+							React.createElement("span", null, progress.message || "正在生成综述…"),
+							React.createElement("span", null, Math.max(0, Math.min(100, Number(progress.percent) || 0)) + "%"),
+						),
+						React.createElement("div", { style: { height: 6, borderRadius: 3, overflow: "hidden", background: "var(--dsw-alias-bg-skeleton, rgba(0,0,0,.08))" } },
+							React.createElement("div", { style: { width: Math.max(0, Math.min(100, Number(progress.percent) || 0)) + "%", height: "100%", background: "var(--dsw-alias-button-primary-fill)", transition: "width 240ms ease" } }),
+						),
+					) : null,
 					React.createElement("div", { style: S.field },
 						React.createElement("span", { style: S.fieldLabel }, "主题"),
-						React.createElement("input", { style: S.input, placeholder: "如：Acoustic classification of gibbon vocalizations", value: topic, onChange: function (e) { setTopic(e.target.value); } }),
+						React.createElement("input", { style: S.input, placeholder: "请输入综述的领域或其他提示词", value: topic, onChange: function (e) { setTopic(e.target.value); } }),
 					),
 					err ? React.createElement("p", { style: S.err, padding: 0 }, err) : null,
 					// 2026-08-19 myf: 生成综述按钮样式与「下载 PDF」保持一致（btn 而非 btnPrimary）

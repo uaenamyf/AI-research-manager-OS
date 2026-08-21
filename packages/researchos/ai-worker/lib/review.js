@@ -5,22 +5,22 @@
 // @module @researchos/dsh-research-ai-worker/lib/review
 
 import { logger } from './config.js'
-import { embedBatch } from './embed.js'
-import { createVectorStore } from './vector.js'
 import { chatComplete } from './llm.js'
-import { createMysqlPool, fetchPaperMetadata, setTaskResult } from './mysql.js'
+import { createMysqlPool, fetchPaperMetadata, setTaskProgress, setTaskResult } from './mysql.js'
+import { localPdfPath } from '../../lib/papers-store.js'
+import { readFileSync } from 'node:fs'
+import { extractText } from './parser.js'
 
 const log = logger()
 
-const REVIEW_TOP_K = 12
-const SUMMARY_MAX_CHARS = 1500
+const FULL_TEXT_MAX_CHARS = 120000
 
 const REVIEW_SYSTEM = `You are an academic research assistant specialized in writing literature reviews.
 
 Your task is to synthesize multiple research papers into a coherent, well-structured Literature Review in Markdown format.
 
 Rules:
-- Base your review STRICTLY on the provided paper summaries and excerpts. Do not fabricate findings, numbers, or citations.
+- Base your review STRICTLY on the provided full paper texts. Do not fabricate findings, numbers, or citations.
 - Write in the same language as the provided topic/papers (English papers -> English review).
 - Cite papers inline using the reference marker given for each paper (e.g., [P1], [P2]). Every claim tied to a specific paper must carry its marker.
 - Compare and contrast the papers: highlight agreements, disagreements, methodological differences, and gaps.
@@ -58,8 +58,8 @@ const REVIEW_USER = `Write a Literature Review on the following topic.
 [PAPERS]
 {papers_block}
 
-[RELEVANT EXCERPTS]
-{excerpts_block}
+[FULL PAPER TEXTS]
+{full_texts_block}
 
 Produce the Markdown Literature Review now.`
 
@@ -69,40 +69,22 @@ function buildPapersBlock(papers, markerMap) {
     const marker = markerMap.get(p.id)
     const year = p.year ?? 'n.d.'
     const header = `[${marker}] ${p.title} — ${p.authors} (${year})`
-    const summaryText = formatSummary(p.summary)
-    parts.push(summaryText ? `${header}\n${summaryText}` : header)
+    parts.push(header)
   }
   return parts.join('\n\n')
 }
 
-function formatSummary(summary) {
-  if (!summary) return ''
-  let data = summary
-  if (typeof summary === 'string') {
-    try {
-      data = JSON.parse(summary)
-    } catch {
-      return String(summary).slice(0, SUMMARY_MAX_CHARS)
-    }
+async function buildFullTextsBlock(papers, markerMap, pool, taskId) {
+  const parts = []
+  for (let i = 0; i < papers.length; i += 1) {
+    const paper = papers[i]
+    const marker = markerMap.get(paper.id)
+    if (!paper.localPdf) throw new Error(`local PDF missing for ${paper.id}`)
+    const text = await extractText(readFileSync(localPdfPath(paper.id, paper.projectId)))
+    parts.push(`[${marker}] ${paper.title} — ${paper.authors || 'Unknown authors'} (${paper.year ?? 'n.d.'})\n${text.slice(0, FULL_TEXT_MAX_CHARS) || '(No readable PDF text.)'}`)
+    await setTaskProgress(pool, taskId, { stage: 'reading', percent: 10 + Math.round(((i + 1) / papers.length) * 30), message: `已读取 ${i + 1}/${papers.length} 篇论文` })
   }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return String(data).slice(0, SUMMARY_MAX_CHARS)
-  }
-  const fields = [
-    ['Method', data.method],
-    ['Finding', data.finding],
-    ['Limitation', data.limitation],
-    ['Future work', data.future_work],
-  ]
-  const lines = fields.filter(([, v]) => v).map(([label, v]) => `  - ${label}: ${v}`)
-  return lines.join('\n').slice(0, SUMMARY_MAX_CHARS)
-}
-
-function buildExcerptsBlock(chunks, markerMap) {
-  if (!chunks.length) return '(No relevant excerpts retrieved.)'
-  return chunks
-    .map((c) => `[${markerMap.get(c.paper_id) || '?'} | Section: ${c.section} | chunk_id=${c.id}]\n${c.content}`)
-    .join('\n\n---\n\n')
+  return parts.join('\n\n---\n\n')
 }
 
 function stripCodeFence(text) {
@@ -127,18 +109,15 @@ export async function generateReview(taskId, paperIds, topic, override) {
     const markerMap = new Map(papers.map((p, i) => [p.id, `P${i + 1}`]))
     const papersBlock = buildPapersBlock(papers, markerMap)
 
-    // 2. cross-paper RAG (user embedding override when configured)
-    const query = String(topic || '').trim() || 'core methods, findings and limitations'
-    const [queryEmbedding] = await embedBatch([query], log)
-    const store = createVectorStore()
-    const chunks = await store.searchMulti(paperIds, queryEmbedding, REVIEW_TOP_K)
-    const excerptsBlock = buildExcerptsBlock(chunks, markerMap)
-    log.info(`review: papers=${papers.length}, chunks=${chunks.length}, topic='${query.slice(0, 50)}'`)
+    await setTaskProgress(pool, taskId, { stage: 'reading', percent: 5, message: '开始读取完整论文' })
+    const fullTextsBlock = await buildFullTextsBlock(papers, markerMap, pool, taskId)
+    await setTaskProgress(pool, taskId, { stage: 'preparing', percent: 45, message: '已整理完整论文文本，准备生成综述' })
 
-    // 3. LLM (override with gateway fallback)
+    // LLM (override with gateway fallback)
     const userPrompt = REVIEW_USER.replace('{topic}', topic || '(no specific topic; synthesize the common themes)')
       .replace('{papers_block}', papersBlock)
-      .replace('{excerpts_block}', excerptsBlock)
+      .replace('{full_texts_block}', fullTextsBlock)
+    await setTaskProgress(pool, taskId, { stage: 'generating', percent: 55, message: '正在调用模型生成综述' })
     const markdown = stripCodeFence(await chatComplete(REVIEW_SYSTEM, userPrompt, { override }))
 
     // 4. SUCCESS

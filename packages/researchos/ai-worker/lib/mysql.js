@@ -54,12 +54,20 @@ export async function setTaskResult(pool, taskId, status, { result, error } = {}
   }
 }
 
+/** Persist an in-flight review progress snapshot in ai_task.result. */
+export async function setTaskProgress(pool, taskId, progress) {
+  await pool.query(
+    'UPDATE ai_task SET status = ?, result = ?, error = NULL WHERE task_id = ?',
+    ['PROCESSING', JSON.stringify({ progress }), taskId],
+  )
+}
+
 export async function fetchPaperMetadata(pool, paperIds) {
   if (!paperIds.length) return []
   const out = []
   for (const id of paperIds) {
     const p = await storeGetPaper(String(id))
-    if (p) out.push({ id: p.id, title: p.title, authors: p.authors, year: p.year, summary: p.paperCard || null })
+      if (p) out.push({ id: p.id, userId: p.userId, projectId: p.projectId, title: p.title, authors: p.authors, year: p.year, summary: p.paperCard || null, localPdf: p.localPdf || null })
   }
   return out
 }
