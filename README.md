@@ -100,18 +100,16 @@ pnpm dsh web          # → http://localhost:3080
 
 Open <http://localhost:3080>. **No login, no signup** — it opens the research workbench directly. The SQLite database and upload directory are created on first start.
 
-> Configure your research LLM + embedding in **Settings → 研究区大模型** — that's the primary path, persisted per user (SQLite `app_user.settings.research`) and read by every parse/review/write/embed job. Leave fields empty to fall back to the built-in defaults (Volcengine Ark endpoint). An optional `packages/researchos/.env` (copy of `.env.example`) can supply system-wide defaults, but is **not required** — the UI settings are enough.
+> Configure your research LLM + embedding in **Settings → 研究区大模型** — that's the primary path, persisted via DSH's own settings/credentials files (`~/.dsh/settings.yaml` for baseUrl/model, `~/.dsh/.credentials.yaml` for the write-only API key) and read by every parse/review/write/embed job. Leave fields empty to fall back to the built-in defaults (Volcengine Ark endpoint). No `.env` needed — the UI settings are enough.
 
-Useful commands (`make -C packages/researchos help` for the full list):
+Useful commands:
 
 | Command | Effect |
 |---------|--------|
-| `pnpm dsh web` | Launch the research workbench (default `:3080`) — the recommended way |
-| `make -C packages/researchos start-dsh` / `stop-dsh` | Same as above via the legacy shell wrapper (background daemon, PID file) |
-| `make -C packages/researchos status` / `logs` | Process status / tail log (shell wrapper) |
-| `make -C packages/researchos reset` | Wipe local data (SQLite + uploads) |
+| `pnpm dsh web` | Launch the research workbench (default `:3080`) — the only entry point |
+| `rm -rf ~/.researchos/data ~/.researchos/uploads` | Wipe local data (SQLite + uploads) |
 
-> The old `make start-dsh` path is kept for daemon-style usage; `pnpm dsh web` is now the primary entry — it bootstraps researchos env + vendor automatically.
+> `pnpm dsh web` bootstraps researchos defaults (anon enabled, storage/workspace dirs) + vendor automatically — no `.env`, no Makefile, no daemon wrapper needed.
 
 ## 🔬 ResearchOS innovations (what this fork adds on top of DSH)
 
@@ -165,7 +163,7 @@ ResearchOS is a DSH plugin suite, not a fork of DSH itself. All the changes belo
 ### 7. Unified LLM / Embedding gateway
 
 - `research-llm-gateway` exposes `/v1/chat/completions` and `/v1/embeddings` as **OpenAI-compatible** endpoints on the same DSH port.
-- `pnpm dsh web` bootstraps researchos env (from `packages/researchos/.env`, auto-created from the example) via `packages/researchos/scripts/researchos-bootstrap.mjs`; the gateway serves `/v1/chat/completions` + `/v1/embeddings` on the same port. Per-user overrides (`user_id`) ride on the request.
+- `pnpm dsh web` bootstraps researchos defaults (anon enabled, storage/workspace dirs) via `packages/researchos/scripts/researchos-bootstrap.mjs`; the gateway serves `/v1/chat/completions` + `/v1/embeddings` on the same port. Per-user config rides on DSH settings/credentials.
 - Falls back gracefully: if the user override fails (bad key, bad URL), the worker logs and retries with the system default.
 
 ### 8. research-mcp (DSH agent tool)
@@ -198,8 +196,7 @@ packages/researchos/
 ├── external-search/   # 在线文献检索（多源 MCP 包装）
 ├── lib/               # SQLite 抽象层（db.js：schema + 向量检索）
 ├── scripts/           # researchos-bootstrap.mjs（env+vendor 引导）、build-vendor.mjs、
-│                      #   upgrade-dsh.sh（上游升级）、dsh-gateway.sh（守护进程式启停）
-├── Makefile           # start-dsh / stop-dsh / status / logs / reset
+│                      #   upgrade-dsh.sh（上游升级）
 └── README.md          # 模块级 README（本文件同级）
 ```
 
@@ -208,7 +205,7 @@ DSH-side docs that are *not* part of ResearchOS (and are kept verbatim from upst
 ## 🧪 Testing & quality
 
 - **CI** (`.github/workflows/researchos-ci.yml`) runs on every push: `node --check` on every server bundle, AI worker, gateway, MCP, and external-search module + SQLite schema sanity check.
-- `packages/researchos/TESTING.md` is intentionally not shipped — testing is performed by the CI workflow and the DSH vitest suite (the local runner scripts in `scripts/dsh-gateway.sh` cover end-to-end smoke).
+- `packages/researchos/TESTING.md` is intentionally not shipped — testing is performed by the CI workflow and the DSH vitest suite.
 - LLM-related code keeps its callers mockable; CI never consumes real tokens.
 
 ## 🤝 Contributing

@@ -71,6 +71,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'details': { kind: 'single'; scope: 'session'; owner: DetailsOwnerProps }
     /**
+     * ResearchOS fusion: root-scope research detail seat — renders without an
+     * active conversation session (paper card / search / review / writing).
+     * AppFrame renders this inside the details column; ResearchOS registers
+     * ResearchDetailsColumn here.
+     */
+    'details.research': { kind: 'single'; scope: 'root' }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -123,6 +130,11 @@ export function apply(ctx: ClientContext): void {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
+        // ResearchOS fusion: root-scope research detail seat — renders without
+        // an active conversation session (paper card / search / review / writing).
+        // AppFrame renders this inside the details column alongside the session-
+        // scoped `details` slot; ResearchOS registers ResearchDetailsColumn here.
+        'details.research': { kind: 'single', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per

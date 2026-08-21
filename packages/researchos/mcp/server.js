@@ -1,5 +1,5 @@
 // Phase 2 literature MCP server: literature_search / literature_get / literature_cite
-// over the embedded SQLite `paper` table (researchos lib/db.js), plus
+// over the filesystem paper index (researchos lib/papers-store.js), plus
 // literature_vector_search over SQLite `paper_chunk` with embeddings from the
 // unified LLM gateway (requirement 2+3).
 // Spawned by dsh mcp-client as a stdio child process.
@@ -10,6 +10,7 @@
 // @module @researchos/dsh-research-mcp
 
 import { createPool, searchChunks } from '../lib/db.js'
+import { listPapers, getPaper } from '../lib/papers-store.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
@@ -49,13 +50,12 @@ server.registerTool(
   async ({ query, limit }) => {
     const n = limit ?? 10
     try {
-      const like = `%${query}%`
-      const [rows] = await pool.query(
-        `SELECT id, title, authors, year, doi, status FROM paper
-         WHERE title LIKE ? OR authors LIKE ? OR doi LIKE ?
-         ORDER BY created_time DESC LIMIT ?`,
-        [like, like, like, n],
-      )
+      const lower = String(query).toLowerCase()
+      const rows = (await listPapers())
+        .filter((p) => [p.title, p.authors, p.doi].some((v) => String(v || '').toLowerCase().includes(lower)))
+        .sort((a, b) => String(b.createdTime || '').localeCompare(String(a.createdTime || '')))
+        .slice(0, n)
+        .map((p) => ({ id: p.id, title: p.title, authors: p.authors, year: p.year, doi: p.doi, status: p.status }))
       return {
         content: [{ type: 'text', text: JSON.stringify({ query, count: rows.length, results: rows }, null, 2) }],
       }
@@ -71,15 +71,12 @@ server.registerTool(
     title: 'Literature Get',
     description:
       'Get one ResearchOS paper by id (metadata + summary JSON). Returns paper id, title, authors, year, doi, status, summary.',
-    inputSchema: { paperId: z.number().int().describe('Paper id') },
+    inputSchema: { paperId: z.string().describe('Paper id') },
   },
   async ({ paperId }) => {
     try {
-      const [rows] = await pool.query(
-        'SELECT id, title, authors, year, doi, status, summary FROM paper WHERE id = ? LIMIT 1',
-        [paperId],
-      )
-      const paper = rows[0] ?? null
+      const p = await getPaper(String(paperId))
+      const paper = p ? { id: p.id, title: p.title, authors: p.authors, year: p.year, doi: p.doi, status: p.status, summary: p.paperCard || null } : null
       return {
         content: [{ type: 'text', text: JSON.stringify(paper ?? { error: 'paper not found' }, null, 2) }],
       }
@@ -96,19 +93,16 @@ server.registerTool(
     description:
       'Generate citations for ResearchOS papers by id (format: bibtex | ris). Fetches real metadata from the SQLite library.',
     inputSchema: {
-      paperIds: z.array(z.number().int()).describe('Paper ids to cite'),
+      paperIds: z.array(z.string()).describe('Paper ids to cite'),
       format: z.enum(['bibtex', 'ris']).optional().describe('Citation format (default bibtex)'),
     },
   },
   async ({ paperIds, format }) => {
     const fmt = format ?? 'bibtex'
     try {
-      const ids = paperIds.filter(Number.isFinite)
+      const ids = paperIds.filter((id) => typeof id === 'string' && id.length > 0)
       if (ids.length === 0) return { content: [{ type: 'text', text: 'no paperIds given' }] }
-      const [rows] = await pool.query(
-        `SELECT id, title, authors, year, doi FROM paper WHERE id IN (${ids.map(() => '?').join(',')})`,
-        ids,
-      )
+      const rows = (await Promise.all(ids.map((id) => getPaper(id)))).filter(Boolean)
       let out
       if (fmt === 'ris') {
         out = rows
@@ -146,7 +140,7 @@ server.registerTool(
     inputSchema: {
       query: z.string().describe('Natural-language query'),
       limit: z.number().int().min(1).max(20).optional().describe('Max chunks (default 5)'),
-      paperId: z.number().int().optional().describe('Restrict to one paper'),
+      paperId: z.string().optional().describe('Restrict to one paper'),
     },
   },
   async ({ query, limit, paperId }) => {

@@ -547,8 +547,10 @@ window.__ModuleLoader__.load({
 		function PaperDetail(props) {
 			var detail = props.detail, card = props.card;
 			var cardData = card || detail.summary;
-			// 2026-08-19 myf: 加上 keywords（论文原始关键词，弱化样式与 AI tags
-			// 区分）和 workflow（4-8 句完整实验流程）。原 5 字段保留。
+			// 2026-08-21 myf: 解析改为手动 —— Paper Card 头部加「▶ 解析」按钮，
+			// 状态机 UPLOADED/PROCESSING → READY/FAILED 在前端可见。
+			var status = props.status;
+			var onAnalyze = props.onAnalyze;
 			var fields = [
 				["Abstract", cardData ? cardData.abstract : ""],
 				["Method", cardData ? cardData.method : ""],
@@ -557,14 +559,27 @@ window.__ModuleLoader__.load({
 				["Future work", cardData ? cardData.future_work : ""],
 				["Workflow", cardData ? cardData.workflow : ""],
 			];
-			// keywords: 兼容 array（新版）或 comma-separated string（旧版）
 			var kws = cardData && cardData.keywords;
 			var kwList = Array.isArray(kws) ? kws : (typeof kws === "string" && kws.trim() ? kws.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : []);
 			return React.createElement("div", { style: S.detail },
+				// 2026-08-21 myf: 手动解析按钮条 ——
+				// UPLOADED: 灰色「▶ 解析」+ 说明
+				// PROCESSING: 旋转 + "正在解析"
+				// READY: 绿色 "✓ 已解析" + 重新解析链接
+				// FAILED: 红色 "解析失败" + 重试链接
+				React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "8px 10px", border: "1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.08))", borderRadius: 8, background: "var(--dsw-alias-bg-layer-1, #fafafa)" } },
+					React.createElement("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary, #666)" } },
+						status === "READY" ? "已解析 · 论文已切分、嵌入向量、生成 Paper Card"
+							: status === "PROCESSING" ? "正在解析 · 下载 → 解析 → 嵌入 → 生成卡片"
+							: status === "FAILED" ? "上次解析失败 · 可重试"
+							: "未解析 · 仅本地副本，元数据与 PDF 可访问"),
+					React.createElement("div", { style: { flex: 1 } }),
+					status === "PROCESSING"
+						? React.createElement("span", { style: { fontSize: 12, color: "var(--dsw-alias-state-warning-primary, #d97706)" } }, "处理中…")
+						: React.createElement("button", { type: "button", style: Object.assign({}, S.btn, { minWidth: 100 }), disabled: !onAnalyze, onClick: onAnalyze }, status === "READY" ? "重新解析" : status === "FAILED" ? "重试解析" : "▶ 解析"),
+				),
 				React.createElement("p", { style: S.detailTitle }, detail.title || "(untitled)"),
 				React.createElement("p", { style: S.detailMeta }, (detail.authors || "—") + (detail.year ? " · " + detail.year : "") + (detail.doi ? " · DOI: " + detail.doi : "")),
-				// 2026-08-19 myf: 不再渲染 cardData.tags（AI 推理标签），只保留论文
-				// 原始 keywords。AI tags 在 knowledge graph 那边单独呈现。
 				kwList.length ? React.createElement("div", { style: { marginBottom: 6 } },
 					React.createElement("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-secondary, #666)", marginRight: 4 } }, "Keywords:"),
 					kwList.map(function (k, i) { return React.createElement("span", { key: "kw-" + i, style: S.kw }, k); }),
@@ -576,8 +591,39 @@ window.__ModuleLoader__.load({
 						React.createElement("p", { style: S.text }, String(f[1])),
 					);
 				}),
-				cardData ? null : React.createElement("p", { style: S.empty }, "（暂无 Paper Intelligence Card，可重新分析生成）"),
+				cardData ? null : React.createElement("p", { style: S.empty }, "（暂无 Paper Intelligence Card，可点上方「▶ 解析」生成）"),
 			);
+		}
+
+		// 2026-08-21 myf: 手动触发论文解析。POST /research-paper/papers/:id/analyze，
+		// 收到 PROCESSING 后启动轮询 (status 每 3s 一次)，状态切换时同步 detail / card。
+		function triggerManualAnalyze(paperId, setDetail, setCard, setInnerTab) {
+			if (!paperId) return;
+			api("/research-paper/papers/" + encodeURIComponent(paperId) + "/analyze", { method: "POST", body: {} }).then(function (j) {
+				if (!ok(j)) {
+					if (typeof alert !== "undefined") alert("触发解析失败：" + (j && j.message || "unknown"));
+					return;
+				}
+				setDetail(function (d) { return d ? Object.assign({}, d, { status: j.data.status || "PROCESSING", error: null }) : d; });
+				setInnerTab && setInnerTab("card");
+				// 轮询 status
+				var tick = 0;
+				var timer = setInterval(function () {
+					tick += 1;
+					api("/research-paper/papers/" + encodeURIComponent(paperId)).then(function (j2) {
+						if (!ok(j2) || !j2.data) return;
+						var st = j2.data.status;
+						setDetail(function (d) { return d ? Object.assign({}, d, { status: st, error: st === "FAILED" ? j2.data.error : null }) : d; });
+						if (st === "READY") {
+							setCard(j2.data.summary || null);
+							clearInterval(timer);
+						} else if (st === "FAILED") {
+							clearInterval(timer);
+						}
+					});
+					if (tick > 120) clearInterval(timer); // 6min cap
+				}, 3000);
+			});
 		}
 
 		// Source id -> display label (research-external-search provider names).
@@ -594,21 +640,26 @@ window.__ModuleLoader__.load({
 		function proxyPdfUrl(p) { return "/research-external-search/pdf?url=" + encodeURIComponent(p.pdf_url); }
 		function pdfDownloadLabel(p) { return ((p.title || "paper").slice(0, 60)) + ".pdf"; }
 
-		// dsh-native PDF preview. Local storage keys (papers/... ) are served
-		// through /research-file/files/{key}; external URLs go through the
-		// same-origin proxy /research-external-search/pdf?url= (upstream hosts
-		// like Wiley/EuropePMC refuse direct iframe embedding via
-		// X-Frame-Options, so the server fetches and re-serves the PDF as
-		// application/pdf bytes — we then render in the browser's native
-		// PDF viewer via iframe).
+		// 2026-08-21 myf: 重构——论文元数据迁出 SQLite 后，PDF 始终本地化
+		// （import 时下载到 ~/.researchos/papers/<projectId>/<paperId>.pdf）。
+		// 论文预览统一走 /research-paper/papers/:id/pdf（同源 bytes，浏览器原生
+		// viewer 渲染）。外部检索结果的 preview 仍走代理（仅在 import 前的搜索
+		// drawer 用），import 后立即走本地。
 		function PdfPreview(props) {
 			var src = props.src || "";
 			var title = props.title || "(PDF)";
+			var paperId = props.paperId;
 			var isExternal = /^https?:\/\//i.test(src);
-			var pdfUrl = isExternal
-				? ("/research-external-search/pdf?url=" + encodeURIComponent(src))
-				: ("/research-file/files/" + encodeURIComponent(src).replace(/%2F/g, "/"));
-			return React.createElement(PdfViewer, { url: pdfUrl, title: title });
+			var pdfUrl;
+			if (paperId) {
+				pdfUrl = "/research-paper/papers/" + encodeURIComponent(paperId) + "/pdf";
+			} else if (isExternal) {
+				pdfUrl = "/research-external-search/pdf?url=" + encodeURIComponent(src);
+			} else {
+				// 兜底（本地相对路径）
+				pdfUrl = "/research-file/files/" + encodeURIComponent(src).replace(/%2F/g, "/");
+			}
+			return React.createElement(PdfViewer, { url: pdfUrl, title: title, paperId: paperId });
 		}
 
 		// PDF viewer — 浏览器原生 viewer（iframe 内嵌）。
@@ -631,18 +682,22 @@ window.__ModuleLoader__.load({
 			var strongColor = isDark ? "rgba(255,255,255,.92)" : "rgba(0,0,0,.85)";
 			// 下载文件名：优先标题，兜底取 URL 最后一段。
 			var downloadName = (props.title || "").trim() || (props.url.split("/").pop() || "paper.pdf");
+			var viewerUrl = "/pdfjs/viewer.html?file=" + encodeURIComponent(props.url);
 			return React.createElement("div", { style: { width: "100%", border: "1px solid " + wrapBorder, borderRadius: 12, background: wrapBg, boxSizing: "border-box", overflow: "hidden" } },
 				React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderBottom: "1px solid " + wrapBorder, color: strongColor, fontSize: 12, userSelect: "none" } },
 					React.createElement("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: labelColor, marginRight: 4 } }, props.title || "(PDF)"),
 					React.createElement("a", { href: props.url, download: downloadName, title: "下载 PDF", style: { flex: "none", color: labelColor, fontSize: 11, textDecoration: "none", padding: "2px 6px", border: "1px solid " + wrapBorder, borderRadius: 6 } }, "下载"),
-					React.createElement("a", { href: props.url, target: "_blank", rel: "noreferrer", title: "在新窗口打开", style: { flex: "none", color: labelColor, fontSize: 11, textDecoration: "none", padding: "2px 6px", border: "1px solid " + wrapBorder, borderRadius: 6 } }, "新窗口打开"),
+					React.createElement("a", { href: viewerUrl, target: "_blank", rel: "noreferrer", title: "在新窗口打开", style: { flex: "none", color: labelColor, fontSize: 11, textDecoration: "none", padding: "2px 6px", border: "1px solid " + wrapBorder, borderRadius: 6 } }, "新窗口打开"),
 				),
 				// #toolbar=0 隐藏浏览器原生工具栏（Chrome/Edge/pdf.js 均遵循；
 				// Safari 原生 PDF 显示本无工具栏），避免窄栏时按钮被响应式折叠，
 				// 功能按钮由上方自绘标题条承载。PDF 内容仍由浏览器原生渲染，
 				// 支持文字选中复制 / 滚轮翻页 / Ctrl+滚轮缩放。
 				React.createElement("iframe", {
-					src: props.url + "#toolbar=0&navpanes=0&view=FitH",
+					// 2026-08-21 myf: 使用本地 Mozilla PDF.js viewer，避免浏览器原生
+					// PDF 插件在窄 details 列中出现黑屏/空白；viewer 负责多页 canvas
+					// 渲染、缩放、翻页和错误提示，file 参数仍是同源本地 PDF 接口。
+					src: viewerUrl,
 					title: props.title || "(PDF)",
 					style: { display: "block", width: "100%", height: "min(calc(100vh - 220px), 860px)", minHeight: 420, border: "none", background: "#fff" },
 				}),
@@ -916,8 +971,8 @@ window.__ModuleLoader__.load({
 					return React.createElement("div", { style: S.rsRoot },
 						topTabs(),
 						React.createElement(TabBar, { tabs: [{ key: "pdf", label: "PDF 预览" }, { key: "card", label: "Paper Card" }], active: innerTab, onSelect: setInnerTab }),
-						innerTab === "card" ? React.createElement(PaperDetail, { detail: detail, card: card })
-							: pdfSrc ? React.createElement(PdfPreview, { src: pdfSrc, title: detail.title || "(PDF)" })
+						innerTab === "card" ? React.createElement(PaperDetail, { detail: detail, card: card, status: detail.status, onAnalyze: function () { triggerManualAnalyze(detail.id, setDetail, setCard, setInnerTab); } })
+							: pdfSrc ? React.createElement(PdfPreview, { src: pdfSrc, title: detail.title || "(PDF)", paperId: detail.id })
 							: React.createElement("p", { style: S.empty }, "该论文没有可预览的 PDF 文件"),
 					);
 				}
@@ -1861,10 +1916,11 @@ var rwsDiffApi = {};
 				err ? React.createElement("p", { style: S.err }, err) : null,
 				diff ? renderDiff()
 					: React.createElement("div", { style: { minHeight: 0, overflowY: "auto" } },
-						!data && !err ? React.createElement("div", { style: { padding: "30px 0", textAlign: "center" } },
-							React.createElement("div", { className: "dsh-ws-spin", style: { display: "inline-flex", color: "var(--dsw-alias-label-tertiary, #999)" } }, React.createElement(WSIconRefresh, { size: 18 })),
-							React.createElement("p", { style: Object.assign({}, S.empty, { padding: 0, marginTop: 8 }) }, "加载工作区…"),
-						)
+						effRoot == null ? React.createElement("p", { style: Object.assign({}, S.empty, { padding: "30px 0" }) }, "请先在左侧选择一个工作区")
+							: !data && !err ? React.createElement("div", { style: { padding: "30px 0", textAlign: "center" } },
+								React.createElement("div", { className: "dsh-ws-spin", style: { display: "inline-flex", color: "var(--dsw-alias-label-tertiary, #999)" } }, React.createElement(WSIconRefresh, { size: 18 })),
+								React.createElement("p", { style: Object.assign({}, S.empty, { padding: 0, marginTop: 8 }) }, "加载工作区…"),
+							)
 							: renderChanges(),
 					),
 			);
@@ -2321,9 +2377,14 @@ var rwsDiffApi = {};
 				if (req.body) { opts.headers = { "content-type": "application/json" }; opts.body = JSON.stringify(req.body); }
 				api(req.url, opts).then(function (j) {
 					if (!ok(j)) { setMsg(j.message || "操作失败"); setBusy(false); return; }
-					// 2026-08-20 myf: 外部导入成功后进入解析进度：轮询论文状态
-					// 直到 READY（自动关窗+刷新）或 FAILED（展示失败原因，可手动关闭）。
-					// 无 pdfUrl 的纯元数据导入（UPLOADED）无需等待，直接完成。
+					// 2026-08-21 myf: 外部导入只下载并保存 PDF，状态为 UPLOADED；
+					// 解析由右侧 Paper Card 的「▶ 解析」按钮手动触发。
+					if (kind === "importExternal" && j.data && j.data.id && j.data.status === "UPLOADED") {
+						setImp({ paperId: j.data.id, status: "UPLOADED", error: null });
+						setBusy(false);
+						setTimeout(function () { props.onDone && props.onDone(kind, dialog); }, 1200);
+						return;
+					}
 					if (kind === "importExternal" && j.data && j.data.id && j.data.status === "PROCESSING") {
 						var paperId = j.data.id;
 						setImp({ paperId: paperId, status: "PROCESSING", error: null });
@@ -2495,14 +2556,16 @@ var rwsDiffApi = {};
 			var [err, setErr] = useState(null);
 			var [menu, setMenu] = useState(null);
 			var [dialog, setDialog] = useState(null);
-			// 2026-08-19 myf: 本地 PDF 上传（项目行加号 -> 文件选择器 ->
-			// research-file 预签名上传 -> research-paper 创建并触发 AI 分析）
+			// 2026-08-21 myf: 本地 PDF 上传（项目行加号 -> 文件选择器 ->
+			// research-paper multipart 上传 -> papers/<projectId>/<paperId>.pdf）。
+			// 上传只保存本地副本和元数据，不自动解析；解析由 Paper Card 里的
+			// 「▶ 解析」按钮触发。
 			// 支持多文件；底部进度条弹窗显示队列与每个文件进度。
 			var fileRef = useRef(null);
+					var folderRef = useRef(null);
 			var uploadTargetRef = useRef(null);
-			// 上传队列 UI：null 或 { total, done, failed, analyzed, current, list, finished }
-			// done=上传完成进入解析数；analyzed=解析已结束（READY/FAILED）数
-			// list[i] = { name, state: pending|uploading|analyzing|done|error, progress }
+			// 上传队列 UI：null 或 { total, done, failed, current, list, finished }
+			// list[i] = { name, state: pending|uploading|done|error, progress }
 			var [upload, setUpload] = useState(null);
 			// 底部进度条弹窗样式（研究区根容器 relative，absolute 定位到底部）
 			// 2026-08-19 myf: 颜色全部走 dsh 主题变量（bg-layer-2/border-l2/skeleton），
@@ -2524,82 +2587,39 @@ var rwsDiffApi = {};
 				uploadTargetRef.current = { projectId: projectId, folderId: folderId == null ? null : folderId };
 				fileRef.current && fileRef.current.click();
 			}
-			// 串行上传多个 PDF：upload-url -> XHR multipart（带进度）-> 创建论文 ->
-			// 轮询解析状态。底部进度条覆盖「上传 + 解析」两个阶段：上传完只是进入
-			// 解析阶段，全部论文 READY/FAILED 才显示完成并自动关闭。
+					// 顶部文件夹按钮：选择本地目录，以目录名创建研究项目，
+					// 再把目录内的 PDF 批量保存为该项目的本地论文副本。
+					function startLocalFolderPick() {
+						folderRef.current && folderRef.current.click();
+					}
+			// 串行上传多个 PDF：XHR multipart（带进度）-> 文件索引记录。
 			function uploadFiles(target, files) {
 				var total = files.length;
 				var list = files.map(function (f) { return { name: f.name, state: "pending", progress: 0 }; });
-				var successIds = [];
-				var analyzed = 0;     // 解析已结束（READY/FAILED）的论文数
 				var uploadFail = 0;   // 上传失败数
 				var idx = 0;
-				setUpload({ total: total, done: 0, failed: 0, analyzed: 0, current: null, list: list, finished: false });
-				// 全部文件上传完 + 全部论文解析结束 -> 完成态：刷新树 + 右窗打开最新论文
+				setUpload({ total: total, done: 0, failed: 0, current: null, list: list, finished: false });
+				// 全部文件保存完成后刷新树；解析由用户在 Paper Card 中手动触发。
 				function checkAll() {
-					var uploaded = successIds.length + uploadFail;
-					if (uploaded >= total && analyzed >= successIds.length) {
+					var uploaded = (total - uploadFail);
+					if (idx >= total && uploaded + uploadFail >= total) {
 						setUpload(function (u) { return u ? Object.assign({}, u, { finished: true, current: null }) : u; });
 						loadTree();
-						if (successIds.length) {
-							var latest = successIds[successIds.length - 1];
-							setResearchDetail(latest);
-							if (props.openDetails) props.openDetails();
-							refreshResearchDetail();
-						}
 						setTimeout(function () { setUpload(null); }, 3000); // 完成态停留后自动关闭
 					}
 				}
-				// 轮询一篇论文的解析状态：PROCESSING/UPLOADED/PENDING 继续等待，
-				// READY 成功、FAILED 失败；未知状态/网络错误按重试次数兜底结束。
-				function pollPaper(paperId, i, retries) {
-					api("/research-paper/papers/" + paperId).then(function (j) {
-						var st = ok(j) && j.data ? j.data.status : null;
-						if (st === "READY" || st === "SUCCESS") {
-							analyzed++;
-							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "done", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, list: l }); });
-							checkAll();
-						} else if (st === "FAILED" || st === "ERROR") {
-							analyzed++;
-							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, failed: u.failed + 1, list: l }); });
-							checkAll();
-						} else if ((st === "PROCESSING" || st === "UPLOADED" || st === "PENDING" || st == null) && retries < 60) {
-							setTimeout(function () { pollPaper(paperId, i, retries + 1); }, 2500);
-						} else {
-							analyzed++;
-							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, failed: u.failed + 1, list: l }); });
-							checkAll();
-						}
-					}).catch(function () {
-						if (retries < 60) setTimeout(function () { pollPaper(paperId, i, retries + 1); }, 2500);
-						else {
-							analyzed++;
-							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { analyzed: analyzed, failed: u.failed + 1, list: l }); });
-							checkAll();
-						}
-					});
-				}
 				function next() {
-					if (idx >= total) return; // 上传全部启动；完成判定由 checkAll 轮询驱动
+					if (idx >= total) { checkAll(); return; }
 					var i = idx++;
 					var file = files[i];
-					var key = null;
 					setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "uploading", progress: 0 }); return Object.assign({}, u, { current: i, list: l }); });
-					api("/research-file/upload-url", {
-						method: "POST",
-						headers: { "content-type": "application/json" },
-						body: JSON.stringify({ fileName: file.name }),
-					}).then(function (j) {
-						if (!ok(j)) throw new Error(j.message || "获取上传地址失败");
-						var up = j.data.url;
-						key = j.data.fields.key;
-						return new Promise(function (resolve, reject) {
-							var fd = new FormData();
-							fd.append("file", file);
-							fd.append("key", key);
-							var xhr = new XMLHttpRequest();
-							xhr.open("POST", up);
-							xhr.withCredentials = true;
+					var fd = new FormData();
+					fd.append("file", file);
+					fd.append("title", file.name.replace(/\.pdf$/i, ""));
+					if (target.folderId != null) fd.append("folderId", String(target.folderId));
+					var xhr = new XMLHttpRequest();
+					xhr.open("POST", "/research-paper/projects/" + target.projectId + "/papers/upload");
+					xhr.withCredentials = true;
 							xhr.upload.onprogress = function (ev) {
 								if (!ev.lengthComputable) return;
 								var p = Math.round(ev.loaded / ev.total * 100);
@@ -2613,32 +2633,23 @@ var rwsDiffApi = {};
 							};
 							xhr.onerror = function () { reject(new Error("网络错误")); };
 							xhr.send(fd);
-						});
-					}).then(function (j2) {
-						if (!ok(j2)) throw new Error(j2.message || "上传失败");
-						return api("/research-paper/projects/" + target.projectId + "/papers", {
-							method: "POST",
-							headers: { "content-type": "application/json" },
-							body: JSON.stringify({ fileName: file.name, s3Key: key, folderId: target.folderId }),
-						});
-					}).then(function (j3) {
-						if (!ok(j3)) throw new Error(j3.message || "创建论文失败");
-						if (j3.data && j3.data.id) {
-							successIds.push(j3.data.id);
-							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "analyzing", progress: 100 }); return Object.assign({}, u, { done: u.done + 1, list: l }); });
-							pollPaper(j3.data.id, i, 0);
+					xhr.onloadend = function () {
+						var j = null;
+						try { j = JSON.parse(xhr.responseText || "{}"); } catch (e) { j = null; }
+						if (xhr.status >= 200 && xhr.status < 300 && j && ok(j)) {
+							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "done", progress: 100 }); return Object.assign({}, u, { done: u.done + 1, list: l }); });
 						} else {
 							uploadFail++;
 							setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { failed: u.failed + 1, list: l }); });
-							checkAll();
 						}
 						next();
-					}).catch(function (err) {
+					};
+					xhr.onerror = function () {
 						uploadFail++;
 						setUpload(function (u) { if (!u) return u; var l = u.list.slice(); l[i] = Object.assign({}, l[i], { state: "error", progress: 100 }); return Object.assign({}, u, { failed: u.failed + 1, list: l }); });
 						next();
 						checkAll();
-					});
+					};
 				}
 				next();
 			}
@@ -2655,6 +2666,31 @@ var rwsDiffApi = {};
 				}
 				uploadFiles(target, pdfs);
 			}
+					function onFolderPicked(e) {
+						var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
+						e.target.value = "";
+						if (!files.length) return;
+						var pdfs = files.filter(function (f) { return /\.pdf$/i.test(f.name); });
+						if (!pdfs.length) {
+							setUpload({ total: 0, done: 0, failed: 0, current: null, finished: true, list: [{ name: "所选文件夹内没有 PDF", state: "error", progress: 100 }] });
+							setTimeout(function () { setUpload(null); }, 2500);
+							return;
+						}
+						var firstPath = pdfs[0].webkitRelativePath || pdfs[0].name;
+						var folderName = firstPath.split("/")[0] || "本地论文集";
+						api("/research-project", {
+							method: "POST",
+							headers: { "content-type": "application/json" },
+							body: JSON.stringify({ name: folderName }),
+						}).then(function (j) {
+							if (!ok(j) || !j.data || !j.data.id) throw new Error(j && j.message || "创建研究项目失败");
+							setProjects(function (old) { return old ? old.concat([j.data]) : old; });
+							uploadFiles({ projectId: j.data.id, folderId: null }, pdfs);
+						}).catch(function (err) {
+							setUpload({ total: 1, done: 0, failed: 1, current: null, finished: true, list: [{ name: err.message || "选择文件夹失败", state: "error", progress: 100 }] });
+							setTimeout(function () { setUpload(null); }, 3000);
+						});
+					}
 
 			// Load the tree: projects -> folders (nested) -> papers (all, tagged projectId).
 			var loadTree = useCallback(function () {
@@ -2866,7 +2902,7 @@ var rwsDiffApi = {};
 						// 2026-08-19 myf: 移除「检索在线文献库」入口——在线检索已完全
 						// 在右窗栏「在线文献检索」tab 内完成（自带检索表单），左侧不再需要
 						React.createElement("button", { type: "button", style: S.iconBtn, title: "视图设置", onClick: function (e) { openViewMenu(e); } }, React.createElement(IconViewOptions, { size: 16 })),
-						React.createElement("button", { type: "button", style: S.iconBtn, title: "新建项目", onClick: function () { setDialog({ kind: "newProject" }); } }, React.createElement(IconFolderAdd, { size: 16 })),
+						React.createElement("button", { type: "button", style: S.iconBtn, title: "选择本地文件夹", onClick: startLocalFolderPick }, React.createElement(IconFolderAdd, { size: 16 })),
 					),
 				),
 				React.createElement("div", { style: S.listArea },
@@ -2902,6 +2938,7 @@ var rwsDiffApi = {};
 					}),
 				) : null,
 				React.createElement("input", { ref: fileRef, type: "file", accept: "application/pdf,.pdf", multiple: true, style: { display: "none" }, onChange: onFilePicked }),
+				React.createElement("input", { ref: folderRef, type: "file", webkitdirectory: "", directory: "", multiple: true, style: { display: "none" }, onChange: onFolderPicked }),
 				menu ? React.createElement(Dropdown, { x: menu.x, y: menu.y, items: menu.items, onSelect: function (id) { handleMenuSelect(menu.target, id); setMenu(null); }, onClose: function () { setMenu(null); } }) : null,
 				dialog ? React.createElement(DialogForm, { dialog: dialog, projects: projects || [], onClose: function () { setDialog(null); }, onDone: function (kind, d) { setDialog(null); if (kind === "deletePaper" && removeSel) removeSel(d.paper.id); loadTree(); } }) : null,
 			);
@@ -3554,14 +3591,14 @@ var rwsDiffApi = {};
                                            React.createElement(ResearchRegion, { wide: true }));
                            });
                    });
-                   // 右侧详情列：研究区工作台（替代 DSH 自带会话工具详情列）。
-                   // single slot 已被 ui-conversation 的 DetailsPanel 以 priority 0
-                   // 占用；按 DSH 规则 lowest renders，用更低的 priority shadow 它。
-                   ctx.slots.inject("details", function () {
+                   // 右侧详情列：研究区工作台。注册到 root-scope `details.research`
+                   // 槽位（ui-layout 声明）—— 无需活跃会话即可渲染（论文详细 / 检索 /
+                   // 综述 / 写作）。session-scope `details` 槽仍归 ui-conversation 的
+                   // DetailsPanel（工具调用详情），两者在 details 列内共存。
+                   ctx.slots.inject("details.research", function () {
                            return ctx.slots.register({
-                                   name: "details",
+                                   name: "details.research",
                                    id: "research-details",
-                                   priority: -100,
                                    label: "研究区",
                            }, ResearchDetailsColumn);
                    });

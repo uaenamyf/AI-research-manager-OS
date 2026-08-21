@@ -1,28 +1,44 @@
-// SQLite helpers (via researchos lib/db.js): paper row load / status update,
-// ai_task update, pool factory. The worker writes business tables directly
-// (it replaces the backend's role in the AI pipeline; per plan.md Phase 5 the
-// DSH bundle owns the embedded SQLite db).
+// AI-worker helpers: filesystem paper index reads, status updates via the
+// papers-store, and direct SQLite operations on paper_chunk (vectors) / ai_task.
+// paper 元数据已迁出 SQLite 到 ~/.researchos/papers/index.json ——
+// worker 通过 papers-store 读取 / 更新元数据，向量块仍存 SQLite。
 // @module @researchos/dsh-research-ai-worker/lib/mysql
 
 import { createPool } from '../../lib/db.js'
+import {
+  getPaper as storeGetPaper,
+  patchPaper as storePatchPaper,
+} from '../../lib/papers-store.js'
+import { readResearchFromDsh } from './settings.js'
 
 export function createMysqlPool() {
   return createPool()
 }
 
+/** Read paper record from filesystem index; null when missing. */
 export async function getPaperRow(pool, paperId) {
-  const [rows] = await pool.query('SELECT id, project_id, user_id, pdf_url, status, summary FROM paper WHERE id = ?', [paperId])
-  return rows[0] || null
+  const p = await storeGetPaper(String(paperId))
+  if (!p) return null
+  return {
+    id: p.id,
+    project_id: Number(p.projectId),
+    user_id: Number(p.userId),
+    pdf_url: p.localPdf || p.sourceUrl || null,
+    status: p.status,
+    summary: p.paperCard || null,
+    error: p.error || null,
+    localPdf: p.localPdf || null,
+    sourceUrl: p.sourceUrl || null,
+    title: p.title,
+  }
 }
 
+/** Update paper status (and optionally paperCard / error) via filesystem store. */
 export async function setPaperStatus(pool, paperId, status, { summary, error } = {}) {
-  if (summary !== undefined) {
-    await pool.query("UPDATE paper SET status = ?, summary = ? WHERE id = ?", [status, JSON.stringify(summary), paperId])
-  } else if (error !== undefined) {
-    await pool.query("UPDATE paper SET status = ?, summary = ? WHERE id = ?", [status, JSON.stringify({ error }) , paperId])
-  } else {
-    await pool.query('UPDATE paper SET status = ? WHERE id = ?', [status, paperId])
-  }
+  const patch = { status }
+  if (summary !== undefined) patch.paperCard = summary
+  if (error !== undefined) patch.error = error
+  await storePatchPaper(String(paperId), patch)
 }
 
 export async function getTaskRow(pool, taskId) {
@@ -40,49 +56,35 @@ export async function setTaskResult(pool, taskId, status, { result, error } = {}
 
 export async function fetchPaperMetadata(pool, paperIds) {
   if (!paperIds.length) return []
-  const placeholders = paperIds.map(() => '?').join(',')
-  const [rows] = await pool.query(
-    `SELECT id, title, authors, year, summary FROM paper WHERE id IN (${placeholders})`,
-    paperIds,
-  )
-  const byId = new Map(rows.map((r) => [Number(r.id), r]))
-  const ordered = []
-  for (const pid of paperIds) {
-    const row = byId.get(Number(pid))
-    if (!row) continue
-    ordered.push({
-      id: Number(row.id),
-      title: row.title || '(untitled)',
-      authors: row.authors || '',
-      year: row.year,
-      summary: row.summary,
-    })
+  const out = []
+  for (const id of paperIds) {
+    const p = await storeGetPaper(String(id))
+    if (p) out.push({ id: p.id, title: p.title, authors: p.authors, year: p.year, summary: p.paperCard || null })
   }
-  return ordered
+  return out
 }
 
 /**
- * Read a user's research-LLM settings (app_user.settings JSON) — the
- * "研究区大模型" block written by the UI (research.llm / research.embedding).
- * Returns {} when unset / malformed so callers fall back to system defaults.
+ * Read user research settings (LLM/Embedding baseUrl/apiKey/model) for ai-worker
+ * override logic. Order: DSH settings/credentials (primary) → legacy SQLite
+ * app_user.settings (compat). Returns { llm?: {...}, embedding?: {...} }.
  */
 export async function getUserResearchSettings(pool, userId) {
-  const [rows] = await pool.query('SELECT settings FROM app_user WHERE id = ?', [userId])
-  const raw = rows[0]?.settings
-  if (raw == null) return {}
-  let parsed = {}
-  if (typeof raw === 'string') {
-    try {
-      parsed = JSON.parse(raw) || {}
-    } catch {
-      return {}
+  // DSH settings/credentials (same path as server bundle uses)
+  let fromDsh = null
+  try {
+    fromDsh = readResearchFromDsh()
+  } catch {
+    fromDsh = null
+  }
+  if (fromDsh && (fromDsh.llm || fromDsh.embedding)) return fromDsh
+  // Legacy SQLite fallback
+  try {
+    const [rows] = await pool.query('SELECT settings FROM app_user WHERE id = ?', [userId])
+    if (rows.length) {
+      const s = JSON.parse(rows[0].settings || '{}')
+      if (s.research && (s.research.llm || s.research.embedding)) return s.research
     }
-  } else if (raw && typeof raw === 'object') {
-    parsed = raw
-  }
-  const research = parsed.research && typeof parsed.research === 'object' ? parsed.research : {}
-  return {
-    llm: research.llm && typeof research.llm === 'object' ? research.llm : {},
-    embedding: research.embedding && typeof research.embedding === 'object' ? research.embedding : {},
-  }
+  } catch { /* no legacy settings */ }
+  return {}
 }

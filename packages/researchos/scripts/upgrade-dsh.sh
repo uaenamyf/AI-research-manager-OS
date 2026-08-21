@@ -21,7 +21,7 @@
 #   6. 跑 ui-layout 测试
 #   7. --push: 合并回 main -> push fork
 #
-# 升级完成后记得重启 gateway: bash packages/researchos/scripts/dsh-gateway.sh restart
+# 升级完成后记得重启: pnpm dsh web
 
 set -euo pipefail
 

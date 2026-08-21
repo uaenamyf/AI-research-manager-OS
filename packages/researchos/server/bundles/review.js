@@ -167,26 +167,26 @@ export function apply(ctx) {
         } catch {
           return fail(res, 400, 'invalid JSON body')
         }
-        const paperIds = Array.isArray(body.paperIds) ? body.paperIds.map(Number) : []
+        // 2026-08-21 myf: paperIds 是字符串（filesystem index）—— 校验
+        // ownership 改为遍历 papers-store 查找匹配当前 userId 的记录。
+        const paperIds = Array.isArray(body.paperIds) ? body.paperIds.map(String).filter(Boolean) : []
         const topic = String(body.topic || '').trim()
-        if (!paperIds.length || paperIds.some((id) => !Number.isInteger(id) || id <= 0)) {
-          return fail(res, 400, 'paperIds must be a non-empty array of ids')
-        }
+        if (!paperIds.length) return fail(res, 400, 'paperIds must be a non-empty array of ids')
         if (!topic) return fail(res, 400, 'topic is required')
         try {
-          // Ownership gate for every paper (mirror requirePaperOwnedBy).
-          const placeholders = paperIds.map(() => '?').join(',')
-          const [rows] = await pool.query(
-            `SELECT DISTINCT id FROM paper WHERE id IN (${placeholders}) AND user_id = ?`,
-            [...paperIds, userId],
-          )
-          if (rows.length !== paperIds.length) return fail(res, 404, 'one or more papers not found')
+          const { getPaper } = await import('../../lib/papers-store.js')
+          const owned = []
+          for (const id of paperIds) {
+            const p = await getPaper(id)
+            if (p && Number(p.userId) === Number(userId)) owned.push(p)
+          }
+          if (owned.length !== paperIds.length) return fail(res, 404, 'one or more papers not found')
 
           const [result] = await pool.query(
             "INSERT INTO ai_task (user_id, type, status, created_time) VALUES (?, 'REVIEW_GENERATION', 'PENDING', NOW(6))",
             [userId],
           )
-          const sent = await triggerReview(result.insertId, paperIds, topic)
+          const sent = await triggerReview(result.insertId, owned.map((p) => p.id), topic)
           if (!sent) {
             await pool.query('DELETE FROM ai_task WHERE task_id = ?', [result.insertId])
             return fail(res, 500, 'failed to enqueue review task')

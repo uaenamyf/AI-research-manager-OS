@@ -92,13 +92,10 @@ pnpm dsh web
 ```
 
 打开 http://localhost:3080 后，在 **设置 → 研究区大模型** 配置你的 LLM 与
-Embedding（Base URL / 模型名 / Key）即可——这是主配置路径，按用户持久化到
-SQLite，论文解析、综述、写作、嵌入任务都会读取。留空则回退内置默认（火山方舟
-端点）。
-
-> 可选：复制 `packages/researchos/.env.example` 为 `packages/researchos/.env`
-> 可提供**系统级默认**（如 `OPENAI_API_KEY` / `RESEARCH_LLM_UPSTREAM_BASE_URL` /
-> `OPENAI_DEFAULT_MODEL` / `EMBEDDING_MODEL`）。不是必需——UI 设置足够。
+Embedding（Base URL / 模型名 / Key）即可——这是主配置路径，按 DSH 官方方式
+持久化（`~/.dsh/settings.yaml` 存 baseUrl/model，`~/.dsh/.credentials.yaml`
+存 API Key，write-only 不回显）。论文解析、综述、写作、嵌入任务都会读取。
+留空则回退内置默认（火山方舟端点）。
 
 SQLite 数据库与上传目录在首次启动自动创建（`~/.researchos/data/researchos.db`、
 `~/.researchos/uploads`），无需任何初始化。
@@ -136,11 +133,11 @@ packages/researchos/
 ├── mcp/               # research-mcp（stdio MCP server）
 ├── ui/                # ui-research-* 客户端包（library/paper/citation/workspace）
 ├── lib/               # SQLite 抽象层（db.js：schema + 向量检索）
-├── scripts/           # dsh-gateway.sh（启停）、upgrade-dsh.sh（上游升级）
-├── Makefile           # 快捷命令（start-dsh / stop-dsh / status / logs / reset）
-└── TESTING.md         # 测试与验证指南
+├── scripts/           # researchos-bootstrap.mjs（引导）、build-vendor.mjs、upgrade-dsh.sh（上游升级）
+└── README.md          # 模块级 README（本文件同级）
 
-> `.env.example` 为环境变量模板（复制为 `.env` 使用）；`.env` 与运行产物不入库。
+> 2026-08-21: 配置不再依赖 `.env` —— 研究区大模型配置经 UI 保存到 DSH
+> settings / credentials 文件；`.env` 与 `.env.example` 已彻底移除。
 ```
 
 ## 🧪 测试与质量

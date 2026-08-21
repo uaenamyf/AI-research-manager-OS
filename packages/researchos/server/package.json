@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "busboy": "^1.6.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@deepseek-ai/dsh-settings": "workspace:^"
   }
 }

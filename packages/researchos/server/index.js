@@ -35,7 +35,10 @@ import { apply as applyWorkspace } from './bundles/workspace.js'
 
 export const name = 'researchos-server'
 
-export const inject = ['webServer']
+// settings / credentials 由顶层 bundle 注入：子 bundle（bundles/*.js）经 apply()
+// 直接函数调用共享同一 ctx，Cordis 只解析顶层插件的 inject —— 顶层不声明，
+// 子 bundle 里访问 ctx.settings / ctx.credentials 会触发 "without inject" 保护。
+export const inject = ['webServer', 'settings', 'credentials']
 
 export function apply(ctx) {
   applyAuth(ctx)

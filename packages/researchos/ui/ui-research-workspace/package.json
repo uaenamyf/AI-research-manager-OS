@@ -6,15 +6,24 @@
   "type": "module",
   "main": "lib/index.js",
   "exports": {
-    ".": { "default": "./lib/index.js" },
+    ".": {
+      "default": "./lib/index.js"
+    },
     "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web" }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.2.108"
   }
 }

@@ -110,8 +110,8 @@ export function apply(ctx) {
         } catch {
           return fail(res, 400, 'invalid JSON body')
         }
-        const paperId = Number(body.paperId)
-        if (!Number.isInteger(paperId) || paperId <= 0) return fail(res, 400, 'paperId required')
+        const paperId = String(body.paperId || '').trim()
+        if (!paperId) return fail(res, 400, 'paperId required')
         // fire and forget — status is observable on paper.status (PROCESSING -> READY/FAILED)
         analyzePaper(paperId).then(
           (r) => ctx.logger.info(`[research-ai-worker] analyze done: ${JSON.stringify(r)}`),
@@ -128,8 +128,8 @@ export function apply(ctx) {
         } catch {
           return fail(res, 400, 'invalid JSON body')
         }
-        const paperId = Number(body.paperId)
-        if (!Number.isInteger(paperId) || paperId <= 0) return fail(res, 400, 'paperId required')
+        const paperId = String(body.paperId || '').trim()
+        if (!paperId) return fail(res, 400, 'paperId required')
         try {
           const r = await cleanupPaper(paperId)
           return ok(res, r)
@@ -147,9 +147,9 @@ export function apply(ctx) {
           return fail(res, 400, 'invalid JSON body')
         }
         const taskId = Number(body.taskId)
-        const paperIds = Array.isArray(body.paperIds) ? body.paperIds.map(Number) : []
+        const paperIds = Array.isArray(body.paperIds) ? body.paperIds.map(String).filter(Boolean) : []
         if (!Number.isInteger(taskId) || taskId <= 0) return fail(res, 400, 'taskId required')
-        if (!paperIds.length || paperIds.some((n) => !Number.isInteger(n) || n <= 0)) {
+        if (!paperIds.length) {
           return fail(res, 400, 'paperIds must be a non-empty array of ids')
         }
         const topic = String(body.topic || '')

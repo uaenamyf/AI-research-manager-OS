@@ -100,18 +100,16 @@ pnpm dsh web          # → http://localhost:3080
 
 打开 <http://localhost:3080> 即可——**不需要注册、登录**，直接进入研究区。SQLite 数据库与上传目录在首次启动时自动创建。
 
-> 研究区 LLM / Embedding 配置在 **设置 → 研究区大模型** —— 这是主路径，按用户持久化（SQLite `app_user.settings.research`），每次解析 / 综述 / 写作 / 嵌入任务都会读取。留空时回退到内置默认值（火山方舟端点）。可选的 `packages/researchos/.env`（复制自 `.env.example`）可提供系统级默认，但**不是必需**——UI 设置即可。
+> 研究区 LLM / Embedding 配置在 **设置 → 研究区大模型** —— 这是主路径，按 DSH 官方方式持久化（`~/.dsh/settings.yaml` 存 baseUrl/model，`~/.dsh/.credentials.yaml` 存 write-only API Key），每次解析 / 综述 / 写作 / 嵌入任务都会读取。留空时回退到内置默认值（火山方舟端点）。**无需 `.env`** —— UI 设置即可。
 
-常用命令（`make -C packages/researchos help` 查看全部）：
+常用命令：
 
 | 命令 | 作用 |
 |------|------|
-| `pnpm dsh web` | 启动研究工作台（默认 `:3080`）—— 推荐方式 |
-| `make -C packages/researchos start-dsh` / `stop-dsh` | 通过旧 shell 包装器以守护进程方式启动/停止（PID 文件） |
-| `make -C packages/researchos status` / `logs` | 进程状态 / 跟踪日志（shell 包装器） |
-| `make -C packages/researchos reset` | 重置本地数据（SQLite + 上传文件） |
+| `pnpm dsh web` | 启动研究工作台（默认 `:3080`）—— 唯一入口 |
+| `rm -rf ~/.researchos/data ~/.researchos/uploads` | 重置本地数据（SQLite + 上传文件） |
 
-> 旧的 `make start-dsh` 路径保留用于守护进程式用法；`pnpm dsh web` 现在是主入口——它会自动完成 researchos env + vendor 引导。
+> `pnpm dsh web` 自动完成 researchos 默认值引导（anon 开启、存储/工作区目录）+ vendor 构建——无需 `.env`、无需 Makefile、无需守护进程脚本。
 
 ## 🔬 ResearchOS 创新点（本项目在 DSH 之上新增的能力）
 
@@ -165,7 +163,7 @@ ResearchOS 是一个 DSH 插件套件，**不是对 DSH 本体的 fork**。下�
 ### 7. 统一 LLM / Embedding 网关
 
 - `research-llm-gateway` 在同一 DSH 端口上提供 `/v1/chat/completions` 和 `/v1/embeddings`（**OpenAI 兼容**）。
-- `pnpm dsh web` 通过 `packages/researchos/scripts/researchos-bootstrap.mjs` 引导 researchos env（来自 `packages/researchos/.env`，缺失时自动从模板创建）；网关在同一端口提供 `/v1/chat/completions` + `/v1/embeddings`。按用户覆写（`user_id`）随请求携带。
+- `pnpm dsh web` 通过 `packages/researchos/scripts/researchos-bootstrap.mjs` 引导 researchos 默认值（anon 开启、存储/工作区目录）；网关在同一端口提供 `/v1/chat/completions` + `/v1/embeddings`。按用户配置走 DSH settings/credentials。
 - 优雅回退：用户覆写失败（key 错、URL 错）时，worker 会记日志并用系统默认值重试。
 
 ### 8. research-mcp（DSH agent 工具）
@@ -198,8 +196,7 @@ packages/researchos/
 ├── external-search/   # 在线文献检索（多源 MCP 包装）
 ├── lib/               # SQLite 抽象层（db.js：schema + 向量检索）
 ├── scripts/           # researchos-bootstrap.mjs（env+vendor 引导）、build-vendor.mjs、
-│                      #   upgrade-dsh.sh（上游升级）、dsh-gateway.sh（守护进程式启停）
-├── Makefile           # start-dsh / stop-dsh / status / logs / reset
+│                      #   upgrade-dsh.sh（上游升级）
 └── README.md          # 模块级 README（本文件同级）
 ```
 
@@ -208,7 +205,7 @@ packages/researchos/
 ## 🧪 测试与质量
 
 - **CI**（`.github/workflows/researchos-ci.yml`）每次 push 触发：`node --check` 跑全部 server bundle / AI worker / 网关 / MCP / external-search 模块 + SQLite schema 健全性检查。
-- 故意未附带 `packages/researchos/TESTING.md`——测试由 CI 与 DSH 的 vitest 体系承担（`scripts/dsh-gateway.sh` 里的本地冒烟脚本覆盖端到端）。
+- 故意未附带 `packages/researchos/TESTING.md`——测试由 CI 与 DSH 的 vitest 体系承担。
 - LLM 相关代码保持可 mock；CI 永远不消耗真实 token。
 
 ## 🤝 贡献

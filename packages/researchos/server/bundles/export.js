@@ -232,21 +232,32 @@ function normalizeFormat(raw) {
 
 export function apply(ctx) {
   const pool = createPool()
-  ctx.logger.info('[research-export] loaded — export/citation over SQLite paper')
+  // 2026-08-21 myf: paper 元数据已迁出 SQLite，改为从 papers-store 索引读取。
+  ctx.logger.info('[research-export] loaded — export/citation over filesystem paper index')
 
-  const findOwned = (userId, id) =>
-    pool.query('SELECT id, title, authors, year, doi FROM paper WHERE id = ? AND user_id = ?', [id, userId]).then((r) => r[0][0] ?? null)
+  // dynamic import: papers-store 不依赖 cordis，可热替换；避免在 bundle 顶层 import
+  // 时机问题（applies 启动时 db.js 已就绪）
+  const getStore = () => import('../../lib/papers-store.js')
+
+  const findOwned = async (userId, id) => {
+    const { getPaper } = await getStore()
+    const p = await getPaper(String(id))
+    if (!p) return null
+    if (Number(p.userId) !== Number(userId)) return null
+    return { id: p.id, title: p.title, authors: p.authors, year: p.year, doi: p.doi }
+  }
 
   const findOwnedBatch = async (userId, ids) => {
     if (!ids.length) return []
-    const placeholders = ids.map(() => '?').join(',')
-    // 2026-08-21 myf: SQLite 无 MySQL FIELD()，改为先按 id 查回再用 JS 保持请求顺序（ids 量小，内存排序即可）
-    const [rows] = await pool.query(
-      `SELECT id, title, authors, year, doi FROM paper WHERE id IN (${placeholders}) AND user_id = ?`,
-      [...ids, userId],
-    )
-    const byId = new Map(rows.map((r) => [Number(r.id), r]))
-    return ids.map((id) => byId.get(Number(id)) ?? null).filter(Boolean)
+    const { getPaper } = await getStore()
+    const out = []
+    for (const id of ids) {
+      const p = await getPaper(String(id))
+      if (p && Number(p.userId) === Number(userId)) {
+        out.push({ id: p.id, title: p.title, authors: p.authors, year: p.year, doi: p.doi })
+      }
+    }
+    return out
   }
 
   ctx.webServer.register({
@@ -267,7 +278,7 @@ export function apply(ctx) {
       try {
         // single-paper export: GET /papers/:id/export/bibtex|ris
         if (method === 'GET' && seg[0] === 'papers' && seg[1] && seg[2] === 'export' && (seg[3] === 'bibtex' || seg[3] === 'ris')) {
-          const paper = await findOwned(userId, Number(seg[1]))
+          const paper = await findOwned(userId, seg[1])
           if (!paper) return fail(res, 404, 'paper not found')
           return seg[3] === 'bibtex'
             ? ok(res, { bibtex: toBibtex(paper), format: 'bibtex' })
@@ -276,7 +287,7 @@ export function apply(ctx) {
 
         // single-paper citation: GET /papers/:id/citation?format=
         if (method === 'GET' && seg[0] === 'papers' && seg[1] && seg[2] === 'citation') {
-          const paper = await findOwned(userId, Number(seg[1]))
+          const paper = await findOwned(userId, seg[1])
           if (!paper) return fail(res, 404, 'paper not found')
           const format = normalizeFormat(url.searchParams.get('format'))
           return ok(res, { citation: FORMATS[format](paper), format })
@@ -285,7 +296,7 @@ export function apply(ctx) {
         // batch export: POST /papers/export/bibtex|ris
         if (method === 'POST' && seg[0] === 'papers' && seg[1] === 'export' && (seg[2] === 'bibtex' || seg[2] === 'ris')) {
           const body = await readJson(req)
-          const ids = Array.isArray(body.paperIds) ? body.paperIds.map(Number).filter((n) => Number.isInteger(n) && n > 0) : []
+          const ids = Array.isArray(body.paperIds) ? body.paperIds.map(String).filter(Boolean) : []
           const papers = await findOwnedBatch(userId, ids)
           if (seg[2] === 'bibtex') {
             return ok(res, { bibtex: papers.map(toBibtex).join('\n'), format: 'bibtex', count: String(papers.length) })
@@ -296,7 +307,7 @@ export function apply(ctx) {
         // bibliography: POST /citation/bibliography?format=
         if (method === 'POST' && seg[0] === 'citation' && seg[1] === 'bibliography') {
           const body = await readJson(req)
-          const ids = Array.isArray(body.paperIds) ? body.paperIds.map(Number).filter((n) => Number.isInteger(n) && n > 0) : []
+          const ids = Array.isArray(body.paperIds) ? body.paperIds.map(String).filter(Boolean) : []
           const papers = await findOwnedBatch(userId, ids)
           const format = normalizeFormat(url.searchParams.get('format'))
           return ok(res, { citations: papers.map((p) => FORMATS[format](p)), format, count: papers.length })

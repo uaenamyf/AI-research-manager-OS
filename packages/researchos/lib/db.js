@@ -65,28 +65,10 @@ CREATE TABLE IF NOT EXISTS folder (
 CREATE INDEX IF NOT EXISTS idx_folder_user ON folder(user_id);
 CREATE INDEX IF NOT EXISTS idx_folder_project ON folder(project_id);
 CREATE INDEX IF NOT EXISTS idx_folder_parent ON folder(parent_id);
-CREATE TABLE IF NOT EXISTS paper (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id     INTEGER NOT NULL,
-  user_id        INTEGER NOT NULL,
-  folder_id      INTEGER,
-  title          TEXT,
-  authors        TEXT,
-  year           INTEGER,
-  doi            TEXT,
-  pdf_url        TEXT NOT NULL,
-  summary        TEXT,
-  status         TEXT DEFAULT 'UPLOADED',
-  created_time   TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now','localtime')),
-  reading_status TEXT DEFAULT 'unread',
-  star_rating    INTEGER,
-  FOREIGN KEY (project_id) REFERENCES research_project(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE,
-  FOREIGN KEY (folder_id) REFERENCES folder(id) ON DELETE SET NULL
-);
-CREATE INDEX IF NOT EXISTS idx_paper_project ON paper(project_id);
-CREATE INDEX IF NOT EXISTS idx_paper_user ON paper(user_id);
-CREATE INDEX IF NOT EXISTS idx_paper_folder ON paper(folder_id);
+-- 2026-08-21 myf: paper 元数据已迁出 SQLite 到 ~/.researchos/papers/index.json
+-- （lib/papers-store.js）。paper_chunk（向量）仍在 SQLite；其余 paper CRUD
+-- 不再读 / 写这张表。新 db 文件不会创建该表；旧 db 文件的残留表可保留（bundle
+-- 不再引用）也可手工 DROP TABLE paper。
 CREATE TABLE IF NOT EXISTS ai_task (
   task_id      INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id      INTEGER NOT NULL,
@@ -101,7 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_task_user ON ai_task(user_id);
 -- legacy tables kept for schema compatibility (no active CRUD in bundles):
 CREATE TABLE IF NOT EXISTS annotation (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  paper_id     INTEGER NOT NULL,
+  paper_id     TEXT NOT NULL,
   user_id      INTEGER NOT NULL,
   page_num     INTEGER NOT NULL,
   x REAL, y REAL, width REAL, height REAL,
@@ -115,11 +97,10 @@ CREATE INDEX IF NOT EXISTS idx_annotation_user ON annotation(user_id);
 CREATE TABLE IF NOT EXISTS conversation (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id      INTEGER NOT NULL,
-  paper_id     INTEGER,
+  paper_id     TEXT,
   question     TEXT,
   answer       TEXT,
   created_time TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now','localtime')),
-  FOREIGN KEY (paper_id) REFERENCES paper(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_conv_user ON conversation(user_id);
@@ -138,9 +119,11 @@ CREATE INDEX IF NOT EXISTS idx_manuscript_user ON manuscript(user_id);
 CREATE INDEX IF NOT EXISTS idx_manuscript_project ON manuscript(project_id);
 -- AI vector store: embedding = Float32Array BLOB (2048 dims). Cosine search is
 -- done in JS (row counts are small — thousands of chunks, ms-scale scans).
+-- 2026-08-21 myf: paper_id 改为 TEXT 存 pap_xxx 字符串 ID —— 元数据已迁出
+-- SQLite 到 ~/.researchos/papers/index.json，paper_chunk 不再有外键。
 CREATE TABLE IF NOT EXISTS paper_chunk (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
-  paper_id  INTEGER NOT NULL,
+  paper_id  TEXT NOT NULL,
   section   TEXT,
   content   TEXT,
   embedding BLOB

@@ -25,15 +25,15 @@ async function main(argv) {
   const [cmd, ...rest] = argv
   switch (cmd) {
     case 'analyze': {
-      const id = Number(rest[0])
-      if (!Number.isInteger(id) || id <= 0) return usage()
+      const id = String(rest[0] || '').trim()
+      if (!id) return usage()
       const r = await analyzePaper(id)
       console.log(JSON.stringify(r, null, 2))
       break
     }
     case 'cleanup': {
-      const id = Number(rest[0])
-      if (!Number.isInteger(id) || id <= 0) return usage()
+      const id = String(rest[0] || '').trim()
+      if (!id) return usage()
       const r = await cleanupPaper(id)
       console.log(JSON.stringify(r, null, 2))
       break
@@ -43,7 +43,7 @@ async function main(argv) {
       const papers = rest.find((a) => a.startsWith('--papers'))?.split('=')[1] || rest[rest.indexOf('--papers') + 1]
       const topic = rest.find((a) => a.startsWith('--topic'))?.split('=')[1] || rest[rest.indexOf('--topic') + 1]
       if (!Number.isInteger(taskId) || !papers) return usage()
-      const paperIds = papers.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
+      const paperIds = papers.split(',').map((id) => id.trim()).filter(Boolean)
       const r = await generateReview(taskId, paperIds, topic || '')
       console.log(JSON.stringify(r, null, 2))
       break

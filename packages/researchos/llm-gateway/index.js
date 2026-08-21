@@ -18,12 +18,76 @@ export const name = 'research-llm-gateway'
 
 export const inject = ['webServer']
 
-const LLM_BASE = process.env.RESEARCH_LLM_BASE_URL || 'https://ark.cn-beijing.volces.com'
-const LLM_KEY = process.env.RESEARCH_LLM_API_KEY || process.env.OPENAI_API_KEY || ''
-const LLM_MODEL = process.env.RESEARCH_LLM_MODEL || process.env.OPENAI_DEFAULT_MODEL || 'ark-code-latest'
-const EMB_BASE = process.env.RESEARCH_EMBEDDING_BASE_URL || LLM_BASE
-const EMB_KEY = process.env.RESEARCH_EMBEDDING_API_KEY || LLM_KEY
-const EMB_MODEL = process.env.RESEARCH_EMBEDDING_MODEL || process.env.EMBEDDING_MODEL || 'doubao-embedding-vision'
+// 2026-08-21 uaenamyf: 网关 key/base 在 apply() 时从 DSH settings/credentials 文件
+// 动态加载（不在模块加载期读 process.env）。原因：用户经 UI 保存配置后写
+// ~/.dsh/settings.yaml + .credentials.yaml；启动期 env 为空，请求时才读得到。
+// 同样支持 env 覆盖（CI / 外部部署场景）。
+import { readFileSync, existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
+const DSH_HOME = process.env.DSH_HOME || join(homedir(), '.dsh')
+const SETTINGS_FILE = join(DSH_HOME, 'settings.yaml')
+const CREDS_FILE = join(DSH_HOME, '.credentials.yaml')
+
+function loadSettings() {
+  if (!existsSync(SETTINGS_FILE)) return {}
+  try {
+    const raw = readFileSync(SETTINGS_FILE, 'utf8')
+    const m = raw.match(/^research:\n((?:  [^\n]+\n|\n)*)/m)
+    if (!m) return {}
+    const block = m[1]
+    const out = { llm: {}, embedding: {} }
+    for (const sec of ['llm', 'embedding']) {
+      const s = block.match(new RegExp('  ' + sec + ':\n((?:    [^\\n]+\\n|\\n)*)'))
+      if (!s) continue
+      const bu = s[1].match(/^    baseUrl:\s*['"]?([^'"\n]+)['"]?/m)
+      const mo = s[1].match(/^    model:\s*['"]?([^'"\n]+)['"]?/m)
+      if (bu) out[sec].baseUrl = bu[1].trim()
+      if (mo) out[sec].model = mo[1].trim()
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+function loadCreds() {
+  if (!existsSync(CREDS_FILE)) return {}
+  try {
+    const raw = readFileSync(CREDS_FILE, 'utf8')
+    const llm = raw.match(/^research_llm_apiKey:\s*['"]?([^'"\n]+)['"]?/m)
+    const emb = raw.match(/^research_embedding_apiKey:\s*['"]?([^'"\n]+)['"]?/m)
+    return {
+      llm: llm ? llm[1].trim() : '',
+      embedding: emb ? emb[1].trim() : '',
+    }
+  } catch {
+    return { llm: '', embedding: '' }
+  }
+}
+
+let _config = null
+function getConfig() {
+  if (_config) return _config
+  const s = loadSettings()
+  const c = loadCreds()
+  _config = {
+    llmBase: s.llm.baseUrl || process.env.RESEARCH_LLM_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ark.cn-beijing.volces.com',
+    llmKey: c.llm || process.env.RESEARCH_LLM_API_KEY || process.env.OPENAI_API_KEY || '',
+    llmModel: s.llm.model || process.env.RESEARCH_LLM_MODEL || process.env.OPENAI_DEFAULT_MODEL || 'ark-code-latest',
+    embBase: s.embedding.baseUrl || process.env.RESEARCH_EMBEDDING_BASE_URL || (s.llm.baseUrl || process.env.RESEARCH_LLM_BASE_URL || 'https://ark.cn-beijing.volces.com'),
+    embKey: c.embedding || process.env.RESEARCH_EMBEDDING_API_KEY || (c.llm || process.env.OPENAI_API_KEY || ''),
+    embModel: s.embedding.model || process.env.RESEARCH_EMBEDDING_MODEL || process.env.EMBEDDING_MODEL || 'doubao-embedding-vision',
+  }
+  return _config
+}
+const LLM_BASE = 'pending'
+const LLM_KEY = 'pending'
+const LLM_MODEL = 'pending'
+const EMB_BASE = 'pending'
+const EMB_KEY = 'pending'
+const EMB_MODEL = 'pending'
 
 // 2026-08-21 uaenamyf: 未配置 API Key 时的统一中文提示。走网关的调用（论文问答 /
 // 写作 / 综述 / 卡片）在没有系统 key 时会收到这条消息；用户在 设置 → 研究区大模型
@@ -143,7 +207,7 @@ function withModel(body, fallback) {
 
 export function apply(ctx) {
   ctx.logger.info(
-    `[research-llm-gateway] loaded — unified LLM/Embedding API (chat=${LLM_BASE}, embed=${EMB_BASE})`,
+    `[research-llm-gateway] loaded — unified LLM/Embedding API (DSH settings/credentials dynamic load)`,
   )
 
   ctx.webServer.register({
@@ -155,17 +219,18 @@ export function apply(ctx) {
       }
       if (rateLimited(clientKey(req))) return tooMany(req, res)
       // 2026-08-21 uaenamyf: 未配置系统 key 时直接提示，避免 401/502 英文报错
-      if (!LLM_KEY) return json(res, 400, { error: { message: NO_KEY_MESSAGE, type: 'config_error' } })
+      const cfg = getConfig()
+      if (!cfg.llmKey) return json(res, 400, { error: { message: NO_KEY_MESSAGE, type: 'config_error' } })
       let body
       try {
-        body = withModel(await readJson(req), LLM_MODEL)
+        body = withModel(await readJson(req), cfg.llmModel)
       } catch {
         return json(res, 400, { error: { message: 'invalid JSON body', type: 'invalid_request_error' } })
       }
       try {
-        const upstream = await fetch(`${LLM_BASE}/chat/completions`, {
+        const upstream = await fetch(`${cfg.llmBase}/chat/completions`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${LLM_KEY}` },
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.llmKey}` },
           body: JSON.stringify(body),
         })
         return relay(res, upstream)
@@ -187,17 +252,18 @@ export function apply(ctx) {
       }
       if (rateLimited(clientKey(req))) return tooMany(req, res)
       // 2026-08-21 uaenamyf: 嵌入同样检查 key
-      if (!EMB_KEY) return json(res, 400, { error: { message: NO_EMBED_KEY_MESSAGE, type: 'config_error' } })
+      const cfg = getConfig()
+      if (!cfg.embKey) return json(res, 400, { error: { message: NO_EMBED_KEY_MESSAGE, type: 'config_error' } })
       let body
       try {
-        body = withModel(await readJson(req), EMB_MODEL)
+        body = withModel(await readJson(req), cfg.embModel)
       } catch {
         return json(res, 400, { error: { message: 'invalid JSON body', type: 'invalid_request_error' } })
       }
       try {
-        const upstream = await fetch(`${EMB_BASE}/embeddings`, {
+        const upstream = await fetch(`${cfg.embBase}/embeddings`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${EMB_KEY}` },
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.embKey}` },
           body: JSON.stringify(body),
         })
         return relay(res, upstream)

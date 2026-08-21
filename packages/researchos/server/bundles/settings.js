@@ -23,19 +23,34 @@
 // @module @researchos/dsh-research-settings
 
 import jwt from 'jsonwebtoken'
+import z from '@deepseek-ai/schemastery'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { createPool } from '../../lib/db.js'
 
 export const name = 'research-settings'
 
-export const inject = ['webServer']
+// 2026-08-21 uaenamyf: 参考 DSH「设置-模型」的保存方式 —— 配置存 DSH settings
+// 文件（~/.dsh/settings.yaml 的 research 命名空间，经 ctx.settings 服务写穿），
+// apiKey 存 DSH credentials 文件（~/.dsh/.credentials.yaml，经 ctx.credentials，
+// write-only 不回显），不再埋入 SQLite 业务表。ai-worker 读同一文件。
+// 保留 SQLite app_user 兼容读取（旧数据迁移）：getUserResearchSettings 从文件
+// 优先，SQLite 兜底。
+export const inject = ['webServer', 'settings', 'credentials']
 
-const DB = {
-  host: process.env.RESEARCH_MYSQL_HOST || '127.0.0.1',
-  port: Number(process.env.RESEARCH_MYSQL_PORT || 3306),
-  user: process.env.RESEARCH_MYSQL_USER || 'researchos',
-  password: process.env.RESEARCH_MYSQL_PASSWORD || 'researchos',
-  database: process.env.RESEARCH_MYSQL_DATABASE || 'researchos',
-}
+/** Research namespace under DSH settings (~/.dsh/settings.yaml). */
+export const RESEARCH_NS = settingsNamespace('research')
+
+/** Durable research section schema (baseUrl/model are optional; keys via credentials). */
+export const ResearchSettingsSchema = z.object({
+  llm: z.object({
+    baseUrl: z.string().default(''),
+    model: z.string().default(''),
+  }).default({}),
+  embedding: z.object({
+    baseUrl: z.string().default(''),
+    model: z.string().default(''),
+  }).default({}),
+})
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -96,21 +111,6 @@ async function currentUserId(pool, req) {
   return Number(rows[0].id)
 }
 
-/** Read the settings JSON for a user; returns {} when unset. */
-async function readSettings(pool, userId) {
-  const [rows] = await pool.query('SELECT settings FROM app_user WHERE id = ?', [userId])
-  const raw = rows[0]?.settings
-  if (raw == null) return {}
-  if (typeof raw === 'string') {
-    try {
-      return JSON.parse(raw) ?? {}
-    } catch {
-      return {}
-    }
-  }
-  return raw && typeof raw === 'object' ? raw : {}
-}
-
 /** Normalize to the backend top-level shape: llm/translation/knowledge/research keys present. */
 function normalize(settings) {
   return {
@@ -124,26 +124,64 @@ function normalize(settings) {
   }
 }
 
-/** Merge non-null fields of each sub-object (mirror SettingsServiceImpl merges). */
-function mergeNonNull(current, patch) {
-  const out = { ...current }
-  for (const key of ['llm', 'translation', 'knowledge', 'research']) {
-    const sub = patch[key]
-    if (sub && typeof sub === 'object') {
-      out[key] = { ...(current[key] && typeof current[key] === 'object' ? current[key] : {}) }
-      for (const [k, v] of Object.entries(sub)) {
-        if (v !== null && v !== undefined) out[key][k] = v
-      }
-    }
+// ── plugin ─────────────────────────────────────────────────────────────────
+
+/** Credential refs for research API keys (~/.dsh/.credentials.yaml). */
+const CRED_LLM_KEY = 'research_llm_apiKey'
+const CRED_EMBED_KEY = 'research_embedding_apiKey'
+
+/** Read the research section from DSH settings; {} when unset. */
+async function readSettingsFromDsh(ctx) {
+  let research = {}
+  try {
+    const value = ctx.settings.get(RESEARCH_NS)
+    if (value && typeof value === 'object') research = value
+  } catch {
+    /* settings namespace not registered / unreadable — fall through to SQLite */
   }
-  return out
+  // apiKey 从 credentials 读（resolve 拿值，前端不回显 —— 只标记 configured）
+  try {
+    const llmKey = await ctx.credentials.resolve(CRED_LLM_KEY)
+    const embedKey = await ctx.credentials.resolve(CRED_EMBED_KEY)
+    if (llmKey?.value) research.llm = { ...(research.llm || {}) }
+    if (embedKey?.value) research.embedding = { ...(research.embedding || {}) }
+  } catch {
+    /* credentials provider unavailable — keep baseUrl/model only */
+  }
+  return research
 }
 
-// ── plugin ─────────────────────────────────────────────────────────────────
+/** Persist a research settings patch to DSH settings + credentials. */
+async function writeSettingsToDsh(ctx, research) {
+  const current = await readSettingsFromDsh(ctx)
+  const merged = { ...current, ...research }
+  // baseUrl/model → DSH settings (settings.yaml)
+  const ops = []
+  const setPath = (section, field) => {
+    const v = merged[section]?.[field]
+    ops.push({ op: v === undefined || v === null ? 'unset' : 'set', path: [section, field], value: v ?? undefined })
+  }
+  for (const section of ['llm', 'embedding']) {
+    for (const field of ['baseUrl', 'model']) setPath(section, field)
+  }
+  await ctx.settings.mutate(RESEARCH_NS, ops)
+  // apiKey → DSH credentials (credentials.yaml, write-only)
+  const llmKey = merged.llm?.apiKey
+  if (llmKey) await ctx.credentials.set(CRED_LLM_KEY, String(llmKey))
+  const embedKey = merged.embedding?.apiKey
+  if (embedKey) await ctx.credentials.set(CRED_EMBED_KEY, String(embedKey))
+}
 
 export function apply(ctx) {
   const pool = createPool()
-  ctx.logger.info(`[research-settings] loaded — user settings over MySQL app_user (${DB.user}@${DB.host}:${DB.port}/${DB.database})`)
+  ctx.logger.info('[research-settings] loaded — research config via DSH settings (settings.yaml) + credentials (.credentials.yaml)')
+
+  // 注册 research 命名空间（DSH settings 服务；重复注册会抛错，这里 try 兜底）。
+  try {
+    ctx.settings.register(RESEARCH_NS, ResearchSettingsSchema)
+  } catch (e) {
+    ctx.logger.warn(`[research-settings] namespace already registered or unavailable: ${e.message}`)
+  }
 
   ctx.webServer.register({
     kind: 'prefix',
@@ -161,7 +199,9 @@ export function apply(ctx) {
 
       try {
         if (req.method === 'GET') {
-          return ok(res, normalize(await readSettings(pool, userId)))
+          // 读：DSH settings 优先；apiKey 不回显（前端 placeholder 提示留空保持）
+          const dshResearch = await readSettingsFromDsh(ctx)
+          return ok(res, normalize({ research: dshResearch }))
         }
 
         if (req.method === 'PUT' || req.method === 'PATCH') {
@@ -169,10 +209,10 @@ export function apply(ctx) {
           if (!body || typeof body !== 'object' || Array.isArray(body)) {
             return fail(res, 400, 'settings must be a JSON object')
           }
-          const current = await readSettings(pool, userId)
-          const merged = req.method === 'PUT' ? normalize(body) : mergeNonNull(current, body)
-          await pool.query('UPDATE app_user SET settings = ? WHERE id = ?', [JSON.stringify(merged), userId])
-          return ok(res, merged)
+          const patchResearch = (body.research && typeof body.research === 'object') ? body.research : {}
+          await writeSettingsToDsh(ctx, patchResearch)
+          const after = await readSettingsFromDsh(ctx)
+          return ok(res, normalize({ research: after }))
         }
 
         return fail(res, 405, 'method not allowed')

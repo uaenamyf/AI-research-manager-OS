@@ -20,7 +20,7 @@ import css from './AppFrame.module.css'
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.overlay'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'details.research' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
 
 /** Center column grid item (session-body building block). */
@@ -198,7 +198,18 @@ export function AppFrame({
             is session-maybe; the strict details entry naturally renders
             empty while no session is current. */}
         <CenterColumn>{renderSlot('conversation', {})}</CenterColumn>
-        <DetailsColumn>{renderSlot('details', {})}</DetailsColumn>
+        {/* ResearchOS fusion: the details column hosts both the root-scope
+            research seat (paper card / search / review / writing — renders
+            without an active session) and the session-scoped tool-details
+            seat (renders empty while no session is current). The research
+            seat renders first; DetailsPanel (registered under `details`)
+            renders its own research sub-seat inside, so the two coexist:
+            `details.research` is the ResearchOS-owned column shell, `details`
+            is the conversation tool-details that appears when a call is selected. */}
+        <DetailsColumn>
+          {renderSlot('details.research', {}, { fallback: null })}
+          {renderSlot('details', {})}
+        </DetailsColumn>
       </>
       <div className={css.overlayLayer} data-shell-overlay>
         {renderSlot('shell.overlay', {})}
